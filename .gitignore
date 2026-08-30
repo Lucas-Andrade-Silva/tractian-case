@@ -32,3 +32,5 @@ CLAUDE.md
 AGENTS.md
 .vscode/
 .idea/
+results/*.jsonl
+results/*.json
