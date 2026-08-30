@@ -22,3 +22,13 @@ Thumbs.db
 
 # Logs
 *.log
+
+# AI agent tooling / personal config (not part of the case deliverable)
+.claude/
+.agents/
+.run/
+skills-lock.json
+CLAUDE.md
+AGENTS.md
+.vscode/
+.idea/
