@@ -32,5 +32,7 @@ CLAUDE.md
 AGENTS.md
 .vscode/
 .idea/
-results/*.jsonl
-results/*.json
+
+# Resultados gerados pela avaliação (traces e relatórios)
+evaluation/results/**
+!evaluation/results/.gitkeep

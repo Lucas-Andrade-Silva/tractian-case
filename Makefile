@@ -21,7 +21,8 @@ MAKEFLAGS += --no-print-directory
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup deps data agent-env up up-api up-agent up-all stop logs test clean clean-data
+.PHONY: help setup deps data agent-env up up-api up-agent up-all stop logs test clean clean-data \
+	my-setup agent-list agent-run eval eval-fast eval-report my-test
 
 help: ## Mostra esta ajuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -80,14 +81,12 @@ up-api: ## Só a API industrial (:8000) em background
 	@curl -s -o /dev/null -w "✓ API industrial em :$(API_PORT) (HTTP %{http_code})\n" http://localhost:$(API_PORT)/docs \
 		|| echo "✗ API não subiu — veja $(PID_DIR)/api.log"
 
-up-agent: up-api ## Só o agente/UI (:8001) em background (sobe a API antes se precisar)
-	@mkdir -p $(PID_DIR)
-	@if [ ! -f $(ROOT)/agent/.env ]; then echo "✗ rode 'make agent-env' e edite a API key primeiro"; exit 1; fi
-	@cd $(ROOT)/api && $(PY) $(ROOT)/agent/server.py \
-		> $(PID_DIR)/agent.log 2>&1 & echo $$! > $(PID_DIR)/agent.pid
-	$(call wait_up,$(AGENT_PORT))
-	@curl -s -o /dev/null -w "✓ Agente/UI em :$(AGENT_PORT) (HTTP %{http_code})\n" http://localhost:$(AGENT_PORT)/ \
-		|| echo "✗ Agente não subiu — veja $(PID_DIR)/agent.log"
+up-agent: up-api ## (n/a) O agente desta solução é CLI, não servidor — use `make agent-run`
+	@echo ""
+	@echo "O agente implementado aqui roda por caso (contexto autônomo com escopo), não como"
+	@echo "servidor HTTP em :$(AGENT_PORT). Use:"
+	@echo "   make agent-list              # lista os casos"
+	@echo "   make agent-run CASE=TKT-INV-04 SEED=complete"
 
 stop: ## Para API industrial e agente
 	@for f in $(PID_DIR)/api.pid $(PID_DIR)/agent.pid; do \
@@ -100,6 +99,42 @@ stop: ## Para API industrial e agente
 logs: ## Mostra logs da API e do agente (tail -f)
 	@echo "== API ==		== Agente =="
 	@tail -f $(PID_DIR)/api.log $(PID_DIR)/agent.log 2>/dev/null || echo "Sem logs — nada rodando? (make up)"
+
+# ---------------------------------------------------------------------------
+# Minha solução — agent/ (Parte 1) e evaluation/ (Parte 2)
+#
+# Venv próprio em .venv (raiz), separado do venv da API em api/.venv: as duas partes
+# têm dependências diferentes, e o material da Tractian não deve carregar as minhas.
+# ---------------------------------------------------------------------------
+MY_VENV := $(ROOT)/.venv
+MY_PY := $(shell test -f "$(MY_VENV)/Scripts/python.exe" && echo "$(MY_VENV)/Scripts/python.exe" || echo "$(MY_VENV)/bin/python")
+
+my-setup: ## Cria .venv e instala agent/ + evaluation/ (+ extra do provedor de LLM)
+	@command -v uv >/dev/null 2>&1 || { echo "Instale o uv: https://docs.astral.sh/uv/"; exit 1; }
+	@cd $(ROOT) && uv venv --python $(PYTHON) .venv
+	@cd $(ROOT) && VIRTUAL_ENV= uv pip install --python "$(MY_PY)" -e ./agent -e ./evaluation pytest
+	@echo "✓ minha solução instalada em $(MY_VENV)"
+	@echo "  falta escolher o provedor de LLM:  uv pip install --python \"$(MY_PY)\" -e \"./agent[groq]\""
+
+agent-list: ## Lista os casos de agent-input/cases.json
+	@cd $(ROOT)/agent && $(MY_PY) server.py --list
+
+agent-run: ## Roda o agente num caso (ex.: make agent-run CASE=TKT-INV-04 SEED=complete)
+	@if [ -z "$(CASE)" ]; then echo "Uso: make agent-run CASE=TKT-INV-04 [SEED=complete]"; exit 1; fi
+	@cd $(ROOT)/agent && $(MY_PY) -m app.runner --case $(CASE) $(if $(SEED),--seed $(SEED),)
+
+eval: ## Avaliação completa, 3 camadas (ex.: make eval SEEDS=s1,s2,s3)
+	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
+
+eval-fast: ## Avaliação sem os juízes LLM (camadas 1 e 3 apenas — não gasta LLM)
+	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3) --skip-judges
+
+eval-report: ## Reavalia os traces já gravados, sem rodar o agente de novo
+	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --from-traces --skip-judges
+
+my-test: ## Roda os testes da minha solução (agente + avaliação)
+	@cd $(ROOT)/agent && $(MY_PY) -m pytest -q
+	@cd $(ROOT)/evaluation && $(MY_PY) -m pytest -q
 
 # ---------------------------------------------------------------------------
 # Dev
