@@ -19,7 +19,13 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+)
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -47,6 +53,18 @@ def _text(message: AnyMessage) -> str:
         if isinstance(block, dict) and block.get("type") == "text"
     ]
     return "\n".join(p for p in parts if p).strip()
+
+
+def _clear(messages: list[AnyMessage]) -> list[RemoveMessage]:
+    """Instruções para esvaziar o scratch — o reducer `add_messages` aplica as remoções."""
+    return [RemoveMessage(id=m.id) for m in messages if getattr(m, "id", None)]
+
+
+def _findings_block(findings: list[str]) -> str:
+    """Evidência já apurada, no formato compacto que atravessa papéis."""
+    if not findings:
+        return "EVIDÊNCIA JÁ APURADA: (nenhuma ainda)"
+    return "EVIDÊNCIA JÁ APURADA:\n" + "\n".join(f"- {f}" for f in findings)
 
 
 def build_graph(
@@ -88,11 +106,15 @@ def build_graph(
             )
             return {**updates, "next_role": "decisor", "stop_reason": "budget_supervisor"}
 
+        # O Supervisor decide sobre a evidência resumida, não sobre o transcrito bruto:
+        # é o que ele precisa para rotear, e mantém o custo do roteamento constante.
         route = llm.with_structured_output(Route).invoke(
             [
                 SystemMessage(supervisor_prompt(case, user_context)),
-                *state.get("messages", []),
-                HumanMessage("Qual papel deve agir agora? Responda apenas com a rota."),
+                HumanMessage(
+                    f"{_findings_block(state.get('findings', []))}\n\n"
+                    "Qual papel deve agir agora? Responda apenas com a rota."
+                ),
             ]
         )
         trace.add_routing(turn=turn, source="supervisor", target=route.next, reason=route.reason)
@@ -107,6 +129,15 @@ def build_graph(
 
         def worker(state: CaseState) -> dict[str, Any]:
             client.current_agent = role
+            scratch = state.get("scratch", [])
+            reset: list[Any] = []
+
+            # Assumindo o scratch de outro papel: descarta o transcrito dele e começa
+            # limpo. O que o papel anterior apurou chega pelos `findings`.
+            if state.get("scratch_owner") != role:
+                reset = _clear(scratch)
+                scratch = []
+
             steps = state.get("worker_steps", 0)
             # Estourou o orçamento: chama sem tools para forçar o encerramento em texto.
             over_budget = steps >= settings.max_worker_steps
@@ -114,7 +145,8 @@ def build_graph(
 
             messages: list[AnyMessage] = [
                 SystemMessage(prompt_fn(case)),
-                *state.get("messages", []),
+                HumanMessage(_findings_block(state.get("findings", []))),
+                *scratch,
             ]
             if over_budget:
                 messages.append(
@@ -126,12 +158,19 @@ def build_graph(
             response = model.invoke(messages)
 
             if getattr(response, "tool_calls", None):
-                return {"messages": [response], "worker_steps": steps + 1}
+                return {
+                    "scratch": [*reset, response],
+                    "scratch_owner": role,
+                    "worker_steps": steps + 1,
+                }
 
             summary = _text(response) or "(sem resumo)"
             trace.add_finding(agent=role, summary=summary)
             return {
-                "messages": [response],
+                "scratch": [*reset, response],
+                # Libera o scratch: o resumo já está em `findings`, e o próximo papel a
+                # assumir descarta o transcrito em vez de carregá-lo adiante.
+                "scratch_owner": None,
                 "findings": [*state.get("findings", []), f"[{role}] {summary}"],
                 "worker_steps": 0,
             }
@@ -139,7 +178,8 @@ def build_graph(
         return worker
 
     def route_from_worker(state: CaseState) -> str:
-        last = state["messages"][-1]
+        scratch = state.get("scratch") or []
+        last = scratch[-1] if scratch else None
         return "tools" if getattr(last, "tool_calls", None) else "supervisor"
 
     # -- Decisor ----------------------------------------------------------
@@ -157,11 +197,9 @@ def build_graph(
         return {
             "decision": payload,
             "final_answer": decision.answer,
-            "messages": [
-                AIMessage(
-                    f"[decisor] resolução={decision.decision}; "
-                    f"ação={decision.intended_action}; justificativa={decision.justification}"
-                )
+            "findings": [
+                *state.get("findings", []),
+                f"[decisor] resolução={decision.decision}; ação={decision.intended_action}",
             ],
         }
 
@@ -173,13 +211,19 @@ def build_graph(
     # -- Executor ---------------------------------------------------------
     def executor(state: CaseState) -> dict[str, Any]:
         client.current_agent = "executor"
+        scratch = state.get("scratch", [])
+        reset: list[Any] = []
+        if state.get("scratch_owner") != "executor":
+            reset = _clear(scratch)
+            scratch = []
+
         steps = state.get("worker_steps", 0)
         over_budget = steps >= settings.max_worker_steps
         model = llm if over_budget else llm.bind_tools(action_tools)
 
         messages: list[AnyMessage] = [
             SystemMessage(executor_prompt(case, state.get("decision") or {})),
-            *state.get("messages", []),
+            *scratch,
         ]
         if over_budget:
             messages.append(
@@ -188,16 +232,22 @@ def build_graph(
         response = model.invoke(messages)
 
         if getattr(response, "tool_calls", None):
-            return {"messages": [response], "worker_steps": steps + 1}
+            return {
+                "scratch": [*reset, response],
+                "scratch_owner": "executor",
+                "worker_steps": steps + 1,
+            }
 
         return {
-            "messages": [response],
+            "scratch": [*reset, response],
+            "scratch_owner": None,
             "final_answer": _text(response) or state.get("final_answer"),
             "worker_steps": 0,
         }
 
     def route_from_executor(state: CaseState) -> str:
-        last = state["messages"][-1]
+        scratch = state.get("scratch") or []
+        last = scratch[-1] if scratch else None
         return "tools" if getattr(last, "tool_calls", None) else END
 
     # -- Montagem ---------------------------------------------------------
@@ -205,12 +255,12 @@ def build_graph(
 
     graph.add_node("supervisor", supervisor)
     graph.add_node("investigador", make_worker("investigador", investigation_tools, investigator_prompt))
-    graph.add_node("investigador_tools", ToolNode(investigation_tools))
+    graph.add_node("investigador_tools", ToolNode(investigation_tools, messages_key="scratch"))
     graph.add_node("contextualizador", make_worker("contextualizador", knowledge_tools, contextualizer_prompt))
-    graph.add_node("contextualizador_tools", ToolNode(knowledge_tools))
+    graph.add_node("contextualizador_tools", ToolNode(knowledge_tools, messages_key="scratch"))
     graph.add_node("decisor", decisor)
     graph.add_node("executor", executor)
-    graph.add_node("executor_tools", ToolNode(action_tools))
+    graph.add_node("executor_tools", ToolNode(action_tools, messages_key="scratch"))
 
     graph.add_edge(START, "supervisor")
     graph.add_conditional_edges(

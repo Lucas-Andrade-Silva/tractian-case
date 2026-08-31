@@ -232,6 +232,60 @@ def test_diverging_decision_is_unstable():
     assert result.agreement_rate == pytest.approx(2 / 3, abs=0.01)
 
 
+def test_all_runs_failed_is_not_reported_as_stable():
+    """Regressão: 'nunca concluiu' não é 'concluiu sempre igual'.
+
+    Uma rodada em que 100% das execuções quebraram chegou a ser reportada como 100% de
+    estabilidade, porque o conjunto de decisões distintas ficava vazio. Estabilidade só
+    é medível sobre execuções que produziram alguma resolução.
+    """
+    traces = [
+        make_trace("case_tkt_exe_12", decision=None, path=[], seed=s, error="RateLimitError: 429")
+        for s in ("s1", "s2", "s3")
+    ]
+
+    result = evaluate_stability(traces)
+
+    assert result.measurable is False
+    assert result.stable is None
+    assert result.agreement_rate is None
+    assert result.successful_runs == 0
+
+
+def test_report_excludes_unmeasurable_cases_from_stability_rate():
+    """Casos que nunca concluíram não podem inflar a taxa de estabilidade."""
+    broken = evaluate_stability(
+        [make_trace("case_tkt_inv_04", decision=None, path=[], seed=s, error="boom") for s in ("s1", "s2")]
+    )
+    fine = evaluate_stability(
+        [make_trace("case_tkt_exe_12", decision="agir", path=[], seed=s) for s in ("s1", "s2")]
+    )
+
+    report = build_report(deterministic=[], judged={}, stability=[broken, fine], meta={})
+    layer3 = report["layer3_stability"]
+
+    assert layer3["cases"] == 2
+    assert layer3["measurable_cases"] == 1
+    assert layer3["unmeasurable_cases"] == 1
+    assert layer3["stability_rate"] == 1.0  # sobre o único caso medível, não sobre os dois
+
+
+def test_partial_failures_measure_agreement_over_successful_runs_only():
+    """Com 2 de 3 execuções quebradas, a concordância é sobre as que concluíram."""
+    traces = [
+        make_trace("case_tkt_exe_12", decision="agir", path=[], seed="s1"),
+        make_trace("case_tkt_exe_12", decision=None, path=[], seed="s2", error="boom"),
+        make_trace("case_tkt_exe_12", decision=None, path=[], seed="s3", error="boom"),
+    ]
+
+    result = evaluate_stability(traces)
+
+    assert result.measurable
+    assert result.successful_runs == 1
+    assert result.agreement_rate == 1.0
+    assert result.stable is True
+
+
 def test_trajectory_variation_alone_does_not_make_it_unstable():
     """Investigar em ordens/caminhos diferentes e concluir igual NÃO é instabilidade."""
     traces = [

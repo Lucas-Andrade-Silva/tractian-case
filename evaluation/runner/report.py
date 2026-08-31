@@ -55,14 +55,21 @@ def build_report(
             "distribution": {str(n): scores.count(n) for n in range(1, 6)},
         }
 
+    # Só casos com ao menos uma execução bem-sucedida entram nas taxas de estabilidade:
+    # incluir os que nunca concluíram inflaria a métrica com casos não medidos.
+    measurable = [s for s in stability if s.measurable]
     layer3 = {
         "cases": len(stability),
-        "stable_cases": sum(1 for s in stability if s.stable),
-        "stability_rate": _rate([s.stable for s in stability]),
-        "agreement_rate_mean": _mean([s.agreement_rate for s in stability]),
+        "measurable_cases": len(measurable),
+        "unmeasurable_cases": len(stability) - len(measurable),
+        "stable_cases": sum(1 for s in measurable if s.stable),
+        "stability_rate": _rate([bool(s.stable) for s in measurable]),
+        "agreement_rate_mean": _mean([s.agreement_rate for s in measurable if s.agreement_rate is not None]),
         "trajectory_variation_mean": _mean([s.trajectory_variation for s in stability]),
         "unstable": [
-            {"case_id": s.case_id, "decisions": s.distinct_decisions} for s in stability if not s.stable
+            {"case_id": s.case_id, "decisions": s.distinct_decisions}
+            for s in measurable
+            if not s.stable
         ],
     }
 
@@ -96,8 +103,16 @@ def print_summary(report: dict[str, Any]) -> None:
     print(f"conjunto: {report['meta'].get('suite')}   modelo: {report['meta'].get('model')}")
     print(f"casos: {report['meta'].get('cases')}   seeds: {report['meta'].get('seeds')}")
 
+    # Falha de execução em massa invalida a leitura de tudo que vem abaixo: sem isso em
+    # destaque, é fácil ler as camadas seguintes como se medissem o agente.
+    failures = l1["execution_failures"]
+    if failures:
+        share = failures / l1["runs"] if l1["runs"] else 0
+        print(f"\n!! {failures}/{l1['runs']} execuções FALHARAM ({share:.0%}) — as métricas abaixo")
+        print("   cobrem apenas as execuções que concluíram. Verifique `error` nos traces.")
+
     print("\n-- Camada 1 — determinística " + "-" * 37)
-    print(f"  execuções:                    {l1['runs']} ({l1['execution_failures']} falharam)")
+    print(f"  execuções:                    {l1['runs']} ({failures} falharam)")
     print(f"  acurácia da decisão:          {_pct(l1['decision_accuracy'])}")
     print(f"  aprovação determinística:     {_pct(l1['deterministic_pass_rate'])}")
     print(f"  recall de evidência (médio):  {_pct(l1['evidence_recall_mean'])}")
@@ -113,7 +128,9 @@ def print_summary(report: dict[str, Any]) -> None:
         print(f"  {data['title']:<32} {score if score is not None else '—'}/5  (n={data['judged_runs']})")
 
     print("\n-- Camada 3 — estabilidade entre seeds " + "-" * 27)
-    print(f"  casos estáveis:               {l3['stable_cases']}/{l3['cases']}  ({_pct(l3['stability_rate'])})")
+    if l3["unmeasurable_cases"]:
+        print(f"  NÃO MEDIDO em {l3['unmeasurable_cases']}/{l3['cases']} casos (nenhuma execução concluiu)")
+    print(f"  casos estáveis:               {l3['stable_cases']}/{l3['measurable_cases']}  ({_pct(l3['stability_rate'])})")
     print(f"  concordância média:           {_pct(l3['agreement_rate_mean'])}")
     print(f"  variação de trajetória:       {_pct(l3['trajectory_variation_mean'])} (reportada, não penalizada)")
     for unstable in l3["unstable"]:

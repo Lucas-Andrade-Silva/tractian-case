@@ -1,0 +1,66 @@
+[
+  {
+    "id": "case_hold_01",
+    "ticket_id": "HOLD-01",
+    "company_id": "comp_mineracao_andes",
+    "user_id": "usr_pedro",
+    "asset_id": "asset_C510",
+    "message": "O britador cônico é o ativo mais crítico da planta e até hoje não recebi diagnóstico nenhum dele. O sistema de vocês não cobre esse tipo de máquina?"
+  },
+  {
+    "id": "case_hold_02",
+    "ticket_id": "HOLD-02",
+    "company_id": "comp_aurora",
+    "user_id": "usr_lucas",
+    "asset_id": "asset_B211",
+    "message": "A bomba de refrigerante parou de dar diagnóstico depois que trocamos o inversor dela. Reprocessa a análise pra voltar ao normal."
+  },
+  {
+    "id": "case_hold_03",
+    "ticket_id": "HOLD-03",
+    "company_id": "comp_cimento_vale",
+    "user_id": "usr_carla",
+    "asset_id": "asset_F215",
+    "message": "A vibração do ventilador do forno está em 3,5 mm/s. Pela ISO 10816 isso já cai na zona C, então é alarme. Preciso parar a máquina?"
+  },
+  {
+    "id": "case_hold_04",
+    "ticket_id": "HOLD-04",
+    "company_id": "comp_acme",
+    "user_id": "usr_bruno",
+    "asset_id": "asset_M428",
+    "message": "Instalamos esse motor de mesa faz pouco tempo e ele não gera diagnóstico nenhum. O sensor veio com defeito?"
+  },
+  {
+    "id": "case_hold_05",
+    "ticket_id": "HOLD-05",
+    "company_id": "comp_acme",
+    "user_id": "usr_bruno",
+    "asset_id": "asset_S425",
+    "message": "O spindle secundário tá fazendo o mesmo barulho que o S-420 fazia antes de dar pau. Qual é a falha dele?"
+  },
+  {
+    "id": "case_hold_06",
+    "ticket_id": "HOLD-06",
+    "company_id": "comp_forja_br",
+    "user_id": "usr_ana",
+    "asset_id": "asset_F115",
+    "message": "O ventilador de resfriamento virou gargalo da linha de forjamento — se ele parar, a linha para. Sobe a criticidade dele para high."
+  },
+  {
+    "id": "case_hold_07",
+    "ticket_id": "HOLD-07",
+    "company_id": "comp_cimento_vale",
+    "user_id": "usr_carla",
+    "asset_id": "asset_X216",
+    "message": "O misturador de cru saiu da rota crítica depois da mudança de processo. Rebaixa a criticidade dele para low."
+  },
+  {
+    "id": "case_hold_08",
+    "ticket_id": "HOLD-08",
+    "company_id": "comp_aurora",
+    "user_id": "usr_lucas",
+    "asset_id": "asset_B211",
+    "message": "O sensor da bomba de refrigerante tá degradado e não dá pra resolver isso remoto. Encaminha pra um técnico ir em campo."
+  }
+]

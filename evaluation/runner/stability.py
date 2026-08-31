@@ -11,7 +11,7 @@ sendo ora orientado, ora escalado.
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any
+from typing import Any  # noqa: F401  (usado nas anotações de evaluate_stability)
 
 from pydantic import BaseModel, Field
 
@@ -21,11 +21,21 @@ class StabilityResult(BaseModel):
 
     case_id: str
     runs: int
+    successful_runs: int = Field(
+        description="Execuções que produziram uma resolução; só elas podem ser comparadas."
+    )
     decisions: list[str | None]
     distinct_decisions: list[str]
     majority_decision: str | None
-    agreement_rate: float = Field(description="Fração das execuções que ficaram na decisão majoritária.")
-    stable: bool
+    agreement_rate: float | None = Field(
+        description="Fração das execuções bem-sucedidas na decisão majoritária. None se nada concluiu."
+    )
+    measurable: bool = Field(
+        description="Houve ao menos uma execução bem-sucedida? Sem isso, estabilidade não é medível."
+    )
+    stable: bool | None = Field(
+        description="None quando não medível — 'não concluiu nada' não é o mesmo que 'concluiu sempre igual'."
+    )
     trajectory_variation: float = Field(
         description="Variação de trajetória entre execuções — reportada, não penalizada."
     )
@@ -39,9 +49,12 @@ def evaluate_stability(traces: list[dict[str, Any]]) -> StabilityResult:
     case_id = traces[0].get("case_id", "")
     decisions = [t.get("decision") for t in traces]
     counts = Counter(d for d in decisions if d is not None)
+    successful = sum(counts.values())
 
     majority, majority_count = (counts.most_common(1)[0] if counts else (None, 0))
-    agreement = majority_count / len(decisions) if decisions else 0.0
+    # A concordância é sobre o que de fato concluiu. Dividir pelo total de execuções
+    # misturaria "divergiu" com "quebrou", que são falhas diferentes.
+    agreement = majority_count / successful if successful else None
 
     # Trajetória: quantos conjuntos de chamadas distintos apareceram.
     trajectories = {tuple(sorted(set(t.get("path_taken", [])))) for t in traces}
@@ -50,11 +63,15 @@ def evaluate_stability(traces: list[dict[str, Any]]) -> StabilityResult:
     return StabilityResult(
         case_id=case_id,
         runs=len(traces),
+        successful_runs=successful,
         decisions=decisions,
         distinct_decisions=sorted(counts),
         majority_decision=majority,
-        agreement_rate=round(agreement, 3),
-        # Estável = uma única resolução em todas as execuções bem-sucedidas.
-        stable=len(counts) <= 1,
+        agreement_rate=round(agreement, 3) if agreement is not None else None,
+        measurable=successful > 0,
+        # Estável = uma única resolução entre as execuções bem-sucedidas. Sem nenhuma
+        # execução bem-sucedida não há o que comparar: o resultado é "não medido", e
+        # tratá-lo como estável reportaria 100% de estabilidade num agente que só falhou.
+        stable=(len(counts) <= 1) if successful else None,
         trajectory_variation=round(variation, 3),
     )

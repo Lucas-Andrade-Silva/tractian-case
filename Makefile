@@ -22,7 +22,7 @@ MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
 .PHONY: help setup deps data agent-env up up-api up-agent up-all stop logs test clean clean-data \
-	my-setup agent-list agent-run eval eval-fast eval-report my-test
+	my-setup agent-list agent-run eval eval-fast eval-report holdout-audit holdout my-test
 
 help: ## Mostra esta ajuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -131,6 +131,12 @@ eval-fast: ## Avaliação sem os juízes LLM (camadas 1 e 3 apenas — não gast
 
 eval-report: ## Reavalia os traces já gravados, sem rodar o agente de novo
 	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --from-traces --skip-judges
+
+holdout-audit: ## Auditoria mecânica do holdout contra a API real (ADR 0006)
+	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.holdout
+
+holdout: ## Avalia o agente no holdout (teste final — não usar durante o ajuste)
+	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --suite holdout --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
 
 my-test: ## Roda os testes da minha solução (agente + avaliação)
 	@cd $(ROOT)/agent && $(MY_PY) -m pytest -q

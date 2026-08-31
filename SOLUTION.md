@@ -104,6 +104,14 @@ O provedor é isolado em [`agent/app/llm.py`](./agent/app/llm.py) — trocar de 
 comparar dois no experimento, é mudar `.env` sem tocar em mais nada. Suportados: `groq`,
 `openai` (extras opcionais no `pyproject.toml`).
 
+| Papel | Provedor | Modelo | Por quê |
+| :--- | :--- | :--- | :--- |
+| Agente | groq | `openai/gpt-oss-120b` | Maior modelo disponível na conta com tool calling + structured output, ambos exigidos pelo grafo |
+| Juiz (camada 2) | groq | `qwen/qwen3.8-27b` | **Família diferente** do agente, para evitar viés de auto-preferência (ADR 0005) |
+
+Ambos validados por smoke test: structured output e tool calling confirmados contra a API
+da Groq antes de qualquer execução de caso.
+
 `temperature=0.0` por padrão, no agente e nos juízes: a camada 3 mede estabilidade entre
 execuções, e variação amostral do decoder seria confundida com instabilidade do agente.
 
@@ -136,6 +144,8 @@ Ainda não há resultados com modelo real. O que já está verificado:
 | Integração HTTP + tools contra a API real | 9 passando |
 | Cabeamento do grafo, orçamentos, ADR 0002 e ADR 0003 | 5 passando |
 | Camadas 1 e 3 da avaliação + relatório | 21 passando |
+| Holdout: integridade, disjunção e auditoria | 9 passando |
+| Auditoria mecânica do holdout contra a API real | 41/41 asserções, 8/8 cenários |
 | Pipeline de avaliação de ponta a ponta | verificado com traces reais do grafo |
 
 ## 8. Limitações
@@ -149,13 +159,18 @@ Ainda não há resultados com modelo real. O que já está verificado:
   teste que exige uma entrada por caso do gabarito.
 - **Camada 2 depende de LLM** — juízes LLM têm variância e viés próprios; a rubrica e o
   `temperature=0` mitigam, não eliminam.
-- **Sem holdout ainda** ([ADR 0006](./docs/adr/0006-holdout-sintetico-auditado.md)): os números atuais
-  medem desempenho no conjunto de desenvolvimento, sujeito à Lei de Goodhart.
+- **Holdout desbalanceado** (5 orientar · 2 agir · 1 escalar): os ativos livres nos
+  parquets são majoritariamente saudáveis e o ADR 0006 proíbe estendê-los. A acurácia de
+  decisão no holdout não deve ser lida isoladamente — detalhes e mitigação em
+  [`evaluation/holdout/README.md`](./evaluation/holdout/README.md).
+- **Escalonamento bem-sucedido não é testável no holdout**: a API valida permissão antes
+  de procurar o caso, e casos de holdout não existem em `data/cases.parquet` (404). Só o
+  caminho 403 é observável.
 - **`escalate_case` opera sobre o caso da sessão**, coerente com o contrato da API.
 
 ## 9. Pendências
 
-1. Escolher o provedor de LLM e preencher `agent/.env` (Groq previsto).
-2. Rodar os 17 casos × ≥3 seeds e produzir o primeiro relatório real.
-3. Construir o holdout sintético auditado (ADR 0006).
-4. Rodar o experimento da hipótese (multiagente × agente único) e escrever a análise.
+1. Rodar os 17 casos × ≥3 seeds e produzir o primeiro relatório real (golden set).
+2. Calibrar o comitê de juízes: conferir à mão algumas notas antes de confiar nas médias.
+3. Rodar o experimento da hipótese (multiagente × agente único) e escrever a análise.
+4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.

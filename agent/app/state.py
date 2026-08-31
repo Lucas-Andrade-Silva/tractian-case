@@ -61,15 +61,26 @@ class Decision(BaseModel):
 
 
 class CaseState(TypedDict, total=False):
-    """Estado que atravessa o grafo durante o atendimento de um caso."""
+    """Estado que atravessa o grafo durante o atendimento de um caso.
+
+    A separação entre `scratch` e `findings` é o que mantém o custo de contexto sob
+    controle. O transcrito bruto de tool calls (`scratch`) pertence ao papel que está
+    trabalhando e é descartado quando o Supervisor troca de papel; o que atravessa
+    fronteiras é o resumo (`findings`). Compartilhar o transcrito entre todos os papéis
+    faria cada chamada carregar o trabalho de todos os anteriores — crescimento que
+    estoura o limite de tokens por requisição e ainda dilui o que importa.
+    """
 
     case: dict[str, Any]
     # Contexto de autorização, estabelecido uma única vez pelo Supervisor.
     user_context: dict[str, Any] | None
-    messages: Annotated[list[AnyMessage], add_messages]
-    # Resumo que cada worker deixa ao encerrar sua apuração — o que o Decisor lê.
+    # Janela de trabalho do papel atual: suas próprias tool calls e observações.
+    scratch: Annotated[list[AnyMessage], add_messages]
+    # Resumo que cada worker deixa ao encerrar sua apuração — o que atravessa papéis.
     findings: list[str]
     next_role: str | None
+    # Papel que ocupou o scratch por último, para saber quando limpá-lo.
+    scratch_owner: str | None
     decision: dict[str, Any] | None
     final_answer: str | None
     supervisor_turns: int

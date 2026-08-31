@@ -96,10 +96,14 @@ falha diferentes, com correções diferentes.
 
 ## Holdout
 
-A [ADR 0006](../docs/adr/0006-holdout-sintetico-auditado.md) define holdout com cenários sintéticos
-novos, auditados mecanicamente contra a API antes de entrar no conjunto — em vez de
-dividir os 16 originais, que cobrem facetas não-redundantes do domínio. **Ainda não
-implementado** (ver `SOLUTION.md`).
+Implementado em [`holdout/`](holdout/) — 8 cenários novos sobre ativos que nenhum cenário
+original toca, todos auditados mecanicamente contra a API real (41/41 asserções). Detalhes,
+tabela de facetas e limitações: [`holdout/README.md`](holdout/README.md).
+
+```bash
+make holdout-audit    # confirma que os dados sustentam os cenários
+make holdout          # avalia o agente no holdout (teste final)
+```
 
 ## Testes
 

@@ -70,11 +70,20 @@ class GoldenCase:
     mode: str
     expected_path: list[str]
     expected_notes: dict[str, str]
+    # Preenchido pelo holdout, que declara as resoluções no próprio JSON (é material
+    # meu, então não depende de transcrição). Vazio para o gabarito da Tractian.
+    declared_decisions: frozenset[str] | None = None
+    facet: str = ""
 
     @property
     def accepted_decisions(self) -> frozenset[str]:
-        """Resoluções que o cenário aceita. Cai na derivação por trajetória se não mapeado
-        (útil para cenários do holdout, que não estão na tabela)."""
+        """Resoluções que o cenário aceita.
+
+        Ordem de precedência: o que o próprio cenário declara (holdout) → a tabela
+        transcrita dos cenários da Tractian → derivação pela trajetória (último recurso).
+        """
+        if self.declared_decisions:
+            return self.declared_decisions
         mapped = ACCEPTED_DECISIONS.get(self.case_id)
         return mapped if mapped else frozenset({self._decision_from_trajectory()})
 

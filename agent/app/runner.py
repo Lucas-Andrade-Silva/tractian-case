@@ -13,8 +13,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from langchain_core.messages import HumanMessage
-
 from .api_client import ApiClient
 from .config import Settings, load_settings
 from .graph import build_graph
@@ -84,7 +82,9 @@ def run_case(
             final_state = graph.invoke(
                 {
                     "case": case,
-                    "messages": [HumanMessage(case["message"])],
+                    # A mensagem do cliente já vai no prompt de cada papel (bloco do
+                    # caso); o scratch começa vazio e pertence ao papel que trabalhar.
+                    "scratch": [],
                     "findings": [],
                     "supervisor_turns": 0,
                     "worker_steps": 0,

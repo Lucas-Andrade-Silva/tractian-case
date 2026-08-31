@@ -101,11 +101,9 @@ def client(trace: Trace):
 
 
 def _initial_state():
-    from langchain_core.messages import HumanMessage
-
     return {
         "case": CASE,
-        "messages": [HumanMessage(CASE["message"])],
+        "scratch": [],
         "findings": [],
         "supervisor_turns": 0,
         "worker_steps": 0,

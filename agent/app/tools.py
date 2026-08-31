@@ -19,15 +19,18 @@ from langchain_core.tools import StructuredTool
 
 from .api_client import ApiClient
 
-# Séries longas viram ruído no contexto; acima disso reamostramos preservando extremos.
-_MAX_SAMPLES_INLINE = 30
+# Pontos da série mantidos no retorno. A série bruta é o maior item de contexto que uma
+# tool devolve, e ela fica no histórico do papel até ele encerrar: manter as 30 amostras
+# custa ~400 tokens por chamada para uma informação que o `summary` já carrega.
+_SAMPLES_KEPT = 6
 
 
 def _summarize_rms(data: dict[str, Any]) -> dict[str, Any]:
     """Condensa a série de RMS sem esconder a evidência que decide o caso.
 
-    Mantém os campos originais e acrescenta um resumo — inclusive se o limiar de alarme
-    (derivado do baseline) foi ultrapassado, que é a evidência central de vários cenários.
+    O `summary` preserva o que os cenários realmente usam — tendência, extremos e se o
+    limiar derivado do baseline foi ultrapassado. Os pontos individuais só entram em
+    número suficiente para o agente perceber o formato da curva.
     """
     samples = data.get("samples")
     if not isinstance(samples, list) or not samples:
@@ -50,12 +53,16 @@ def _summarize_rms(data: dict[str, Any]) -> dict[str, Any]:
         summary["exceeds_alarm_threshold"] = max(values) > threshold
 
     out = {**data, "summary": summary}
-    if len(samples) > _MAX_SAMPLES_INLINE:
-        stride = len(samples) // _MAX_SAMPLES_INLINE + 1
-        out["samples"] = samples[::stride]
+    if len(samples) > _SAMPLES_KEPT:
+        stride = max(1, len(samples) // _SAMPLES_KEPT)
+        kept = samples[::stride][:_SAMPLES_KEPT]
+        # O último ponto é o estado atual do ativo: não pode cair na reamostragem.
+        if kept[-1] is not samples[-1]:
+            kept[-1] = samples[-1]
+        out["samples"] = kept
         out["samples_note"] = (
-            f"Série reamostrada para leitura: {len(out['samples'])} de {len(samples)} pontos "
-            f"(1 a cada {stride}). Use `summary` para extremos e limiar."
+            f"{len(kept)} de {len(samples)} pontos, amostrados ao longo da série "
+            "(último ponto preservado). Extremos e limiar estão em `summary`."
         )
     return out
 
@@ -127,11 +134,10 @@ def investigation_tools(client: ApiClient) -> list[StructuredTool]:
             get_asset,
             name="get_asset",
             description=(
-                "Cadastro do ativo: criticidade, hierarquia, configuração técnica "
-                "(machine_type, rotation_rpm, bearing_specs, line_frequency_hz) e os pontos de "
-                "medição com sensor_status (online/offline/degraded). Comece por aqui: o "
-                "machine_type e o rotation_rpm definem o que o modelo consegue cobrir, e um "
-                "sensor offline/degraded costuma explicar ausência de dados."
+                "Cadastro do ativo: criticidade, hierarquia, config técnica (machine_type, "
+                "rotation_rpm, bearing_specs) e pontos com sensor_status. Comece por aqui: "
+                "machine_type define a cobertura do modelo; sensor offline/degraded explica "
+                "ausência de dados."
             ),
         ),
         StructuredTool.from_function(
@@ -148,72 +154,62 @@ def investigation_tools(client: ApiClient) -> list[StructuredTool]:
             list_analyses,
             name="list_analyses",
             description=(
-                "Análises (insights) do ativo. Filtro opcional `status`: current, stale, pending "
-                "ou inconclusive. 'pending' indica insight ainda não emitido (ver processing_state "
-                "do modelo); 'stale' indica insight desatualizado, típico após manutenção."
+                "Análises (insights) do ativo. `status` opcional: current, stale, pending, "
+                "inconclusive. 'pending' = ainda não emitido (ver processing_state do modelo); "
+                "'stale' = desatualizado, típico após manutenção."
             ),
         ),
         StructuredTool.from_function(
             get_analysis,
             name="get_analysis",
             description=(
-                "Detalhe de uma análise: tipo de falha, severidade, confiança, evidência métrica, "
-                "limitations, model_version, detection_mode e baseline_state_at_detection. Use para "
-                "julgar se um insight é confiável — um insight detectado com baseline em learning "
-                "ou invalidated tem valor limitado quando detection_mode=baseline."
+                "Detalhe da análise: tipo, severidade, confiança, evidência, limitations, "
+                "model_version, detection_mode e baseline_state_at_detection. Use para julgar "
+                "se o insight é confiável."
             ),
         ),
         StructuredTool.from_function(
             get_baseline,
             name="get_baseline",
             description=(
-                "Baseline do ativo/ponto: o estado normal aprendido do próprio ativo. `state` é "
-                "learning (histórico insuficiente), established (utilizável) ou invalidated (após "
-                "manutenção/mudança de config, exige reaprendizado). `detection_mode` é baseline "
-                "(detecção por desvio, exige established) ou symptom (detecção sintomática, ex.: "
-                "lubrificação, independe de baseline). Inspecione ANTES de confiar num insight "
-                "de detection_mode=baseline."
+                "Baseline do ativo/ponto: state (learning/established/invalidated), detection_mode, "
+                "learnable, invalidation_reason e features (reference+tolerance). Inspecione "
+                "ANTES de confiar num insight de detection_mode=baseline."
             ),
         ),
         StructuredTool.from_function(
             get_rms,
             name="get_rms",
             description=(
-                "Série temporal de RMS de vibração, com baseline_reference, baseline_state e "
-                "alarm_threshold. ATENÇÃO: o alarm_threshold é derivado do baseline do próprio "
-                "ativo (referência + tolerância) — não é norma ISO nem tabela fixa por classe de "
-                "máquina. Retorna também um `summary` com máximo, tendência e se o limiar foi "
-                "ultrapassado."
+                "Série de RMS com baseline_reference, baseline_state e alarm_threshold (derivado "
+                "do baseline do ativo, NÃO de norma ISO). Traz `summary` com máximo, tendência "
+                "e se o limiar foi ultrapassado."
             ),
         ),
         StructuredTool.from_function(
             get_spectrum,
             name="get_spectrum",
             description=(
-                "Espectro FFT simplificado: picos por frequência com anotação. Frequências "
-                "características: 1x = desbalanceamento, 2x = desalinhamento, BPFO/BPFI/BSF/FTF = "
-                "falha de rolamento, 2x frequência de linha = falha elétrica. Em modo partial vem "
-                "`bands_missing` — bandas ausentes podem impedir a conclusão."
+                "Espectro FFT: picos por frequência com anotação (1x, 2x, BPFO...). Em modo "
+                "partial vem `bands_missing` — bandas ausentes podem impedir a conclusão."
             ),
         ),
         StructuredTool.from_function(
             get_data_quality,
             name="get_data_quality",
             description=(
-                "Qualidade e frescor do sinal: completeness, snr_db, freshness_minutes e "
-                "staleness_flag. Sempre compare com os `requirements` do modelo (get_model) em vez "
-                "de julgar isoladamente — é isso que separa 'dados ruins' de 'modelo atrasado'."
+                "Qualidade do sinal: completeness, snr_db, freshness_minutes, staleness_flag. "
+                "Compare com os `requirements` do modelo (get_model) — é o que separa 'dados "
+                "ruins' de 'modelo atrasado'."
             ),
         ),
         StructuredTool.from_function(
             get_model,
             name="get_model",
             description=(
-                "Modelo de diagnóstico: version, coverage por machine_type (supported e "
-                "can_learn_baseline), requirements (min_completeness, min_snr_db, min_rotation_rpm) "
-                "e processing_state (idle/running/pending/delayed/failed). Use o model_version que "
-                "aparece numa análise como id. processing_state=delayed explica insight ausente sem "
-                "que os dados sejam ruins."
+                "Modelo: version, coverage por machine_type (supported, can_learn_baseline), "
+                "requirements e processing_state. Id típico: mdl_vib_v3. "
+                "processing_state=delayed explica insight ausente sem que os dados sejam ruins."
             ),
         ),
     ]
@@ -236,10 +232,8 @@ def knowledge_tools(client: ApiClient) -> list[StructuredTool]:
             search_knowledge,
             name="search_knowledge",
             description=(
-                "Busca na base de conhecimento por texto livre `q`. Filtro opcional `type`: "
-                "procedure (passo a passo de manutenção), glossary (definição de termo técnico, "
-                "ex.: BPFO) ou guidance (orientação de suporte). Use quando a pergunta pede "
-                "explicação, procedimento ou definição — não dados de sensor."
+                "Busca na base de conhecimento por `q`. `type` opcional: procedure, glossary, "
+                "guidance. Use quando a pergunta pede explicação, procedimento ou definição."
             ),
         ),
         StructuredTool.from_function(
@@ -287,46 +281,40 @@ def action_tools(client: ApiClient, case_id: str) -> list[StructuredTool]:
             reprocess_analysis,
             name="reprocess_analysis",
             description=(
-                "Reprocessa uma análise. Exige permissão action_low. Use quando a evidência "
-                "indicar que o insight está desatualizado ou não foi emitido por atraso do modelo "
-                "— não para insatisfação genérica com o resultado."
+                "Reprocessa uma análise. Exige action_low. Use quando o insight está desatualizado "
+                "ou não foi emitido por atraso do modelo — não por insatisfação genérica."
             ),
         ),
         StructuredTool.from_function(
             request_specialist_analysis,
             name="request_specialist_analysis",
             description=(
-                "Solicita análise de um especialista humano da Tractian sobre a análise indicada. "
-                "Exige permissão action_low. É uma ação técnica interna (categoria 'agir'), NÃO é "
-                "o mesmo que escalar o caso para atendimento em campo."
+                "Solicita análise de especialista Tractian sobre a análise indicada. Exige "
+                "action_low. É ação técnica interna ('agir'), NÃO é escalar para campo."
             ),
         ),
         StructuredTool.from_function(
             request_retraining,
             name="request_retraining",
             description=(
-                "Solicita retreinamento do modelo. Ação de ALTO impacto: exige permissão "
-                "action_high e justificativa forte, baseada em evidência de erro sistemático do "
-                "modelo — não em uma única discordância pontual."
+                "Solicita retreinamento do modelo. ALTO impacto: exige action_high e evidência de "
+                "erro sistemático do modelo, não uma discordância pontual."
             ),
         ),
         StructuredTool.from_function(
             update_asset_config,
             name="update_asset_config",
             description=(
-                "Altera configuração técnica ou criticidade do ativo. Ação de ALTO impacto: exige "
-                "permissão action_high. `changes` aceita {'criticality': low|medium|high|critical} "
-                "e/ou {'config': {...}}."
+                "Altera config técnica ou criticidade do ativo. ALTO impacto: exige action_high. "
+                "`changes` aceita {'criticality': low|medium|high|critical} e/ou {'config': {...}}."
             ),
         ),
         StructuredTool.from_function(
             escalate_case,
             name="escalate_case",
             description=(
-                "Encaminha ESTE caso para análise humana. Exige permissão escalate. Use quando o "
-                "caso extrapola o atendimento remoto (ex.: exige intervenção física em campo). "
-                "Não use como saída segura para casos resolvíveis remotamente — escalar demais é "
-                "tratado como erro do agente."
+                "Encaminha ESTE caso para análise humana. Exige permissão escalate. Use só quando o "
+                "caso extrapola o remoto (ex.: intervenção física). Escalar demais é erro."
             ),
         ),
     ]
