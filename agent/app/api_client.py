@@ -36,6 +36,11 @@ class ApiClient:
         self.trace = trace
         # Qual papel está chamando agora; os nós do grafo atualizam antes de agir.
         self.current_agent = "supervisor"
+        # Cache de consultas desta execução. O prompt pede que o agente não repita
+        # chamadas, mas prompt não é garantia: um GET repetido custa uma volta inteira de
+        # LLM (~1.900 tokens de prompt + schemas) para devolver um dado já conhecido.
+        # Ações (POST/PATCH) nunca entram aqui — repeti-las tem efeito real.
+        self._query_cache: dict[str, dict[str, Any]] = {}
         self._http = httpx.Client(
             base_url=self.base_url,
             timeout=timeout_s,
@@ -70,6 +75,38 @@ class ApiClient:
         if with_seed and self.seed and method == "GET":
             params["seed"] = self.seed
 
+        label = _step_label(method, path, params)
+
+        # Consulta repetida: devolve o resultado já obtido em vez de gastar a chamada.
+        # O passo é registrado no trace com `from_cache=True`, para que a avaliação
+        # continue vendo que o agente pediu o dado duas vezes — o desperdício de
+        # raciocínio é medido, só o custo de rede e de tokens é que é evitado.
+        if method == "GET" and label in self._query_cache:
+            cached = self._query_cache[label]
+            self.trace.add_step(
+                TraceStep(
+                    step=label,
+                    method=method,
+                    path=path,
+                    query={k: v for k, v in params.items() if k != "seed"},
+                    agent=self.current_agent,
+                    status_code=cached.get("status_code", 200),
+                    ok=cached["ok"],
+                    mode=cached.get("mode"),
+                    notes=cached.get("notes"),
+                    error=cached.get("error"),
+                    latency_ms=0,
+                    at=_iso_now(),
+                    body=None,
+                    response=cached.get("data"),
+                    from_cache=True,
+                )
+            )
+            return {
+                **cached,
+                "notes": _repeat_note(cached.get("notes")),
+            }
+
         started = time.perf_counter()
         status_code = 0
         error: str | None = None
@@ -86,9 +123,13 @@ class ApiClient:
         latency_ms = int((time.perf_counter() - started) * 1000)
 
         result = self._interpret(status_code, payload, error)
+        # Só consultas bem-sucedidas entram no cache: um erro pode ser transitório, e
+        # cachear falha impediria o agente de tentar de novo legitimamente.
+        if method == "GET" and result.get("ok"):
+            self._query_cache[label] = result
         self.trace.add_step(
             TraceStep(
-                step=_step_label(method, path, params),
+                step=label,
                 method=method,
                 path=path,
                 query={k: v for k, v in params.items() if k != "seed"},
@@ -143,6 +184,15 @@ class ApiClient:
 
     def patch(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         return self.request("PATCH", path, body=body, with_seed=False)
+
+
+def _repeat_note(notes: str | None) -> str:
+    """Avisa o agente, na própria resposta, que ele já tinha pedido este dado."""
+    aviso = (
+        "Esta consulta já havia sido feita nesta investigação; o resultado é o mesmo. "
+        "Não repita consultas — use a evidência já obtida e siga para a conclusão."
+    )
+    return f"{notes} | {aviso}" if notes else aviso
 
 
 def _step_label(method: str, path: str, params: dict[str, Any]) -> str:

@@ -6,7 +6,7 @@ que nada mais no código precise ler `os.environ` diretamente.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,6 +15,9 @@ AGENT_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = AGENT_DIR.parent
 
 load_dotenv(AGENT_DIR / ".env")
+
+# Papéis que podem ter modelo próprio, via MODEL_<PAPEL> no .env.
+ROLES = ("supervisor", "investigador", "contextualizador", "decisor", "executor")
 
 
 @dataclass(frozen=True)
@@ -32,6 +35,13 @@ class Settings:
     max_supervisor_turns: int
     # Teto de rodadas de tool-calling dentro de um mesmo papel worker.
     max_worker_steps: int
+    # Modelo por papel. Papel ausente usa `llm_model`, para que uma configuração
+    # single-model continue funcionando e sirva de baseline no experimento.
+    models_by_role: dict[str, str] = field(default_factory=dict)
+
+    def model_for(self, role: str) -> str:
+        """Modelo do papel, caindo no modelo geral quando não há um específico."""
+        return self.models_by_role.get(role) or self.llm_model
 
     @property
     def cases_path(self) -> Path:
@@ -54,4 +64,9 @@ def load_settings() -> Settings:
         request_timeout_s=float(os.getenv("REQUEST_TIMEOUT_S", "30")),
         max_supervisor_turns=int(os.getenv("MAX_SUPERVISOR_TURNS", "12")),
         max_worker_steps=int(os.getenv("MAX_WORKER_STEPS", "6")),
+        models_by_role={
+            role: value
+            for role in ROLES
+            if (value := (os.getenv(f"MODEL_{role.upper()}") or "").strip())
+        },
     )

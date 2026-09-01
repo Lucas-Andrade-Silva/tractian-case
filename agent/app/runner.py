@@ -16,7 +16,7 @@ from typing import Any
 from .api_client import ApiClient
 from .config import Settings, load_settings
 from .graph import build_graph
-from .llm import build_llm
+from .llm import RoleModels
 from .tools import action_tools, investigation_tools, knowledge_tools
 from .trace import Trace
 
@@ -55,7 +55,8 @@ def run_case(
         user_id=case["user_id"],
         asset_id=case.get("asset_id"),
         message=case["message"],
-        model=f"{settings.llm_provider}:{settings.llm_model}",
+        # Preenchido com o mapa papel->modelo depois de resolver os modelos.
+        model=settings.llm_provider,
     )
 
     with ApiClient(
@@ -66,9 +67,10 @@ def run_case(
         timeout_s=settings.request_timeout_s,
     ) as client:
         try:
-            llm = build_llm(settings)
+            models = RoleModels(settings)
+            trace.model = json.dumps(models.describe(), ensure_ascii=False)
             graph = build_graph(
-                llm=llm,
+                models=models,
                 client=client,
                 settings=settings,
                 case=case,

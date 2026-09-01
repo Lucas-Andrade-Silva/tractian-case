@@ -102,6 +102,101 @@ def test_weak_justification_is_rejected_by_api(trace: Trace):
     assert result["status_code"] == 400
 
 
+def test_repeated_query_is_served_from_cache(client: ApiClient, trace: Trace):
+    """Uma consulta repetida não deve gastar outra volta de LLM nem outra ida à API.
+
+    O prompt pede que o agente não repita chamadas, mas prompt não é garantia: cada
+    repetição custa ~1.900 tokens de prompt e schemas para devolver um dado já conhecido.
+    """
+    first = client.get("/assets/asset_G501")
+    second = client.get("/assets/asset_G501")
+
+    assert first["data"] == second["data"]
+    # Ambas ficam no trace: a avaliação precisa continuar vendo a repetição.
+    assert len(trace.steps) == 2
+    assert trace.steps[0].from_cache is False
+    assert trace.steps[1].from_cache is True
+    assert trace.steps[1].latency_ms == 0
+    # A resposta repetida avisa o agente, para ele parar de insistir.
+    assert "já havia sido feita" in second["notes"]
+
+
+def test_actions_are_never_cached(trace: Trace):
+    """Repetir uma ação tem efeito real na plataforma — jamais pode vir do cache."""
+    with ApiClient(base_url=BASE_URL, user_id="usr_lucas", trace=trace) as client:
+        body = {"justification": "rolamento trocado e baseline invalidado apos manutencao"}
+        client.post("/analyses/an_9906/reprocess", body)
+        client.post("/analyses/an_9906/reprocess", body)
+
+    assert len(trace.steps) == 2
+    assert all(step.from_cache is False for step in trace.steps)
+    # Cada execução gerou um action_id próprio: a segunda chamada realmente aconteceu.
+    ids = {step.response.get("action_id") for step in trace.steps}
+    assert len(ids) == 2
+
+
+def test_cache_does_not_hide_different_queries(client: ApiClient, trace: Trace):
+    """Consultas distintas no mesmo endpoint continuam indo à API."""
+    client.get("/assets/asset_G501/analyses")
+    client.get("/assets/asset_G501/analyses", status="pending")
+
+    assert [s.from_cache for s in trace.steps] == [False, False]
+
+
+def test_noise_fields_are_stripped_from_tool_output(client: ApiClient):
+    """Ids repetidos e campos nulos saem do payload: eles ocupam o scratch sem informar."""
+    get_asset = next(t for t in investigation_tools(client) if t.name == "get_asset")
+    out = get_asset.invoke({"asset_id": "asset_G501"})
+
+    data = out["data"]
+    assert data["machine_type"] == "gearbox"  # evidência preservada
+    assert data["criticality"] == "critical"
+    assert "asset_id" not in data and "company_id" not in data
+    # G501 não tem rolamento especificado: os campos nulos não vão no contexto.
+    assert "bearing_pn" not in data and "bpfo_hz" not in data
+
+
+def test_company_tools_are_off_by_default(client: ApiClient):
+    """Tools que nenhum cenário exige não entram no contexto por padrão.
+
+    Cada tool exposta soma ao custo fixo reenviado a cada volta e amplia o espaço de
+    escolha errada — numa medição real o Investigador gastou uma volta inteira num
+    `get_company` que não sustentava conclusão nenhuma.
+    """
+    padrao = {t.name for t in investigation_tools(client)}
+    com_empresa = {t.name for t in investigation_tools(client, include_company=True)}
+
+    assert "get_company" not in padrao
+    assert "list_company_assets" not in padrao
+    # A capacidade continua disponível para quem precisar localizar um ativo.
+    assert com_empresa - padrao == {"get_company", "list_company_assets"}
+
+
+def test_default_toolset_covers_every_query_the_scenarios_require(client: ApiClient):
+    """Nenhuma consulta exigida pelos cenários pode ficar sem tool que a atenda.
+
+    Guarda contra reduzir o toolset longe demais: os endpoints vêm do gabarito, então
+    remover uma tool necessária quebra este teste em vez de aparecer como queda de
+    `evidence_recall` só depois de uma rodada inteira.
+    """
+    nomes = {t.name for t in investigation_tools(client)}
+
+    exigidas = {
+        "get_asset",        # GET /assets/{id}
+        "list_analyses",    # GET /assets/{id}/analyses
+        "get_analysis",     # GET /analyses/{id}
+        "get_baseline",     # GET /assets/{id}/baseline
+        "get_rms",          # GET /assets/{id}/rms
+        "get_spectrum",     # GET /assets/{id}/spectrum
+        "get_data_quality", # GET /assets/{id}/data-quality
+        "get_model",        # GET /models/{id}
+    }
+
+    assert exigidas <= nomes
+    # E nada além disso, para o custo fixo não voltar a crescer sem querer.
+    assert nomes == exigidas
+
+
 def test_investigation_tools_are_exposed_with_descriptions(client: ApiClient):
     tools = investigation_tools(client)
     names = {t.name for t in tools}

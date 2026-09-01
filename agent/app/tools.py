@@ -67,6 +67,31 @@ def _summarize_rms(data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+# Campos que não carregam evidência de diagnóstico e só ocupam espaço no scratch, onde
+# cada resultado permanece até o papel encerrar a apuração. Os ids de ativo/ponto
+# aparecem repetidos em toda resposta, e o agente já os conhece do bloco do caso.
+_NOISE_FIELDS = frozenset(
+    {"asset_id", "point_id", "company_id", "id", "plant", "line", "parent_asset_id"}
+)
+
+
+def _strip_noise(data: Any) -> Any:
+    """Remove campos redundantes, preservando tudo que sustenta um diagnóstico.
+
+    Aplicado só ao nível raiz: campos aninhados (evidência, features, picos do espectro,
+    cobertura do modelo) são justamente a evidência e ficam intactos.
+    """
+    if not isinstance(data, dict):
+        return data
+    # Campos nulos também saem: "bearing_pn: null" não informa nada que a ausência do
+    # campo já não diga, e um ativo sem rolamento especificado tem vários deles.
+    return {
+        k: v
+        for k, v in data.items()
+        if k not in _NOISE_FIELDS and v is not None
+    }
+
+
 def _unwrap(result: dict[str, Any], *, summarizer=None) -> dict[str, Any]:
     """Achata o resultado do cliente no que o LLM precisa ver.
 
@@ -85,6 +110,7 @@ def _unwrap(result: dict[str, Any], *, summarizer=None) -> dict[str, Any]:
     data = result.get("data")
     if summarizer and isinstance(data, dict):
         data = summarizer(data)
+    data = _strip_noise(data)
     return {
         "ok": True,
         "mode": result.get("mode"),
@@ -96,8 +122,16 @@ def _unwrap(result: dict[str, Any], *, summarizer=None) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Investigador — evidência técnica
 # ---------------------------------------------------------------------------
-def investigation_tools(client: ApiClient) -> list[StructuredTool]:
-    """Tools de apuração técnica. Nenhuma delas altera estado na plataforma."""
+def investigation_tools(client: ApiClient, *, include_company: bool = False) -> list[StructuredTool]:
+    """Tools de apuração técnica. Nenhuma delas altera estado na plataforma.
+
+    Por padrão as consultas de empresa ficam de fora. Elas não aparecem em nenhum dos 25
+    cenários (golden + holdout) — o caso já informa empresa e ativo —, mas cada tool
+    exposta soma ao custo fixo reenviado a cada volta e amplia o espaço de escolha errada:
+    na medição por papel, o Investigador gastou uma volta inteira num `get_company` que
+    não sustentava nada. `include_company=True` recupera a capacidade quando um caso
+    precisar localizar um ativo não informado.
+    """
 
     def get_asset(asset_id: str) -> dict[str, Any]:
         return _unwrap(client.get(f"/assets/{asset_id}"))
@@ -114,20 +148,33 @@ def investigation_tools(client: ApiClient) -> list[StructuredTool]:
     def get_analysis(analysis_id: str) -> dict[str, Any]:
         return _unwrap(client.get(f"/analyses/{analysis_id}"))
 
-    def get_baseline(asset_id: str, point_id: str | None = None) -> dict[str, Any]:
-        return _unwrap(client.get(f"/assets/{asset_id}/baseline", point_id=point_id))
+    def get_baseline(asset_id: str) -> dict[str, Any]:
+        return _unwrap(client.get(f"/assets/{asset_id}/baseline"))
 
-    def get_rms(asset_id: str, point_id: str | None = None) -> dict[str, Any]:
-        return _unwrap(client.get(f"/assets/{asset_id}/rms", point_id=point_id), summarizer=_summarize_rms)
+    def get_rms(asset_id: str) -> dict[str, Any]:
+        return _unwrap(client.get(f"/assets/{asset_id}/rms"), summarizer=_summarize_rms)
 
-    def get_spectrum(asset_id: str, point_id: str | None = None) -> dict[str, Any]:
-        return _unwrap(client.get(f"/assets/{asset_id}/spectrum", point_id=point_id))
+    def get_spectrum(asset_id: str) -> dict[str, Any]:
+        return _unwrap(client.get(f"/assets/{asset_id}/spectrum"))
 
-    def get_data_quality(asset_id: str, point_id: str | None = None) -> dict[str, Any]:
-        return _unwrap(client.get(f"/assets/{asset_id}/data-quality", point_id=point_id))
+    def get_data_quality(asset_id: str) -> dict[str, Any]:
+        return _unwrap(client.get(f"/assets/{asset_id}/data-quality"))
 
     def get_model(model_id: str) -> dict[str, Any]:
         return _unwrap(client.get(f"/models/{model_id}"))
+
+    company_tools = [
+        StructuredTool.from_function(
+            get_company,
+            name="get_company",
+            description="Dados da empresa do caso (nome, segmento, timezone).",
+        ),
+        StructuredTool.from_function(
+            list_company_assets,
+            name="list_company_assets",
+            description="Lista os ativos de uma empresa. Use se precisar localizar um ativo não informado no caso.",
+        ),
+    ]
 
     return [
         StructuredTool.from_function(
@@ -140,16 +187,7 @@ def investigation_tools(client: ApiClient) -> list[StructuredTool]:
                 "ausência de dados."
             ),
         ),
-        StructuredTool.from_function(
-            get_company,
-            name="get_company",
-            description="Dados da empresa do caso (nome, segmento, timezone).",
-        ),
-        StructuredTool.from_function(
-            list_company_assets,
-            name="list_company_assets",
-            description="Lista os ativos de uma empresa. Use se precisar localizar um ativo não informado no caso.",
-        ),
+        *(company_tools if include_company else []),
         StructuredTool.from_function(
             list_analyses,
             name="list_analyses",

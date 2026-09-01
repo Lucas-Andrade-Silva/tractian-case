@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
     AnyMessage,
@@ -67,9 +66,31 @@ def _findings_block(findings: list[str]) -> str:
     return "EVIDÊNCIA JÁ APURADA:\n" + "\n".join(f"- {f}" for f in findings)
 
 
+def _structured(llm, schema, messages, *, agent: str, trace: Trace):
+    """Saída estruturada com o consumo de tokens registrado.
+
+    `include_raw=True` é necessário para chegar ao `usage_metadata`: sem ele o retorno é
+    só o objeto validado, e o custo do Supervisor e do Decisor ficaria fora da conta —
+    justamente os papéis chamados mais vezes por caso.
+    """
+    result = llm.with_structured_output(schema, include_raw=True).invoke(messages)
+
+    # O LLM roteirizado dos testes devolve o objeto direto, sem envelope.
+    if not isinstance(result, dict):
+        return result
+
+    trace.add_llm_call(agent=agent, response=result.get("raw"))
+    parsed = result.get("parsed")
+    if parsed is None:
+        raise ValueError(
+            f"O modelo não produziu um {schema.__name__} válido: {result.get('parsing_error')}"
+        )
+    return parsed
+
+
 def build_graph(
     *,
-    llm: BaseChatModel,
+    models: Any,
     client: ApiClient,
     settings: Settings,
     case: dict[str, Any],
@@ -79,7 +100,16 @@ def build_graph(
     action_tools: list,
 ):
     """Compila o grafo para um caso. As dependências entram por parâmetro para manter
-    o grafo testável e sem estado global."""
+    o grafo testável e sem estado global.
+
+    `models` resolve o modelo de cada papel. Aceita um `RoleModels` (produção, um modelo
+    por papel) ou um chat model único — usado pelos testes e por configurações
+    single-model, que servem de baseline no experimento.
+    """
+
+    def llm_for(role: str):
+        getter = getattr(models, "for_role", None)
+        return getter(role) if getter else models
 
     # -- Supervisor -------------------------------------------------------
     def supervisor(state: CaseState) -> dict[str, Any]:
@@ -108,14 +138,18 @@ def build_graph(
 
         # O Supervisor decide sobre a evidência resumida, não sobre o transcrito bruto:
         # é o que ele precisa para rotear, e mantém o custo do roteamento constante.
-        route = llm.with_structured_output(Route).invoke(
+        route = _structured(
+            llm_for("supervisor"),
+            Route,
             [
                 SystemMessage(supervisor_prompt(case, user_context)),
                 HumanMessage(
                     f"{_findings_block(state.get('findings', []))}\n\n"
                     "Qual papel deve agir agora? Responda apenas com a rota."
                 ),
-            ]
+            ],
+            agent="supervisor",
+            trace=trace,
         )
         trace.add_routing(turn=turn, source="supervisor", target=route.next, reason=route.reason)
         return {**updates, "next_role": route.next}
@@ -141,7 +175,8 @@ def build_graph(
             steps = state.get("worker_steps", 0)
             # Estourou o orçamento: chama sem tools para forçar o encerramento em texto.
             over_budget = steps >= settings.max_worker_steps
-            model = llm if over_budget else llm.bind_tools(tools)
+            role_llm = llm_for(role)
+            model = role_llm if over_budget else role_llm.bind_tools(tools)
 
             messages: list[AnyMessage] = [
                 SystemMessage(prompt_fn(case)),
@@ -156,6 +191,7 @@ def build_graph(
                     )
                 )
             response = model.invoke(messages)
+            trace.add_llm_call(agent=role, response=response)
 
             if getattr(response, "tool_calls", None):
                 return {
@@ -185,13 +221,17 @@ def build_graph(
     # -- Decisor ----------------------------------------------------------
     def decisor(state: CaseState) -> dict[str, Any]:
         client.current_agent = "decisor"
-        decision: Decision = llm.with_structured_output(Decision).invoke(
+        decision: Decision = _structured(
+            llm_for("decisor"),
+            Decision,
             [
                 SystemMessage(
                     decider_prompt(case, state.get("user_context"), state.get("findings", []))
                 ),
                 HumanMessage("Resolva o caso agora, com base apenas na evidência apurada."),
-            ]
+            ],
+            agent="decisor",
+            trace=trace,
         )
         payload = decision.model_dump()
         return {
@@ -219,7 +259,8 @@ def build_graph(
 
         steps = state.get("worker_steps", 0)
         over_budget = steps >= settings.max_worker_steps
-        model = llm if over_budget else llm.bind_tools(action_tools)
+        executor_llm = llm_for("executor")
+        model = executor_llm if over_budget else executor_llm.bind_tools(action_tools)
 
         messages: list[AnyMessage] = [
             SystemMessage(executor_prompt(case, state.get("decision") or {})),
@@ -230,6 +271,7 @@ def build_graph(
                 HumanMessage("Não chame mais tools. Escreva a resposta final ao cliente.")
             )
         response = model.invoke(messages)
+        trace.add_llm_call(agent="executor", response=response)
 
         if getattr(response, "tool_calls", None):
             return {

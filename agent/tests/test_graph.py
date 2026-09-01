@@ -60,18 +60,21 @@ class ScriptedLLM:
         self.calls.append("bind_tools")
         return self
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **kwargs):  # noqa: ARG002 - aceita include_raw
         self.calls.append(f"structured:{schema.__name__}")
         return self
 
     def invoke(self, messages):  # noqa: ARG002 - o roteiro ignora o histórico
         return self._next()
 
+    # Sem `for_role`: o grafo detecta a ausência e usa este mesmo modelo para todo
+    # papel, que é o comportamento de uma configuração single-model.
+
 
 def _build(script: list, *, trace: Trace, client: ApiClient):
     settings = load_settings()
     return build_graph(
-        llm=ScriptedLLM(script),
+        models=ScriptedLLM(script),
         client=client,
         settings=settings,
         case=CASE,

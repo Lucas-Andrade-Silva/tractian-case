@@ -29,3 +29,6 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `llm` marca testes que gastam cota de LLM real; ficam fora da suíte padrão.
+markers = ["llm: exige rede e cota de LLM (rode com -m llm)"]
+addopts = "-m 'not llm'"

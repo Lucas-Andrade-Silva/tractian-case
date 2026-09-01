@@ -13,7 +13,7 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
-from .config import Settings
+from .config import ROLES, Settings
 
 _SUPPORTED = ("groq", "openai")
 
@@ -26,7 +26,9 @@ def build_llm(settings: Settings, **overrides: Any) -> BaseChatModel:
     agente.
     """
     provider = (settings.llm_provider or "").strip().lower()
-    model = (settings.llm_model or "").strip()
+    # `model` pode vir por override (modelo de um papel específico); só então caímos no
+    # LLM_MODEL geral, que numa configuração por papel pode nem estar definido.
+    model = str(overrides.pop("model", "") or settings.llm_model or "").strip()
 
     if not provider:
         raise LlmNotConfigured(
@@ -34,7 +36,10 @@ def build_llm(settings: Settings, **overrides: Any) -> BaseChatModel:
             f"escolha um provedor ({', '.join(_SUPPORTED)}) + LLM_MODEL."
         )
     if not model:
-        raise LlmNotConfigured(f"LLM_MODEL não definido para o provedor '{provider}'.")
+        raise LlmNotConfigured(
+            f"Nenhum modelo definido para o provedor '{provider}'. Defina LLM_MODEL ou "
+            "um MODEL_<PAPEL> para cada papel."
+        )
 
     params: dict[str, Any] = {
         "model": model,
@@ -73,3 +78,30 @@ def build_llm(settings: Settings, **overrides: Any) -> BaseChatModel:
 
 class LlmNotConfigured(RuntimeError):
     """Configuração de LLM ausente ou incompleta."""
+
+
+class RoleModels:
+    """Resolve o modelo de cada papel, reaproveitando clientes já instanciados.
+
+    Papéis diferentes têm exigências diferentes: quem chama tools em série se beneficia
+    de um modelo que emita várias tool calls por resposta (corta voltas e, com elas, o
+    custo fixo de prompt+schemas reenviado a cada volta); quem produz a decisão e a
+    justificativa — o que a avaliação de fato julga — se beneficia do modelo mais capaz.
+
+    Como os limites de cota da Groq são por modelo, distribuir papéis entre modelos
+    também distribui o consumo entre pools separados.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._cache: dict[str, BaseChatModel] = {}
+
+    def for_role(self, role: str) -> BaseChatModel:
+        model = self._settings.model_for(role)
+        if model not in self._cache:
+            self._cache[model] = build_llm(self._settings, model=model)
+        return self._cache[model]
+
+    def describe(self) -> dict[str, str]:
+        """Mapa papel → modelo efetivo, para registrar no trace do experimento."""
+        return {role: self._settings.model_for(role) for role in ROLES}

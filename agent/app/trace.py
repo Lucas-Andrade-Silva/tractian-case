@@ -39,6 +39,10 @@ class TraceStep:
     at: str
     body: dict[str, Any] | None = None  # payload enviado em ações (POST/PATCH)
     response: Any = None  # `data` do envelope, ou corpo do erro
+    # Consulta que o agente repetiu e foi servida do cache da execução. Fica registrada
+    # para a avaliação continuar medindo a repetição como desperdício de raciocínio,
+    # ainda que o custo de rede e de tokens tenha sido evitado.
+    from_cache: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +60,32 @@ class TraceStep:
             "at": self.at,
             "body": self.body,
             "response": self.response,
+            "from_cache": self.from_cache,
+        }
+
+
+@dataclass
+class LlmCall:
+    """Consumo de uma chamada ao LLM.
+
+    Registrado por papel porque o custo de um agente multiagente não é uniforme: saber
+    que o Investigador consome N vezes mais que o Supervisor é o que permite dimensionar
+    uma rodada e justificar (ou refutar) a escolha de arquitetura do ADR 0001.
+    """
+
+    agent: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    at: str = field(default_factory=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent": self.agent,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "at": self.at,
         }
 
 
@@ -72,6 +102,7 @@ class Trace:
     model: str = ""
     started_at: str = field(default_factory=_now)
     steps: list[TraceStep] = field(default_factory=list)
+    llm_calls: list[LlmCall] = field(default_factory=list)
     # Preenchidos pelos nós do grafo ao longo da execução.
     routing: list[dict[str, Any]] = field(default_factory=list)
     findings: list[dict[str, Any]] = field(default_factory=list)
@@ -95,6 +126,45 @@ class Trace:
     def add_finding(self, *, agent: str, summary: str) -> None:
         """Resumo que um papel worker produz ao encerrar sua apuração."""
         self.findings.append({"agent": agent, "summary": summary, "at": _now()})
+
+    def add_llm_call(self, *, agent: str, response: Any) -> None:
+        """Extrai o consumo de tokens de uma resposta do LLM, se o provedor informar.
+
+        Silencioso quando o provedor não devolve `usage_metadata`: a ausência da métrica
+        não pode interromper o atendimento do caso.
+        """
+        usage = getattr(response, "usage_metadata", None) or {}
+        if not usage:
+            return
+        self.llm_calls.append(
+            LlmCall(
+                agent=agent,
+                input_tokens=int(usage.get("input_tokens") or 0),
+                output_tokens=int(usage.get("output_tokens") or 0),
+                total_tokens=int(usage.get("total_tokens") or 0),
+            )
+        )
+
+    @property
+    def token_usage(self) -> dict[str, Any]:
+        """Consumo agregado da execução, com a quebra por papel."""
+        by_agent: dict[str, dict[str, int]] = {}
+        for call in self.llm_calls:
+            slot = by_agent.setdefault(
+                call.agent, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            )
+            slot["calls"] += 1
+            slot["input_tokens"] += call.input_tokens
+            slot["output_tokens"] += call.output_tokens
+            slot["total_tokens"] += call.total_tokens
+
+        return {
+            "llm_calls": len(self.llm_calls),
+            "input_tokens": sum(c.input_tokens for c in self.llm_calls),
+            "output_tokens": sum(c.output_tokens for c in self.llm_calls),
+            "total_tokens": sum(c.total_tokens for c in self.llm_calls),
+            "by_agent": by_agent,
+        }
 
     def close(
         self,
@@ -135,7 +205,9 @@ class Trace:
             "stop_reason": self.stop_reason,
             "error": self.error,
             "path_taken": self.path_taken,
+            "token_usage": self.token_usage,
             "steps": [s.to_dict() for s in self.steps],
+            "llm_calls": [c.to_dict() for c in self.llm_calls],
             "routing": self.routing,
             "findings": self.findings,
         }
