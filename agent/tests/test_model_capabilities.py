@@ -106,3 +106,61 @@ def test_every_role_resolves_to_a_model():
 
     for role in ROLES:
         assert settings.model_for(role), f"papel {role} sem modelo"
+
+
+def test_decider_escalates_when_evidence_is_physical_and_irreversible():
+    """Trava a calibração de escalonamento do Decisor (TKT-INV-04).
+
+    Evidência fixa e idêntica à observada no experimento real: sensor offline, baseline
+    em learning, dados incompletos, RMS indisponível — causa física, nenhuma ação remota
+    resolve. Antes da correção do prompt, o mesmo Decisor alternava orientar/orientar/escalar
+    entre seeds com essa evidência inalterada; o critério de "quando escalar é a decisão
+    certa" estava ausente da política. Roda 1x contra o modelo real do papel (não é
+    determinístico por natureza — é o que este teste está verificando).
+    """
+    from app.prompts import decider_prompt
+    from app.state import Decision
+
+    settings = load_settings()
+    model = settings.model_for("decisor")
+
+    case = {
+        "id": "case_tkt_inv_04",
+        "ticket_id": "TKT-INV-04",
+        "company_id": "cmp_mineracao_andes",
+        "user_id": "usr_pedro",
+        "asset_id": "asset_G501",
+        "message": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+    }
+    user_context = {"role": "Coordenador de Manutenção", "permissions": ["read", "escalate"]}
+    findings = [
+        "sensor_status=offline (asset)\n"
+        "baseline.state=learning (baseline)\n"
+        "data_quality.completeness=0.18 (data_quality)\n"
+        "data_quality.snr_db=3.1 (data_quality)\n"
+        "data_quality.staleness_flag=true (data_quality)\n"
+        "rms=unavailable (rms)\n"
+        "analyses=inconclusive (list_analyses)\n"
+        "Causa raiz: sensor offline impediu coleta de dados, impossibilitando geração de "
+        "baseline e alertas."
+    ]
+
+    result = build_llm(_settings_for(model)).with_structured_output(
+        Decision, include_raw=True
+    ).invoke(
+        [
+            SystemMessage(decider_prompt(case, user_context, findings)),
+            HumanMessage("Resolva o caso agora, com base apenas na evidência apurada."),
+        ]
+    )
+
+    parsed = result.get("parsed") if isinstance(result, dict) else result
+    assert parsed is not None, (
+        f"O modelo '{model}' (papel decisor) não emitiu Decision válido: "
+        f"{result.get('parsing_error') if isinstance(result, dict) else '—'}"
+    )
+    assert parsed.decision == "escalar", (
+        "Causa física (sensor offline) sem ação remota disponível deveria escalar, não "
+        f"'{parsed.decision}' — regressão na calibração de _DECISION_POLICY. "
+        f"Justificativa emitida: {parsed.justification!r}"
+    )

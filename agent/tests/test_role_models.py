@@ -95,6 +95,45 @@ def test_role_models_reuses_client_per_model(monkeypatch):
     assert criados == ["qwen/barato", "qwen/paralelo"]
 
 
+def test_evidence_policy_changes_the_investigator_prompt():
+    """As duas políticas precisam produzir prompts distintos — senão a comparação do
+    experimento mede apenas ruído do modelo."""
+    from app.prompts import EVIDENCE_POLICIES, investigator_prompt
+
+    case = {"id": "c", "ticket_id": "T", "company_id": "x", "user_id": "u",
+            "asset_id": "asset_G501", "message": "m"}
+
+    fixo = investigator_prompt(case, "fixed")
+    condicional = investigator_prompt(case, "conditional")
+
+    assert set(EVIDENCE_POLICIES) == {"fixed", "conditional"}
+    assert fixo != condicional
+    assert "EVIDÊNCIA MÍNIMA" in fixo
+    assert "CONCEITUAL" in condicional
+    # A política fixa é mais curta, e o prompt é reenviado a cada volta.
+    assert len(fixo) < len(condicional)
+
+
+def test_unknown_evidence_policy_falls_back_to_fixed():
+    """Valor inválido no .env não pode deixar o Investigador sem instrução de evidência."""
+    from app.prompts import investigator_prompt
+
+    case = {"id": "c", "ticket_id": "T", "company_id": "x", "user_id": "u",
+            "asset_id": "asset_G501", "message": "m"}
+
+    assert investigator_prompt(case, "inexistente") == investigator_prompt(case, "fixed")
+
+
+def test_evidence_policy_defaults_to_fixed(monkeypatch):
+    import app.config as config
+
+    monkeypatch.delenv("EVIDENCE_POLICY", raising=False)
+    assert config.load_settings().evidence_policy == "fixed"
+
+    monkeypatch.setenv("EVIDENCE_POLICY", "CONDITIONAL")
+    assert config.load_settings().evidence_policy == "conditional"
+
+
 def test_describe_reports_effective_mapping():
     """O mapa efetivo vai para o trace: sem isso o experimento não é reprodutível."""
     from app.llm import RoleModels

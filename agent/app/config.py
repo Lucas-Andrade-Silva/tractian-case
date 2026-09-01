@@ -38,6 +38,11 @@ class Settings:
     # Modelo por papel. Papel ausente usa `llm_model`, para que uma configuração
     # single-model continue funcionando e sirva de baseline no experimento.
     models_by_role: dict[str, str] = field(default_factory=dict)
+    # Política de evidência do Investigador: `fixed` exige sempre as quatro consultas
+    # básicas; `conditional` adapta ao tipo de pergunta do caso. É variável de
+    # experimento — as duas são defensáveis, e qual rende melhor recall por token é
+    # questão empírica, não de opinião.
+    evidence_policy: str = "fixed"
 
     def model_for(self, role: str) -> str:
         """Modelo do papel, caindo no modelo geral quando não há um específico."""
@@ -69,4 +74,5 @@ def load_settings() -> Settings:
             for role in ROLES
             if (value := (os.getenv(f"MODEL_{role.upper()}") or "").strip())
         },
+        evidence_policy=(os.getenv("EVIDENCE_POLICY") or "fixed").strip().lower(),
     )

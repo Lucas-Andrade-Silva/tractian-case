@@ -66,6 +66,24 @@ def _findings_block(findings: list[str]) -> str:
     return "EVIDÊNCIA JÁ APURADA:\n" + "\n".join(f"- {f}" for f in findings)
 
 
+def _bind(llm, tools: list):
+    """Vincula tools pedindo explicitamente chamadas paralelas.
+
+    Sem `parallel_tool_calls=True` o provedor assume o padrão serial, e um modelo capaz
+    de pedir seis consultas numa resposta passa a pedir uma por vez — cada volta extra
+    reenviando o prompt e os schemas inteiros. Medido: qwen3.6 vai de 1 para 6 tool calls
+    numa única resposta apenas com este parâmetro.
+
+    Provedores que não conhecem o parâmetro o ignoram, então o fallback é o comportamento
+    serial de antes, não um erro.
+    """
+    try:
+        return llm.bind_tools(tools, parallel_tool_calls=True)
+    except TypeError:
+        # Modelos roteirizados dos testes e provedores com assinatura mais restrita.
+        return llm.bind_tools(tools)
+
+
 def _structured(llm, schema, messages, *, agent: str, trace: Trace):
     """Saída estruturada com o consumo de tokens registrado.
 
@@ -176,7 +194,7 @@ def build_graph(
             # Estourou o orçamento: chama sem tools para forçar o encerramento em texto.
             over_budget = steps >= settings.max_worker_steps
             role_llm = llm_for(role)
-            model = role_llm if over_budget else role_llm.bind_tools(tools)
+            model = role_llm if over_budget else _bind(role_llm, tools)
 
             messages: list[AnyMessage] = [
                 SystemMessage(prompt_fn(case)),
@@ -260,7 +278,7 @@ def build_graph(
         steps = state.get("worker_steps", 0)
         over_budget = steps >= settings.max_worker_steps
         executor_llm = llm_for("executor")
-        model = executor_llm if over_budget else executor_llm.bind_tools(action_tools)
+        model = executor_llm if over_budget else _bind(executor_llm, action_tools)
 
         messages: list[AnyMessage] = [
             SystemMessage(executor_prompt(case, state.get("decision") or {})),
@@ -296,7 +314,15 @@ def build_graph(
     graph = StateGraph(CaseState)
 
     graph.add_node("supervisor", supervisor)
-    graph.add_node("investigador", make_worker("investigador", investigation_tools, investigator_prompt))
+    graph.add_node(
+        "investigador",
+        make_worker(
+            "investigador",
+            investigation_tools,
+            # A política de evidência é variável de experimento (ver Settings).
+            lambda c: investigator_prompt(c, settings.evidence_policy),
+        ),
+    )
     graph.add_node("investigador_tools", ToolNode(investigation_tools, messages_key="scratch"))
     graph.add_node("contextualizador", make_worker("contextualizador", knowledge_tools, contextualizer_prompt))
     graph.add_node("contextualizador_tools", ToolNode(knowledge_tools, messages_key="scratch"))

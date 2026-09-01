@@ -68,7 +68,12 @@ def run_case(
     ) as client:
         try:
             models = RoleModels(settings)
-            trace.model = json.dumps(models.describe(), ensure_ascii=False)
+            # Registra a configuração efetiva: sem ela, comparar duas rodadas depois
+            # depende de lembrar o que estava no .env na hora.
+            trace.model = json.dumps(
+                {**models.describe(), "_evidence_policy": settings.evidence_policy},
+                ensure_ascii=False,
+            )
             graph = build_graph(
                 models=models,
                 client=client,
