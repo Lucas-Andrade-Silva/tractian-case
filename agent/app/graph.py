@@ -281,7 +281,9 @@ def build_graph(
         model = executor_llm if over_budget else _bind(executor_llm, action_tools)
 
         messages: list[AnyMessage] = [
-            SystemMessage(executor_prompt(case, state.get("decision") or {})),
+            SystemMessage(
+                executor_prompt(case, state.get("decision") or {}, state.get("findings", []))
+            ),
             *scratch,
         ]
         if over_budget:

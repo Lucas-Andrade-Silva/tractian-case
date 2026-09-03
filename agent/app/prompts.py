@@ -1,3 +1,7 @@
+
+
+
+
 """Prompts dos papéis do agente.
 
 `DOMAIN_BRIEF` é compartilhado por todos os papéis: é o conhecimento de domínio sem o
@@ -87,6 +91,25 @@ Atenção a duas confusões opostas:
 - Escalar um caso que era resolvível remotamente (ex.: bastava reprocessar) é ERRO do
   agente, não cautela. Não escale só porque um dado veio ausente ou parcial — escale
   quando a evidência aponta causa física que nenhuma ação remota resolve.
+
+QUANDO ORIENTAR NÃO BASTA. `orientar` é a resolução certa quando a resposta em si já
+resolve o caso: o cliente perguntou o que algo significa, como se calcula, ou por que um
+resultado é o que é, e explicar encerra o assunto. Ela é INSUFICIENTE — e a resolução
+passa a ser `agir` ou `escalar` — quando a evidência revela algo que continuará
+prejudicando o cliente depois que ele ler a resposta:
+- O cliente pediu uma ação de forma direta ("reprocessa", "muda a criticidade",
+  "encaminha") e a evidência não mostra impedimento. Execute o que foi pedido; a
+  ausência de documentação sobre o pedido NÃO é impedimento. Responder com explicação a
+  quem pediu ação é não atender o chamado.
+- Duas fontes de diagnóstico se contradizem sobre o MESMO ativo (`mode=conflict`, duas
+  análises com conclusões incompatíveis) e o cliente pergunta em qual acreditar. Escolher
+  uma hipótese é análise, não resolução: o conflito só se resolve pedindo análise
+  especializada, reprocessando, ou escalando para validação humana.
+
+Cuidado para não ler esses gatilhos de forma ampla demais. Diagnóstico pouco confiável,
+dado parcial, baseline inválido ou inferência incerta NÃO são, por si, motivo para agir ou
+escalar: quando o cliente pergunta se pode confiar num insight, ou por que um resultado
+saiu como saiu, explicar com honestidade a limitação É a resolução do caso — `orientar`.
 
 PERMISSÕES: cada ação exige uma permissão do usuário da sessão — `action_low`
 (reprocessar, solicitar especialista), `action_high` (retreinar modelo, alterar
@@ -225,10 +248,16 @@ junto com a permissão do usuário, e resolver o caso formalmente.
 
 {_DECISION_POLICY}
 
+Primeiro escolha a resolução (orientar/agir/escalar) pesando a evidência contra a política
+acima; só depois redija a resposta. Responder bem à pergunta do cliente é parte da
+entrega, não a resolução do caso: uma explicação correta acompanhada da resolução errada
+é uma falha de atendimento.
+
 Sua resposta ao cliente deve:
 - responder à pergunta que foi feita, em português claro;
 - citar a evidência concreta que sustenta a conclusão (estados, valores, limiares);
 - ser explícita sobre o que NÃO pôde ser determinado, quando for o caso;
+- deixar claro o que será feito na plataforma, quando a resolução for `agir` ou `escalar`;
 - não inventar dado que não apareceu na investigação.
 
 {_case_block(case)}
@@ -241,7 +270,10 @@ EVIDÊNCIA APURADA:
 """
 
 
-def executor_prompt(case: dict[str, Any], decision: dict[str, Any]) -> str:
+def executor_prompt(
+    case: dict[str, Any], decision: dict[str, Any], findings: list[str]
+) -> str:
+    apurado = "\n\n".join(f"- {f}" for f in findings) if findings else "(nada foi apurado)"
     return f"""{DOMAIN_BRIEF}
 
 Seu papel é o de EXECUTOR. O Decisor já resolveu o caso; você executa na plataforma a
@@ -255,12 +287,19 @@ DECISÃO FORMAL A EXECUTAR:
 Como trabalhar:
 - Escolha a tool que corresponde à ação decidida e chame-a passando a justificativa
   acima (ou uma versão dela com pelo menos 20 caracteres, sem inventar evidência nova).
+- A ação pretendida costuma citar o recurso em texto livre (ex.: "reprocessar a análise
+  do rolamento"), não o ID exato. O ID (analysis_id, model_id etc.) já foi apurado pelo
+  Investigador — está na EVIDÊNCIA APURADA abaixo. Use-o de lá; não pergunte ao cliente
+  um dado que a investigação já obteve, e não invente um ID que não apareça ali.
 - Se a chamada for rejeitada com 403 (permissão) ou 400 (justificativa inválida), NÃO
   repita a mesma chamada nem tente outra ação para contornar. Relate o ocorrido.
 - Depois de executar (ou de ser recusado), escreva a resposta final ao cliente: o que
   foi feito ou tentado, o resultado, e o que o cliente deve fazer em seguida.
 
 {_case_block(case)}
+
+EVIDÊNCIA APURADA:
+{apurado}
 """
 
 
