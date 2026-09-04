@@ -9,10 +9,14 @@ import { rodape } from "./batidas.js";
 import { aviso } from "./componentes.js";
 import { botaoGaveta } from "./gaveta.js";
 
-/** Delta em pontos percentuais, formatado com sinal. */
+/** Delta em pontos percentuais, com sinal e separador pt-BR. */
 function deltaPp(depois, antes) {
   const d = (depois - antes) * 100;
-  return `${d >= 0 ? "+" : ""}${d.toFixed(1)} pp`;
+  const formatado = d.toLocaleString("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return `${d >= 0 ? "+" : ""}${formatado} pp`;
 }
 
 /** Variação relativa de um custo — negativa é boa. */
