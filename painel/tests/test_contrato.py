@@ -57,3 +57,26 @@ def test_titulos_se_destacam_do_corpo(css_fonte):
     assert _token(css_fonte, "--t-h2") >= corpo * 1.15, "h2 perto demais do corpo"
     assert _token(css_fonte, "--t-h1") >= _token(css_fonte, "--t-h2") * 1.2, "h1 perto demais do h2"
     assert _token(css_fonte, "--t-h3") >= corpo, "título de seção menor que o corpo lê como legenda"
+
+
+def test_achados_do_bundle_sao_parseaveis(bundle):
+    """As tags de fato da batida ② vêm de achados[].summary.
+
+    O formato é `chave=valor (origem)` por linha. Se o formato mudar no
+    build_bundle e ninguém notar, a batida ② fica sem tags e volta a ser uma
+    lista de endpoints — exatamente o que o redesenho removeu.
+    """
+    execucao = next(
+        e for e in bundle["execucoes"]
+        if e["ticket_id"] == "TKT-INV-09"
+        and e["fase"] == "pos-correcao"
+        and e["seed"] == "complete"
+    )
+    achados = execucao["operacao"]["achados"]
+    assert achados, "TKT-INV-09 perdeu os achados"
+
+    linhas = [l for l in achados[0]["summary"].splitlines() if l.strip()]
+    assert len(linhas) >= 5, "esperado ao menos 5 fatos apurados"
+    assert any("baseline.state=invalidated" in l for l in linhas)
+    assert any("status=stale" in l for l in linhas)
+    assert all("=" in l for l in linhas), "toda linha de achado tem chave=valor"

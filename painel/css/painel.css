@@ -931,3 +931,75 @@ button.celula { background: none; }
 }
 /* Procedência da nota: legível, mas subordinada à nota em si. */
 .consulta-modelo { font-size: 11px; color: var(--texto-fraco); margin-left: auto; }
+
+/* -- faixas por papel ---------------------------------------------------- */
+.faixas { border-top: 1px solid var(--regua); }
+
+.faixa {
+  display: grid;
+  grid-template-columns: 132px 1fr 104px;
+  border-bottom: 1px solid var(--faixa);
+}
+.faixa-destaque { background: var(--tonal-neutro); }
+
+.faixa-nome {
+  padding: 10px 12px;
+  background: var(--superficie);
+  border-right: 1px solid var(--regua);
+  font-size: var(--t-meta);
+}
+.faixa-nome em { display: block; font-style: normal; color: var(--texto-fraco); font-size: var(--t-mini); }
+
+.faixa-meio {
+  padding: 10px 12px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  min-height: 38px;
+}
+
+.faixa-custo {
+  padding: 10px 12px;
+  border-left: 1px solid var(--faixa);
+  text-align: right;
+  font-size: var(--t-mini);
+  color: var(--texto-fraco);
+}
+.faixa-custo b { display: block; font-size: var(--t-corpo); color: var(--texto); font-weight: 500; }
+
+.ponto-llm {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--acento); flex: none;
+}
+
+.fato {
+  font-size: var(--t-mini);
+  padding: 2px 8px; border-radius: var(--r);
+  border: 1px solid; white-space: nowrap;
+}
+.fato-quieto  { color: var(--texto-fraco);   background: var(--faixa);          border-color: var(--regua); }
+.fato-sucesso { color: var(--verde-exec);    background: var(--verde-fundo);    border-color: var(--verde-exec); }
+.fato-atencao { color: var(--ambar-atencao); background: var(--ambar-fundo);    border-color: var(--ambar-atencao); }
+.fato-erro    { color: var(--vermelho-erro); background: var(--vermelho-fundo); border-color: var(--vermelho-erro); }
+
+.faixa-vazia { color: var(--texto-ausente); font-size: var(--t-meta); font-style: italic; }
+
+.faixa-rotas {
+  font-size: var(--t-mini);
+  color: var(--texto-fraco);
+  background: var(--faixa);
+  border: 1px solid var(--regua);
+  border-radius: 10px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.faixa-rotas:hover { color: var(--texto); }
+
+.faixa-bastao {
+  padding: 6px 12px 6px 144px;
+  font-size: var(--t-meta);
+  color: var(--azul-neutro);
+  background: var(--fundo);
+  border-bottom: 1px solid var(--faixa);
+}
+
+.faixa-cruas { padding: 6px 12px 8px 144px; background: var(--fundo); border-bottom: 1px solid var(--faixa); }
+.crua-linha { display: flex; gap: 10px; align-items: center; font-size: var(--t-mini); padding: 2px 0; }
