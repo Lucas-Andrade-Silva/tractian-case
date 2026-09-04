@@ -38,6 +38,13 @@ export function batidaVeredito(redesenha) {
   const base = bundle.agregados["baseline"];
   const pos = bundle.agregados["pos-correcao"];
 
+  // Contagem direta, não reconstruída de uma porcentagem arredondada. A acurácia é
+  // medida sobre execuções que concluíram, então `acuracia × execucoes` usa um
+  // denominador que não é o dela — hoje bate porque não houve falha, e passaria a
+  // mentir no dia em que houver. Contar é auditável contra o bundle; reconstruir não.
+  const daFase = bundle.execucoes.filter((e) => e.fase === "pos-correcao");
+  const acertos = daFase.filter((e) => e.avaliacao.decision_match).length;
+
   const corpo = el("div", { class: "batida-corpo veredito" }, [
     el("div", { class: "veredito-numero" }, [
       el("b", { text: pct(pos.acuracia_decisao) }),
@@ -79,7 +86,7 @@ export function batidaVeredito(redesenha) {
 
     el("p", { class: "veredito-frase" }, [
       "Decidiu certo em ",
-      el("b", { text: `${Math.round(pos.acuracia_decisao * pos.execucoes)} de ${pos.execucoes}` }),
+      el("b", { text: `${acertos} de ${daFase.length}` }),
       " execuções — e ficou mais barato no caminho.",
     ]),
   ]);
