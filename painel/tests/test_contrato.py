@@ -114,3 +114,17 @@ def test_ressalva_de_juiz_nao_calibrado_sobreviveu(js_fonte):
     """Nota de juiz não calibrado não é verdade — a ressalva não pode se perder no refactor."""
     fonte = js_fonte("gaveta.js")
     assert "calibra" in fonte.lower(), "a ressalva de calibração do juiz sumiu"
+
+
+def test_comparabilidade_entre_fases_e_declarada(bundle, js_fonte):
+    """A seta da batida ① credita todo o ganho às correções.
+
+    Isso só é honesto enquanto as duas fases rodarem com a mesma configuração de
+    modelo por papel. O flag existe no bundle e a gaveta precisa lê-lo: se um bundle
+    futuro trocar um modelo e ninguém disser, o painel passa a dar crédito ao lugar
+    errado sem nenhum sintoma visível.
+    """
+    assert "config_diverge_entre_fases" in bundle["meta"]
+    assert "config_diverge_entre_fases" in js_fonte("gaveta.js"), (
+        "a gaveta não lê o flag de comparabilidade — RN-26"
+    )
