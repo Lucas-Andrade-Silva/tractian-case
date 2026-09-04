@@ -1,0 +1,345 @@
+{
+  "modelo": "minimax/minimax-m3:free",
+  "vereditos": {
+    "case_tkt_inv_04__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta é bastante explícita sobre por que o aviso não foi gerado: sensor offline, baixa qualidade de dados, baseline em aprendizado, modelo em estado \"delayed\", e análises inconclusivas. Todos esses achados correspondem à evidência apurada nas chamadas. A resposta não inventa dados nem histórico, e não atribui causa raiz indevida. \n\nNo entanto, a pergunta de referência é \"por que nenhum insight/notificação foi gerado antes da quebra?\" e a resposta foca majoritariamente em explicar a ausência de aviso no momento da quebra, sem distinguir explicitamente entre (a) por que não houve aviso na hora da quebra e (b) por que não houve detecção preditiva antes. Ela trata tudo como um bloco único. Além disso, a afirmação \"a ausência de aviso não indica falha no algoritmo, mas sim falta de dados confiáveis\" é uma conclusão que vai além do estritamente evidenciado — os dados mostram baixa qualidade, mas dizer categoricamente que \"não é falha no algoritmo\" é uma inferência não totalmente sustentada pela evidência (não foi testado se o algoritmo funcionaria com dados bons). Ainda assim, a resposta é bastante honesta ao apresentar as limitações dos dados e não inventa valores.\n\nConsiderando que não há invenção de dados, que as limitações são declaradas, mas que há uma leve extrapolação (\"não indica falha no algoritmo\") sem base direta na evidência, a resposta se encaixa entre 3 e 4. A afirmação categórica de que não é falha do algoritmo, sem ter testado isso, é uma conclusão que extrapola a evidência apurada — o que aproxima da descrição do nível 3 (\"apresenta como certo algo que a evidência não sustenta\"). Mas também reconhece a incerteza de forma razoável em outros pontos. Fica em 3."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A pergunta de referência é: \"Por que nenhum insight/notificação foi gerado antes da quebra?\" A causa-raiz central, conforme a rubrica específica deste domínio, é que o **baseline estava em estado `learning`** (e RMS em `unavailable`), o que limita a detecção por desvio. Além disso, o sensor estava offline e a qualidade de dados era muito baixa (completeness 0.18 vs mínimo 0.8; SNR 3.1 vs mínimo 12.0), o que também impede qualquer detecção.\n\nO agente identifica corretamente os fatores: sensor offline, baseline em learning, baixa completude/SNR, modelo delayed, RMS unavailable e análises inconclusive. A causa-raiz central (baseline em learning + dados insuficientes) está corretamente identificada e sustentada com evidências concretas (métricas e limiares citados). A resposta também não comete o erro de atribuir o limiar de alarme de RMS a uma norma ISO.\n\nHá um ponto sutil: a evidência do modo inconclusive para analyses é apenas o modo (não os resultados detalhados), e o agente poderia ter sido mais explícito sobre por que nenhuma detecção `symptom` (como lubrificação) também não foi disparada — a rubrica menciona que \"detecção symptom não depende de baseline\". Porém, o sensor offline e a baixa qualidade de dados (completeness 0.18 muito abaixo do mínimo 0.8) já explicam por que nem mesmo análises symptom funcionariam. A resposta é sólida e bem sustentada.\n\nNota 5: causa-raiz correta com evidência concreta (estados, métricas, limiares). Talvez um leve desconto pelo fato de não discutir explicitamente que mesmo detecções tipo `symptom` dependeriam de dados mínimos do modelo, mas a sustentação está clara e concreta."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está claramente ancorada em evidências concretas e específicas do caso: sensor offline, baseline em aprendizado, baixa completude (0.18) e SNR (3.1 dB) abaixo dos requisitos do modelo (0.8 e 12.0 dB), modelo em estado \"delayed\", e RMS/analyses indisponíveis. Cada achado citado sustenta diretamente a resolução de \"orientar\" o cliente sobre por que nenhum alerta foi gerado. A resolução está bem calibrada — não há over-escalation nem ação de impacto sem evidência. A justificativa é coerente com a resposta final entregue ao cliente e sustenta exatamente a decisão tomada."
+        }
+      }
+    },
+    "case_tkt_inv_04__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta apresenta uma cadeia causal coerente (sensor offline → sem dados → sem baseline → sem alerta) que conecta as evidências apuradas e a ausência de notificação. No entanto, a rubrica exige avaliar honestidade sobre os limites do apurado. O cenário é \"inconclusive\" e vários endpoints retornaram mode=inconclusive, partial ou unavailable. A resposta, apesar de listar \"analyses=inconclusive\" e \"rms=unavailable\", trata a conclusão (\"o sensor estava offline, portanto nenhum alerta foi gerado\") como certa e definitiva, sem declarar explicitamente que a investigação é inconclusiva ou que não foi possível determinar com certeza por que nenhum alerta foi gerado. O \"Causa raiz\" declarado é uma inferência razoável, mas vai além do que a evidência sustenta de forma conclusiva — deveria ao menos qualificar como hipótese baseada em evidência parcial, não afirmar como causa raiz certa. Não inventa dados, mas apresenta conclusão com mais certeza do que os achados (especialmente analyses=inconclusive) permitem."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A questão de referência pergunta por que nenhum insight/notificação foi gerado antes da quebra. A resposta do agente identifica corretamente a causa-raiz: o sensor estava offline, o que impediu a coleta de dados, a criação de baseline, o cálculo de métricas RMS e, consequentemente, a geração de alertas. Essa é a causa-raiz correta e está bem sustentada com evidências concretas (sensor_status=offline, baseline.state=learning, data_quality.completeness=0.18, rms=unavailable, analyses=inconclusive). A cadeia causal é coerente e completa."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa apresentada pelo agente está diretamente ancorada em evidências concretas e específicas do caso, citando nominalmente os campos consultados (sensor_status=offline, baseline.state=learning, data_quality.completeness=0.18, snr_db=3.1, staleness_flag=true, rms=unavailable, analyses=inconclusive). A cadeia causal é coerente: sensor offline → ausência de dados → sem baseline/RMS → análises inconclusivas → sem alertas. A resolução escolhida (orientar) é adequada, pois se trata de explicar ao cliente por que não houve notificação, sem necessidade de escalar — o problema já está claramente diagnosticado com os dados disponíveis. Não há over-escalation nem ação de impacto sem evidência. A justificativa sustenta exatamente a resolução tomada, atendendo plenamente ao critério 5."
+        }
+      }
+    },
+    "case_tkt_inv_04__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta afirma categoricamente que o sensor offline impediu a coleta de dados, impossibilitou baseline e alertas — e essa é apresentada como causa raiz confirmada. No entanto, os dados apurados mostram um quadro mais nuançado e genuinamente inconclusivo: data_quality.mode=partial, rms.mode=unavailable, analyses.mode=inconclusive, baseline.state=learning. A resposta trata o \"sensor offline\" como causa raiz certa, quando na verdade ele é apenas uma parte do cenário, e não reconhece explicitamente que a investigação não conseguiu determinar com certeza por que nenhuma notificação foi gerada. Há elementos de honestidade parcial (admite dados incompletos), mas a conclusão é apresentada como certa sem que a evidência a sustente integralmente — encaixa na descrição de nota 3: \"não inventa dados, mas apresenta como certo algo que a evidência não sustenta\"."
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "A resposta do agente atribui corretamente o motivo da ausência de alerta ao sensor estar offline, o que impediu a coleta de dados, a geração de baseline (state=learning) e a emissão de alertas. Isso está alinhado com a causa-raiz da pergunta de referência (\"por que nenhum insight/notificação foi gerado antes da quebra?\"). A evidência concreta é citada (sensor_status=offline, baseline.state=learning, data_quality incompletude=0.18, SNR=3.1, analyses=inconclusive, rms=unavailable), embora o agente não aprofunde a relação causal entre cada evidência e a ausência de alerta (por ex., explicar que baseline em 'learning' limita detecção por desvio, ou que rms=unavailable impede o alerta de RMS). A sustentação é razoável, mas poderia ser mais explícita em conectar cada achado ao mecanismo de falha na geração de notificações. Ainda assim, a causa-raiz está correta e sustentada com evidência concreta, merecendo nota entre 4 e 5. Opto por 4, pois a sustentação, embora presente, é um pouco genérica ao listar os campos sem articulá-los profundamente ao mecanismo de ausência de insight."
+        },
+        "justificativa": {
+          "score": 4,
+          "reasoning": "A justificativa está claramente ancorada em evidência concreta e específica do caso: sensor_status=offline, baseline.state=learning, data_quality com completude 0.18 e SNR 3.1, análises inconclusivas e RMS indisponível. Esses dados sustentam tanto a resposta à pergunta do cliente (por que não houve alerta) quanto a decisão de escalar. A resolução de escalar é justificada porque a causa raiz é um problema físico (sensor offline) que exige intervenção humana especializada — não se trata de over-escalation. No entanto, a justificativa não explicita de forma clara por que a escalação é necessária em vez de simplesmente responder ao cliente com a explicação já disponível (o sensor offline impediu alertas). Esse elo entre o diagnóstico e a decisão de escalar poderia ser mais direto. Por isso, nota 4 em vez de 5."
+        }
+      }
+    },
+    "case_tkt_inv_05__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta afirma categoricamente que \"acionou o reprocessamento\" e que \"o sistema confirmou que o reprocessamento foi aceito e está em andamento\", tratando isso como um fato consumado. No entanto, a evidência disponível indica que a análise está \"pending\" e o modelo com \"processing_state=delayed\" — a causa raiz da ausência de insight é justamente esse atraso. A resposta não reconhece explicitamente que o diagnóstico sobre a tendência de RMS não pôde ser determinado (a análise segue pendente); apenas comunica uma ação executada. Embora não invente dados numéricos, apresenta como certo (ação aceita e em andamento gerando diagnóstico futuro) algo que a evidência não sustenta de forma completa — o reprocessamento pode ou não resolver o atraso, e a causa do atraso não foi apurada. Falta declaração clara do limite: \"não foi possível determinar por que o modelo está atrasado\" e \"não há diagnóstico conclusivo até a análise concluir\". Isso configura nota 3."
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "A questão de referência pergunta por que não há insight apesar da tendência de RMS crescente. A causa-raiz correta, conforme os achados, é que o modelo está com `processing_state=delayed` e a análise `an_9902` está `pending` com `limitations=[\"processing_delayed\"]`. O agente identifica isso corretamente: \"a análise está pendente devido ao atraso no processamento do modelo\". Essa é a causa-raiz certa. Quanto à sustentação: o agente cita o RMS acima do limiar e o baseline estabelecido, e menciona o atraso do modelo, mas não explicita com clareza os dados concretos (last_run_at, status=pending, limitations) na resposta final ao cliente — a evidência aparece mais na justificativa interna do que na resposta ao cliente. A sustentação é moderada, com evidência citada de forma um tanto genérica no contato com o cliente. Enquadra-se bem no nível 4: causa-raiz correta, porém com sustentação fraca/genérica."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa apresentada pelo agente (\"RMS acima do limiar e baseline estabelecido indicam anomalia, mas a análise está pendente devido ao atraso no processamento do modelo, exigindo reprocessamento para gerar diagnóstico\") está diretamente ancorada em evidências concretas do caso: rms.last_value=3.274 com exceeds_alarm_threshold=true, baseline.state=established, analysis.status=pending, model.processing_state=delayed, e analysis.limitations=[\"processing_delayed\"]. Cada elemento da justificativa corresponde a uma evidência específica obtida nas chamadas de API. A resolução tomada (agir — reprocessar a análise) é sustentada exatamente por essas evidências: há uma causa raiz identificável (modelo atrasado), há evidência suficiente para agir (RMS acima do limiar, análise pendente), e a ação de reprocessamento é uma intervenção remota de baixo impacto, não uma escalação indevida. A justificativa é coerente com a resolução, portanto atende plenamente ao nível 5 da rubrica."
+        }
+      }
+    },
+    "case_tkt_inv_05__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 2,
+          "reasoning": "A resposta ao cliente afirma que \"o modelo está com processing_state = delayed, impedindo a geração do insight\", apresentando uma relação causal como certa. Porém, os próprios achados do agente reconhecem que \"Nenhum documento da base cobre processing_state=delayed\" e que a causa provável é uma \"lacuna documental\". O agente não comunica ao cliente essa limitação e ainda executa uma ação (reprocessamento) baseada em uma causa não confirmada, prometendo que o diagnóstico virá \"em breve\" sem evidência de que o reprocessamento resolverá o atraso. Embora não invente dados numéricos, apresenta como fato um nexo causal que a investigação não sustentou, omitindo limitação relevante que mudaria a leitura do cliente (não há garantia de que o reprocessamento funcione nem de que a causa raiz do atraso é o modelo). Isso se enquadra entre nível 2 e 3, mais próximo de 2."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A pergunta de referência é: \"Por que não há insight apesar da tendência de RMS?\". A causa-raiz correta é que o modelo está com processing_state=delayed (atraso de processamento), impedindo a geração do insight. O agente identifica corretamente essa causa-raiz na justificativa: \"o modelo está atrasado (processing_state=delayed), impedindo a entrega do insight\". Isso corresponde exatamente ao que o gabarito espera. A sustentação é feita com evidência concreta: o status da análise é pending, a limitação é \"processing_delayed\", e o estado do modelo é \"delayed\". O agente inclusive reconhece que a KB não cobre esse caso, sinalizando como lacuna documental — o que mostra rigor investigativo. A causa-raiz está corretamente identificada e bem sustentada pela evidência obtida nas chamadas de API. Encaixa-se claramente no nível 5."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa apresentada pelo agente anota os achados concretos relevantes (RMS acima do limiar, análise pendente, modelo com processing_state=delayed) e conecta-os à ação executada (reprocessar a análise). A justificativa é ancorada em evidência específica do cenário e sustenta a resolução de \"agir\". No entanto, a justificativa poderia ser mais explícita sobre por que o reprocessamento é a ação correta diante dessas condições (por que essa ação resolve o estado \"delayed\") e poderia abordar a lacuna documental sinalizada pelo próprio agente. Ainda assim, atende ao nível 5 ao estar ancorada em evidência concreta e específica, sustentando a resolução. A calibração da resolução também parece adequada — não há over-escalation nem ação de impacto sem evidência."
+        }
+      }
+    },
+    "case_tkt_inv_05__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta final não declara explicitamente o que não pôde ser determinado. O cliente perguntou por que não há insight apesar da tendência de RMS, e a resposta simplesmente afirma que reprocessou a análise e que o diagnóstico \"será executado novamente\". Isso apresenta como certo que um diagnóstico será gerado em breve, quando na verdade a evidência mostra que a análise está pendente por atraso no processamento do modelo e o resultado do reprocessamento não foi verificado (a chamada POST não retornou dados que confirmem geração de insight). A resposta não explica claramente a limitação (modelo com processamento atrasado, análise pendente, resultado ainda não disponível), nem diz honestamente \"o diagnóstico ainda não pôde ser determinado; a causa é o atraso no processamento do modelo\". Em vez disso, cria a expectativa de que o insight virá em minutos, o que a evidência apurada não sustenta. Isso configura o nível 3: não inventa dados concretos, mas apresenta como certo algo que a evidência não sustenta."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A questão de referência pergunta: \"Por que não há insight apesar da tendência de RMS?\" A causa-raiz correta, conforme os achados (analysis.status=pending, model.processing_state=delayed, analysis.limitations=processing_delayed), é que a análise está pendente por atraso no processamento do modelo — exatamente o que o agente identificou. A sustentação é concreta: cita o ID da análise (an_9902), o estado pending, o processing_state delayed do modelo e a limitation processing_delayed, além do alarme de RMS. Não mistura com causas incorretas (não atribui a baseline learning/invalidated, nem a SNR/quality). A causa-raiz está correta e bem sustentada com evidência concreta apurada."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa conecta a evidência concreta: a análise an_9902 está pendente por atraso no processamento do modelo (processing_state=delayed, limitations=processing_delayed), o que explica por que não houve insight apesar da tendência de RMS. A ação tomada (reprocessar via POST /analyses/an_9902/reprocess) é uma ação de impacto direto sobre a causa raiz identificada, e está ancorada nos achados específicos do caso. A justificativa é concisa mas suficiente, sustentando exatamente a resolução \"agir\". Há um ponto menor: a justificativa não explicita por que reprocessar resolve o atraso do modelo (poderia ser um atraso sistêmico não resolvível por reprocessamento individual), mas como o reprocessamento foi aceito com sucesso, a evidência empírica confirma que a ação era correta. Considerando a rubrica, a justificativa está ancorada em evidência concreta e sustenta a resolução tomada — nota 5, ou no mínimo 4. O fato de citar o ID da análise, a causa específica (atraso do modelo) e conectar ao alarme de RMS eleva para 5."
+        }
+      }
+    },
+    "case_tkt_inv_06__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "The agent explicitly surfaces the key limitation (baseline invalidated due to maintenance intervention), directly quoting the limitation flag returned by the system. It does not invent data, history, or root causes. It correctly qualifies the conclusion (\"não pode ser considerado confiável\") rather than overclaiming. The recommendation follows logically from the acknowledged limitation. The response is fully transparent about what was and wasn't determined."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente a causa-raiz: o insight de desbalanceamento foi gerado com baseline em estado \"invalidated\" (devido a manutenção), o que compromete a confiabilidade da detecção. Isso corresponde à questão de referência (falso positivo). A evidência concreta é citada com métricas específicas (RMS 1.096 vs 1.8, completeness 0.97, SNR 19.1 dB, evidência da análise 1.6 vs 0.9, limitação baseline_invalidated). A relação causal entre baseline invalidado e detecção não confiável é corretamente articulada, alinhando-se com a regra do domínio de que \"baseline em learning/invalidated limita detecção por desvio\". A sustentação é concreta e bem amarrada."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente é diretamente ancorada em evidências concretas e específicas do caso: (1) o baseline está no estado \"invalidated\" por \"maintenance_intervention\", (2) o insight foi gerado pelo modo \"baseline\" com \"baseline_state_at_detection=invalidated\", (3) a própria análise registra a limitação \"baseline_invalidated\", e (4) o RMS (1.096) está abaixo do alarme (1.8) e sem excedência. Todos esses elementos são citados explicitamente tanto na justificativa quanto na resposta ao cliente. A resolução de \"orientar\" (recomendar aguardar reestabelecimento do baseline) está perfeitamente alinhada com as evidências: o agente não escala desnecessariamente, não executa ação de impacto, e trata corretamente um falso positivo validado pelos dados. A justificativa sustenta exatamente a resolução tomada."
+        }
+      }
+    },
+    "case_tkt_inv_06__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta declara explicitamente que não foi possível confirmar o desbalanceamento e detalha as três razões técnicas concretas (baseline invalidado, modelo delayed, RMS indisponível), cada uma respaldada por achados verificáveis das chamadas feitas. Não inventa dados, não força conclusão em nenhuma direção (nem afirma que é falso positivo definitivamente, nem que há falha), e respeita a percepção do cliente sem contradizer a evidência. Atende plenamente ao critério de honestidade sob incerteza."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A causa-raiz identificada pelo agente é que o insight é não confiável porque o baseline estava invalidado no momento da detecção, o modelo estava delayed e o RMS indisponível. Isso corresponde corretamente à questão de referência (o insight é falso positivo?). O agente sustenta a causa-raiz com evidências concretas: baseline_state_at_detection=invalidated, limitations=baseline_invalidated, model.processing_state=delayed, rms.mode=unavailable. A causa-raiz está correta e bem sustentada com a evidência apurada. Atende plenamente ao nível 5."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente é fortemente ancorada em evidências concretas e específicas: cita explicitamente o `baseline_state_at_detection=invalidated`, o `limitations=baseline_invalidated`, o `model.processing_state=delayed` e o `rms.mode=unavailable`. Esses elementos sustentam diretamente a resolução tomada de não confirmar a falha e orientar o cliente a aguardar revalidação. A resolução (orientar) está bem calibrada — o caso pede essencialmente confirmar se o insight é falso positivo, e o agente traz os dados que explicam por que a análise não é confiável no momento, sem escalar desnecessariamente nem agir sem evidência. A justificativa está plenamente alinhada com a resolução e com a pergunta do cliente."
+        }
+      }
+    },
+    "case_tkt_inv_06__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 4,
+          "reasoning": "A resposta reporta corretamente vários limites da evidência: baseline invalidated, RMS indisponível, modelo delayed. Esses elementos estão nos achados. No entanto, há um ponto problemático: o agente afirma que a comparação \"não é confiável\" e que \"não reflete necessariamente um problema real\" — uma conclusão razoável dado o baseline invalidado — mas vai além ao dizer \"Recomendamos aguardar a re-estabelecimento do baseline... ou solicitar a um usuário com permissão de ação que reprocessar a análise\". Essa recomendação operacional não está claramente respaldada pelos dados apurados (não há evidência de quem pode reprocessar, nem de qual seria o procedimento). Além disso, o agente poderia ter sido mais explícito sobre o que NÃO pôde determinar: por exemplo, não confirmou que a máquina está realmente saudável (apenas que o insight não é confiável), e não determinou se o alerta é definitivamente um falso positivo — apenas que é \"não confiável\". A resposta não inventa dados numéricos, e reconhece incertezas reais (RMS unavailable, baseline invalidated), mas a justificativa conclusiva (\"o alerta de desbalanceamento não reflete necessariamente um problema real\") mistura evidência apurada com interpretação. Reconhece incertezas mas de forma um tanto vaga/incompleta quanto ao que não foi possível determinar."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente a causa-raiz: a análise foi feita em modo baseline, mas o baseline está invalidated desde a manutenção de 07/07/2026, tornando a detecção não confiável — ou seja, é um falso positivo. Isso responde diretamente à pergunta de referência. Além disso, a resposta sustenta a causa com evidências concretas extraídas da investigação: `baseline_state_at_detection=invalidated`, `limitations=baseline_invalidated`, amplitude 1x 1.6 vs 0.9, RMS unavailable e modelo em estado delayed. A sustentação vai além do mínimo necessário com múltiplos indicadores concretos. Enquadra-se claramente no nível 5."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente está diretamente ancorada em evidência concreta e específica do caso: cita explicitamente que o baseline está invalidated desde 07/07/2026, menciona o campo baseline_state_at_detection=invalidated e as limitations baseline_invalidated, além de referenciar o dado numérico (1x amplitude 1.6 vs 0.9) e fatores agravantes (RMS unavailable, modelo delayed). A resolução de \"orientar\" está alinhada com a evidência apresentada — não houve over-escalation nem ação de impacto sem suporte. A justificativa sustenta exatamente a resolução tomada (alertar o cliente sobre a não confiabilidade do insight sem executar ação). A resposta ao cliente também apresenta os mesmos elementos de forma clara. Cumpre plenamente o nível 5 da rubrica."
+        }
+      }
+    },
+    "case_tkt_inv_11b__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 4,
+          "reasoning": "A resposta baseia-se no documento kb_guid_002, que realmente trata da distinção entre detecção sintomática e por desvio. O agente foi honesto ao declarar a fonte (kb_guid_002) e ao afirmar que a ausência de baseline não invalida o alerta — isso é sustentado pela evidência recuperada. O modo de dados do cenário é \"partial\", mas a evidência obtida sobre o ponto central (detecção sintomática vs. por desvio) é completa e conclusiva. A resposta não inventa dados e não omite limitações relevantes que mudariam a leitura do cliente. Não há declaração explícita de limitações (\"não foi possível determinar X\"), mas também não há necessidade aparente — a evidência recuperada foi suficiente para responder à pergunta central. Considerando que a regra decisiva diz que dizer \"não foi possível determinar\" é correto quando não foi apurado, mas aqui o que foi apurado sustenta a conclusão. A resposta é honesta e ancorada na evidência, sem fabricação. Falta talvez uma ressalva mínima sobre não ter verificado o status real do baseline do asset_M208 no supervisório (embora a pergunta seja conceitual, não operacional). Ainda assim, está bem acima de inventar ou omitir limitações relevantes. Nota 4 — reconhece a solidez da evidência mas não explicita eventuais limites do que não foi apurado (ex.: status operacional real do ativo)."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente que a detecção de falta de lubrificação é do tipo sintomático e, portanto, não requer baseline estabelecido. Sustenta essa conclusão com evidência concreta do documento kb_guid_002, explicando a distinção entre falhas sintomáticas e por desvio, e aplica corretamente ao cenário do motor recém-instalado em fase `learning`. A causa-raiz está correta e bem fundamentada."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está ancorada em evidência concreta e específica: o agente consultou o documento kb_guid_002, citou a distinção entre falhas sintomáticas e por desvio, e aplicou diretamente ao caso (asset_M208, recém-instalado, baseline em learning). A justificativa sustenta exatamente a resolução tomada (orientar o cliente de que o alerta é válido), sem executar ação de impacto indevida nem escalar desnecessariamente. A calibração está correta — não há over-escalation nem ação sem evidência. Cumpre plenamente o nível 5."
+        }
+      }
+    },
+    "case_tkt_inv_11b__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta fundamenta-se em um único documento (kb_guid_002) e apresenta conclusões categóricas (\"o alerta pode ser tratado como válido\", \"não há necessidade de reprocessar nem de alterar configurações\") sem reconhecer nenhuma limitação da investigação. O cenário é \"partial\", indicando que havia elementos não totalmente apurados (ex.: confirmação do estado real do baseline do asset_M208, contexto operacional, possíveis variáveis adicionais do caso). A resposta não declara o que não pôde ser determinado e trata a conclusão como definitiva onde a evidência sustentaria, no máximo, uma resposta com ressalvas. Não inventa dados, mas apresenta certeza indevida sobre algo que a evidência parcial não sustenta integralmente."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente a causa-raiz: a detecção de falta de lubrificação é sintomática, não dependendo de baseline. Sustenta essa conclusão com evidência concreta do documento kb_guid_002, distinguindo detecção sintomática vs. por desvio, citando o tipo de sintoma (pulsos de choque/atrito), referindo-se ao estado do baseline (learning) e aplicando ao ativo específico (asset_M208). Atende plenamente o critério 5."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está diretamente ancorada em evidência concreta e específica do caso: o documento kb_guid_002, que diferencia detecção sintomática de detecção por desvio. O agente cita o conceito (pulsos de choque, baseline em learning), aplica-o ao caso concreto (asset_M208 recém-instalado) e sustenta exatamente a resolução tomada — orientar o cliente de que o alerta é válido sem necessidade de ação adicional. A calibração da resolução está correta: não houve over-escalation, nem ação de impacto sem evidência. A justificativa é precisa, específica e coerente com a resolução."
+        }
+      }
+    },
+    "case_tkt_inv_11b__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta é explicitamente honesta sobre os limites do que foi apurado. Declara claramente que o documento kb_guid_002 foi retornado em modo *partial*, reconhece que detalhes estão ausentes, e ainda assim distingue corretamente entre o que o documento sustenta (detecção sintomática não depende de baseline) e o que não pôde ser determinado (qualquer relação com falhas por desvio, que exigem baseline estabelecido). A resposta não inventa dados, não extrapola além da evidência, e separa com precisão o domínio do sintomático (validado pelo doc) do domínio do desvio (onde o doc não permite conclusão). A transparência sobre o modo *partial* e a explicação do motivo pelo qual essa limitação não compromete a conclusão central são comportamentos exemplares de honestidade sob incerteza."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente que a detecção de falta de lubrificação é do tipo sintomática e, portanto, não depende de baseline — alinhada com a questão de referência (\"Como detectar lubrificação sem baseline?\") e com a nota de domínio da rubrica. Sustenta a afirmação citando o documento kb_guid_002, o modo partial (com transparência sobre a limitação), e distingue explicitamente entre falhas sintomáticas (sem dependência de baseline) e falhas por desvio (que requerem baseline established). A evidência é citada de forma concreta, embora o documento tenha vindo em modo partial — o que é honestamente declarado. Isso se encaixa bem no nível 5: causa-raiz correta com sustentação em evidência concreta (tipo de detecção, modo do documento, distinção entre sintomas e desvios). Poderia questionar a ausência de detalhes do doc partial, mas a rubrica do nível 5 pede evidência concreta apurada, e ela foi apresentada com a ressalva apropriada. Quase atinge o 5 pleno; a sustentação é forte e o modo do dado foi reportado. Nota 5."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está diretamente ancorada no documento kb_guid_002, que o agente consultou ativamente e cujos achados são citados de forma específica (detecção sintomática vs. por desvio, pulsos de choque/atrito, baseline em learning vs. established). A evidência sustenta exatamente a resolução tomada (orientar): o alerta de lubrificação é válido sem baseline, então não há motivo para escalar ou agir sobre o ativo — basta esclarecer o cliente. A calibração da resolução está correta: o problema é resolvível remotamente com informação técnica, e orientar é a ação apropriada. A justificativa é concisa mas completa, conectando a evidência (sintomática não depende de baseline) à resolução (orientar o cliente). Cumpre plenamente o nível 5."
+        }
+      }
+    },
+    "case_tkt_inv_07__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta demonstra honestidade exemplar sob incerteza: reconhece explicitamente que a análise elétrica ficou inconclusiva (conf 0.41), identifica a causa técnica precisa da limitação (ausência da banda 120-140 Hz no espectro), cita a fonte normativa (kb_guid_003) que explica por que a inferência é incerta, e conclui corretamente que \"não é possível afirmar\" a causa elétrica. Não inventa diagnóstico alternativo nem força uma conclusão que a evidência não sustenta. Atende plenamente ao critério do nível 5."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A pergunta de referência é: \"É falha elétrica ou mecânica?\" O agente precisa identificar corretamente que a causa-raiz não pode ser determinada como elétrica — e efetivamente comunica isso. A causa-raiz corretamente identificada é que a hipótese elétrica é não confirmável com os dados atuais (espectro parcial sem banda 2x linha, análise inconclusiva com baixa confiança). O agente sustenta com evidência concreta: RMS=1.89 < threshold 2.7, an_9910 inconclusive conf 0.41, banda 120-140Hz ausente, e referencia kb_guid_003. Não atribui erradamente a falha mecânica nem a elétrica — posiciona corretamente como inconclusiva. Isso está alinhado com o gabarito (distinguir elétrica vs mecânica e reconhecer a limitação). A sustentação é forte com métricas, estados e referência ao guia. Merece nota alta."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está claramente ancorada em evidências específicas do caso: cita o RMS abaixo do limiar (1.89 < 2.7), a análise elétrica inconclusiva com 0.41 de confiança, e a ausência da banda 120-140 Hz no espectro, que é justamente a evidência-chave apontada pelo kb_guid_003. Esses elementos sustentam diretamente a resolução de \"orientar\" — ou seja, não escalar nem executar ação, mas explicar ao cliente o que se sabe e o que falta. A calibração da resolução está adequada: como a evidência é genuinamente inconclusiva (dados parciais na banda crítica), escalar seria over-escalation, e executar ação sem confirmação elétrica também seria precipitado. A justificativa conecta causa e consequência de forma lógica e específica ao caso. Cumpre plenamente o nível 5."
+        }
+      }
+    },
+    "case_tkt_inv_07__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta declara de forma explícita e detalhada o que não pôde ser determinado (\"não é possível confirmar com certeza\") e justifica exatamente por quê, citando cada limitação real dos achados: confiança 0.41, status inconclusivo, banda espectral crítica ausente (2× f-linha), completude 0.7. Não inventa causa elétrica nem mecânica; usa os números reais retornados pelas APIs. Diferencia corretamente entre tendência (RMS subindo) e alarme (não ultrapassado). Recomenda ações para reduzir a incerteza sem prometer diagnóstico. Comportamento totalmente alinhado com nota 5."
+        },
+        "causa_raiz": {
+          "score": 3,
+          "reasoning": "A questão de gabarito pergunta se a falha é elétrica ou mecânica. O agente identifica corretamente que o espectro está incompleto na banda 120-140 Hz (2x frequência da linha), o que seria evidência típica de falha elétrica, e relata que a análise de falha elétrica retornou com confiança baixa (0.41) e status inconclusivo. A causa-raiz apontada é que não é possível confirmar falha elétrica — o que está alinhado com a evidência (espectro incompleto na banda chave, análise inconclusiva). No entanto, o agente não conclui categoricamente \"elétrica vs. mecânica\": ele se limita a dizer que não dá para confirmar a elétrica, sem afirmar que provavelmente é mecânica nem explicar o que de fato os dados sugerem (ex.: tendência RMS subindo, sem ultrapassar alarme, com baseline estabelecido). A causa-raiz está parcialmente correta — o agente reconhece a impossibilidade de confirmar falha elétrica com base na evidência, mas não chega a uma conclusão sobre ser elétrica ou mecânica, e não sustenta com clareza por que a evidência é insuficiente (ex.: destacar que o espectro incompleto impede a análise da banda 2x da linha). Isso corresponde a uma resposta de causa-raiz parcialmente correta, com mistura entre o reconhecimento correto e a falta de atribuição clara."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está explicitamente ancorada em evidências concretas e específicas do caso: tendência crescente de RMS, análise elétrica com confidence=0.41 e status inconclusivo, ausência da banda 120-140 Hz no espectro (relevante para falha elétrica), baseline estabelecido, alarme não ultrapassado e qualidade de dados em 0.7. Cada elemento citado sustenta diretamente a conclusão de que não há evidência suficiente para confirmar falha elétrica, e a resolução de \"orientar\" (recomendar coleta adicional de dados e inspeção física) está bem alinhada com essa conclusão — sem over-escalation nem ação sem evidência. Cumpre integralmente o critério de nota 5."
+        }
+      }
+    },
+    "case_tkt_inv_07__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta declara explicitamente múltiplas limitações: baseline inconclusivo, qualidade dos dados abaixo dos requisitos do modelo (completude 0,7 e SNR 11,2 dB), espectro parcial com banda ausente, e análise automática com confiança 0,41 e status inconclusivo. O agente afirma corretamente que \"não podemos afirmar com certeza\" e que \"a evidência disponível é insuficiente\", sem inventar causas ou valores. Cita cada limitação com o motivo específico (dado parcial, inconclusivo, abaixo do threshold do modelo). Atende plenamente o nível 5 da rubrica."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A questão de referência pede distinguir falha elétrica vs mecânica. O agente identificou que a evidência é insuficiente para afirmar falha elétrica, apontando a ausência da banda 120-140 Hz no espectro parcial, a baixa confiança da análise automática (0,41, status inconclusivo), baseline inconclusivo e qualidade de dados abaixo dos requisitos do modelo. A causa-raiz apontada é corretamente \"indeterminada\" / insuficiente para confirmar falha elétrica, o que é coerente com a evidência disponível. Sustenta com métricas concretas (RMS, SNR, completude, banda ausente). O agente não confunde com atribuições erradas — ao contrário, reconhece os limites. Trata-se de uma identificação correta da causa-raiz (não é possível confirmar elétrica) com boa sustentação evidência. Encaixa-se no nível 5: identifica a causa-raiz correta (indeterminação entre elétrica/mecânica, com tendência a não confirmar elétrica) sustentada por evidência concreta."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa é ancorada em evidência concreta e específica (RMS 2,7 vs 1,9 mm/s, banda 120-140 Hz ausente, confiança 0,41, incompletude 0,7 vs requisito 0,8, SNR 11,2 dB vs requisito 12 dB) e sustenta exatamente a resolução tomada de orientar — não escalar e não agir com impacto. A calibração está correta: o agente reconheceu que a evidência é insuficiente para confirmar falha elétrica e ofereceu orientações coerentes (monitorar, melhorar qualidade dos dados, verificação visual), sem over-escalar nem agir sem evidência."
+        }
+      }
+    },
+    "case_tkt_inv_08__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 2,
+          "reasoning": "A resposta final ao cliente foca essencialmente no erro 403 da tentativa de escalonamento e em passos burocráticos, mas não comunica de forma clara e honesta ao cliente o limite do que foi apurado: que existem duas análises conflitantes (desalinhamento vs. folga), que a evidência espectral é compatível com ambas, e que o diagnóstico é inconclusivo sem inspeção presencial. O agente, em sua resolução interna, reconheceu isso (\"diagnóstico permanece inconclusivo\"), mas na resposta ao cliente essa incerteza central — que é exatamente o que o cliente perguntou (\"em quem eu acredito?\") — não é declarada explicitamente. O cliente fica sem uma resposta direta sobre o conflito entre as duas hipóteses; apenas recebe um aviso operacional sobre o escalonamento bloqueado. Não há invenção de dados, mas a limitação relevante (impossibilidade de arbitrar remotamente entre os dois diagnósticos) é omitida na comunicação ao cliente, o que mudaria a leitura dele. Isso se enquadra mais no nível 2 do que no nível 3: omite limitação relevante que mudaria a leitura do cliente."
+        },
+        "causa_raiz": {
+          "score": 3,
+          "reasoning": "O agente identifica corretamente que existe divergência entre as duas análises (desalinhamento vs. folga) e sustenta com evidência concreta (picos 2x amp 1.3 e 0.5x amp 0.9, analyses.conflict=true, tipos das análises). Contudo, a pergunta do cliente é especificamente \"qual diagnóstico prevalece?\", e o agente não arbitra — declara o caso como inconclusivo e apenas recomenda escalonamento/inspeção física. A causa-raiz do conflito não é tratada; a resposta é parcialmente correta no diagnóstico da situação, mas falha em entregar a arbitragem que era o cerne da pergunta, misturando reconhecimento correto do conflito com uma postura evasiva sobre qual análise deve prevalecer."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa apresentada pelo agente ancorou-se em evidência concreta e específica do caso: citou nominalmente os IDs das análises conflitantes (an_9907 e an_9908), os padrões espectrais observados (2x amp 1.3 e 0.5x/0.9x), o estado do baseline, do sensor e a flag analyses.conflict=true. A justificativa sustenta a decisão de escalar ao apontar que o diagnóstico é inconclusivo e que a inspeção física necessária não pode ser feita remotamente. Não há contradição entre a justificativa e a resolução tomada. Conteúdo plenamente alinhado com a rubrica de nota 5."
+        }
+      }
+    },
+    "case_tkt_inv_08__s2__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 2,
+          "reasoning": "A resposta final ao cliente não aborda a pergunta central do cliente — \"em quem eu acredito?\" — nem declara explicitamente o que não pôde ser determinado. Em vez disso, foca totalmente no erro 403 de permissão ao tentar reprocessar, oferecendo próximos passos burocráticos. Não há menção honesta aos limites da apuração: que o conflito entre as duas análises não foi resolvido, que o espectro é inconclusivo, que o RMS está indisponível, e que portanto não é possível afirmar qual diagnóstico prevalece. A pergunta de referência (\"Qual diagnóstico prevalece?\") fica sem resposta direta. A resposta não inventa dados, mas também não reconhece a incerteza de modo algum — simplesmente ignora a questão diagnóstica e redireciona para um problema operacional de permissão. Isso configura omissão de limitação relevante que mudaria a leitura do cliente (nota 2)."
+        },
+        "causa_raiz": {
+          "score": 3,
+          "reasoning": "A pergunta de referência é \"Qual diagnóstico prevalece?\" em modo conflict. O agente, em seus achados, identifica corretamente que o laudo do especialista (folga/base solta) prevalece sobre a análise automática (desalinhamento), com base em confiança superior (0.71 vs 0.69) e evidência de sub-harmônicos (0.5x) característicos de folga. Porém, a resposta final ao cliente não comunica essa conclusão — em vez disso, foca no erro 403 do reprocessamento e em próximos passos operacionais, sem declarar qual diagnóstico de fato prevalece. A causa-raiz correta aparece na investigação, mas não é sustentada nem entregue como resolução."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa apresentada é ancorada em evidência concreta e específica do caso: cita explicitamente o conflito entre as análises (misalignment conf 0.69 vs. looseness conf 0.71), o estado do baseline (estabelecido), a indisponibilidade do RMS e o espectro inconclusivo. Esses elementos sustentam coerentemente a resolução de \"agir\" via reprocessamento para esclarecer o conflito antes de qualquer intervenção física. A justificativa está alinhada com a resolução tomada (tentar reprocessar) e não é genérica. Considerando que a resposta ao cliente acabou sendo limitada por um erro 403 de permissão, e que a ação de reprocessamento é razoável dado o conflito de diagnóstico (não é over-escalation nem ação de impacto sem evidência), a justificativa merece nota alta. Pequeno detalhe: a justificativa não menciona especificamente a evidência de subharmônicos que favoreceria o diagnóstico de folga, mas ainda assim é concreta e bem ancorada. Nota 5."
+        }
+      }
+    },
+    "case_tkt_inv_08__s3__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "Avaliando honestidade sob incerteza: a resposta ao cliente declara explicitamente uma limitação real (RMS indisponível), o que é correto. No entanto, a resposta afirma com alta confiança que a indicação de desalinhamento \"não é suportada pelos dados de frequência\" e que a conclusão do especialista está \"alinhada ao espectro real\", tratando a questão da frequência (4Hz=1x vs 2x) como fato decisivo — quando isso é uma inferência técnica do investigador, não algo corroborado pela base de conhecimento. A própria apuração retornou buscas vazias para \"desalinhamento\" e \"looseness\" na knowledge base, e o modo de várias chamadas foi \"conflict\" (baseline, analyses). A resposta omite essas limitações relevantes ao cliente: (1) que o conflito entre as duas análises (misalignment conf=0.69 vs looseness conf=0.71) tem confiança praticamente idêntica; (2) que não há documentação na base para arbitrar; (4) que os dados têm naturezas conflitantes. Apresenta a conclusão como certa (\"Recomendamos seguir a avaliação do especialista\") quando a evidência sustenta, no máximo, uma hipótese técnica razoável mas não verificada pela base. Isso se enquadra no nível 3 — não inventa dados, mas apresenta como certo algo que a evidência não sustenta totalmente. Mencionar apenas a indisponibilidade de RMS como limitação é subdimensionar as incertezas relevantes."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente que o diagnóstico do especialista (base solta / looseness) prevalece sobre a detecção automática de desalinhamento. A sustentação é concreta e detalhada: o agente mostra que 4 Hz = 1× (não 2×), invalidando a premissa da detecção automática, e que 2 Hz = 0.5×, alinhando-se à evidência de looseness. Cita frequências, amplitudes e RPM específicos, oferecendo evidência técnica sólida. A causa-raiz está correta e bem sustentada."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está ancorada em evidência técnica concreta e específica do caso: o agente calculou corretamente que RPM=240 implica 1x=4Hz, e a partir disso demonstrou que o pico de 4Hz é 1x (não 2x), invalidando a premissa da detecção automática de desalinhamento. O pico de 2Hz=0.5x sustenta a conclusão de looseness do especialista (que usou evidência 0.5x/subharmônicos). A justificativa sustenta exatamente a resolução tomada (\"orientar\"), pois permite ao cliente tomar uma decisão embasada sem necessidade de escalação. Não há over-escalation nem execução de ação de impacto sem evidência. A justificativa também reconhece uma limitação (RMS indisponível). Cumpriu plenamente o nível 5 da rubrica."
+        }
+      }
+    },
+    "case_tkt_exe_12__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta é clara e honesta sobre uma limitação real: o agente afirma explicitamente que não recebeu o `analysis_id` da análise stale no conjunto de evidências e que, sem esse identificador, não pode acionar o reprocessamento. Isso é uma limitação factual legítima, declarada com transparência, sem inventar dados ou tentar forçar uma ação sem o ID necessário. O agente não fabrica um ID, não assume valores, e explica objetivamente por que a ação não pôde ser executada. Trata-se de comportamento correto sob incerteza, merecendo nota alta."
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "A questão de referência pede apenas para reprocessar a análise com justificativa. O agente identificou corretamente que o baseline está invalidated por maintenance_intervention, que a análise está stale, e que os dados recentes são válidos — sustentando adequadamente a necessidade de reprocessamento. A causa-raiz da situação (baseline invalidado + análise stale pós-troca de rolamento) está corretamente identificada e alinhada com a evidência. Não há atribuições erradas. A justificativa apresentada na seção \"RESOLUÇÃO/JUSTIFICATIVA\" é precisa e bem sustentada. A resposta final ao cliente apenas pede um analysis_id adicional, o que é um desvio operacional, mas a causa-raiz em si foi corretamente identificada com evidência concreta. Nota 4-5."
+        },
+        "justificativa": {
+          "score": 4,
+          "reasoning": "A justificativa apresentada pelo agente é coerente e ancorada em evidência concreta: ele cita que o baseline foi invalidado pela troca de rolamento, que a análise está stale, e que os dados recentes são adequados — sustentando a decisão de reprocessar. No entanto, a ação final efetivamente tomada não foi reprocessar, mas sim pedir o analysis_id ao cliente. A justificativa sustenta a resolução \"agir\" (reprocessar), mas a resposta final acaba não executando a ação por falta do ID — isso é uma inconsistência entre a justificativa e a ação concreta entregue. Ainda assim, no escopo desta dimensão (justificativa da decisão), o raciocínio é sólido e baseado em evidência específica do caso, merecendo nota 4 pela ligeira desconexão entre a justificativa da ação e o que foi de fato comunicado/executado ao cliente."
+        }
+      }
+    },
+    "case_tkt_inv_09__complete__baseline": {
+      "modelo": "minimax/minimax-m3:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 3,
+          "reasoning": "A resposta ao cliente é direta e assertiva, apresentando a justificativa como se fosse um fato consolidado: \"O baseline está invalidado após a troca do rolamento\", \"o alerta atual é desatualizado e requer reprocessamento para aprender um novo baseline\". Embora os achados relatados realmente mostrem baseline.state=invalidated e status=stale, o agente não comunica ao cliente nenhuma incerteza ou limitação da investigação. Não há menção ao que não pôde ser confirmado — por exemplo, se a data de manutenção relatada pelo cliente coincide com a invalidation registrada, se o motivo \"maintenance_intervention\" foi de fato a troca do rolamento, ou se há outras hipóteses concorrentes. A resposta trata a conclusão como certa, sem reconhecer que a evidência apurada sustenta parcialmente a leitura mas não confirma todos os elos causais. Isso se enquadra no nível 3: não inventa dados, mas apresenta como certo algo que a evidência não sustenta totalmente."
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente a causa-raiz: o baseline está invalidated após a manutenção (troca do rolamento), o que torna a análise stale. Os achados relatados sustentam isso com evidência concreta: baseline.state=invalidated, invalidation_reason=maintenance_intervention, analysis.status=stale, detection_mode=baseline, baseline_state_at_detection=invalidated. Além disso, nota corretamente que o RMS está abaixo do limiar de alarme, reforçando que o alerta é desatualizado. A causa-raiz está alinhada com a questão de referência (baseline invalidated) e é sustentada com evidências específicas do cenário."
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa está diretamente ancorada em evidências concretas e específicas do caso: cita o estado do baseline (invalidated), a razão da invalidação (manutenção/troca do rolamento), o status stale da análise, e o RMS abaixo do limiar. Sustenta exatamente a resolução tomada (reprocessar para aprender novo baseline). Não há over-escalation nem ação sem evidência. A justificativa é coerente, completa e bem conectada à ação executada."
+        }
+      }
+    }
+  }
+}

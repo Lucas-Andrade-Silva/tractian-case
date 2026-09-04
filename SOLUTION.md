@@ -4,9 +4,11 @@ Documentação técnica da minha solução para o Challenge TRACTIAN × Inteli. 
 parceiro está em [`STUDENT-GUIDE.md`](./STUDENT-GUIDE.md); este documento cobre o que eu
 construí.
 
-> **Estado atual:** agente e avaliação implementados e testados. Falta escolher o
-> provedor de LLM (`agent/.env`) para rodar de ponta a ponta com um modelo real — ver
-> [Pendências](#pendências).
+> **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
+> modelo real, em duas fases, e cinco experimentos registrados em
+> [`docs/experimentos/`](./docs/experimentos/). Faltam a bateria de EXP-05 (a hipótese
+> central) e o comitê de juízes — ambos bloqueados por cota, ver
+> [Pendências](#9-pendências).
 
 ## 1. Problema e recorte
 
@@ -77,6 +79,7 @@ Registradas como ADRs em [`docs/adr/`](./docs/adr/):
 | `eval/` | TRACTIAN (gabarito) | Lido exclusivamente por `evaluation/runner/golden.py`, após a execução |
 | `agent/` | Minha | Parte 1 |
 | `evaluation/` | Minha | Parte 2 |
+| `painel/` | Minha | Parte 3 — painel de operação/avaliação sobre os traces já gravados. Somente leitura; a aba Operação não lê gabarito |
 
 Dois ambientes virtuais: `api/.venv` (do parceiro) e `.venv` na raiz (minha solução).
 
@@ -123,35 +126,58 @@ execuções, e variação amostral do decoder seria confundida com instabilidade
 
 ## 6. Metodologia experimental
 
-**Hipótese** (a testar quando o provedor estiver configurado): *separar investigação de
-decisão — o Decisor não tem tools e só recebe evidência já apurada — reduz ações de
-impacto sem fundamento e reduz over-escalation, ao custo de mais chamadas por caso.*
+Os experimentos estão em [`docs/experimentos/`](./docs/experimentos/), cada um no formato
+da seção 8 do guia: hipótese → método → execução → análise → limitações.
 
-**Método:** rodar os 17 casos com ≥3 seeds; camada 1 mede decisão, ações indevidas e
-custo; camada 2 mede honestidade, causa-raiz e justificativa; camada 3 mede estabilidade.
-A comparação natural é contra uma variante de agente único (mesmas tools, sem separação
-de papéis), mantendo modelo e seeds fixos.
+**Hipótese central do projeto:** *separar investigação de decisão — o Decisor não tem tools
+e só recebe evidência já apurada — reduz ações de impacto sem fundamento e reduz
+over-escalation, ao custo de mais chamadas por caso.* É a de
+[EXP-05](./docs/experimentos/EXP-05-multiagente-vs-agente-unico.md), o único ainda pendente:
+o braço de agente único está implementado e testado, e falta cota de LLM para rodar as 51
+execuções.
 
-**Execução, análise e limitações:** pendentes da configuração do provedor.
+Onde a hipótese foi escrita depois dos dados, o documento diz isso no topo. Quatro dos cinco
+experimentos foram reconstruídos sobre execuções que já existiam; só EXP-02 e EXP-05 foram
+desenhados antes da coleta.
 
 ## 7. Resultados
 
-Ainda não há resultados com modelo real. O que já está verificado:
+| # | Hipótese | n | Veredito |
+| :--- | :--- | ---: | :--- |
+| [01](./docs/experimentos/EXP-01-politica-de-decisao.md) | Nomear *quando orientar não basta* aumenta a acurácia | 51 pares | **sustentada** — 86,3% → 94,1%, 4 correções e 0 regressões, mas p ≈ 0,125 |
+| [02](./docs/experimentos/EXP-02-politica-de-evidencia.md) | Apurar sempre os 4 pilares decide melhor | 6 pares | **refutada** — decisão idêntica par a par, custo 8% maior |
+| [03](./docs/experimentos/EXP-03-enforcement-de-permissoes.md) | Deixar a API recusar é honesto e seguro | 5 × 403 | **sustentada** — 5/5 relataram a recusa, 0/5 insistiram |
+| [04](./docs/experimentos/EXP-04-decisor-sem-tools.md) | Decidir sem tools custa 1 chamada, constante | 102 exec. | **sustentada** — 1,00/execução, 0 chamadas de API |
+| [05](./docs/experimentos/EXP-05-multiagente-vs-agente-unico.md) | Separar papéis reduz ação indevida | 0/51 | ⏳ pendente de cota |
+
+Bateria executada: **102 execuções** (17 cenários × 3 seeds × 2 fases), sem falha de
+execução. Estabilidade entre seeds passou de 13/17 para **17/17** casos após a correção da
+política de decisão.
+
+O que está verificado por teste, e não por execução:
 
 | Verificação | Status |
 | :--- | :--- |
 | Testes da API do parceiro (não quebrei nada) | 39 passando |
-| Integração HTTP + tools contra a API real | 9 passando |
-| Cabeamento do grafo, orçamentos, ADR 0002 e ADR 0003 | 5 passando |
+| Suíte do agente (integração, grafo, orçamentos, ADR 0002/0003) | 33 passando |
+| Braço de agente único (EXP-05) | 4 passando |
 | Camadas 1 e 3 da avaliação + relatório | 21 passando |
 | Holdout: integridade, disjunção e auditoria | 9 passando |
 | Auditoria mecânica do holdout contra a API real | 41/41 asserções, 8/8 cenários |
-| Pipeline de avaliação de ponta a ponta | verificado com traces reais do grafo |
 
 ## 8. Limitações
 
-- **Sem execução com LLM real ainda** — nenhuma afirmação sobre qualidade do agente pode
-  ser feita antes disso. Os testes verificam estrutura e integração, não comportamento.
+- **A camada 2 nunca rodou.** 0 de 81 execuções elegíveis foram julgadas pelo comitê.
+  Nada aqui mede qualidade textual — honestidade, causa-raiz, justificativa. Toda
+  afirmação de resultado é sobre decisão, trajetória e custo.
+- **Hipóteses formuladas após a coleta**, em EXP-01, 03 e 04. É HARKing, está declarado no
+  topo de cada documento, e reduz a força da inferência: trate como evidência sugestiva,
+  não confirmatória.
+- **n pequeno e não independente.** Três seeds do mesmo caso não são três observações
+  independentes: onde há taxas sobre 51 execuções, o n efetivo está mais perto de 17.
+  Nenhum resultado atinge significância a 5% (EXP-01: p ≈ 0,125).
+- **Cota de LLM moldou o desenho.** O n=6 de EXP-02 e a pendência de EXP-05 são
+  consequência do limite do plano gratuito, não de escolha metodológica.
 - **Dados sintéticos.** Os 17 casos vêm de material fictício; generalização para
   operação real não está demonstrada.
 - **Resoluções aceitas transcritas à mão.** A tabela `ACCEPTED_DECISIONS` foi lida de
@@ -170,7 +196,13 @@ Ainda não há resultados com modelo real. O que já está verificado:
 
 ## 9. Pendências
 
-1. Rodar os 17 casos × ≥3 seeds e produzir o primeiro relatório real (golden set).
-2. Calibrar o comitê de juízes: conferir à mão algumas notas antes de confiar nas médias.
-3. Rodar o experimento da hipótese (multiagente × agente único) e escrever a análise.
+1. **Rodar EXP-05** (`make exp05`) — braço de agente único, 51 execuções. Implementado e
+   testado; falta cota. É a hipótese central do projeto.
+2. **Rodar o comitê de juízes** (`make painel-julgar`) — 0 de 81 julgadas. Sem isso, a
+   camada 2 da pirâmide de avaliação existe em código mas não produziu nenhum dado.
+3. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias.
 4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
+5. Gravar `fase` no trace (`agent/app/trace.py`) — hoje a fase é recuperada por junção de
+   tokens, garantia empírica e não estrutural (ver `painel/README.md`).
+6. Corrigir os dois defeitos abertos de EXP-01 §4.4: ação exigida não executada
+   (TKT-EXE-12/s2) e `model_id` vazio na URL (TKT-EXE-15/s2).

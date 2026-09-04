@@ -43,6 +43,10 @@ class Settings:
     # experimento — as duas são defensáveis, e qual rende melhor recall por token é
     # questão empírica, não de opinião.
     evidence_policy: str = "fixed"
+    # Arquitetura do agente: `multi` (grafo de papéis, ADR 0001) ou `single` (agente
+    # único com todas as tools). É a variável do EXP-05 — as duas rodam o mesmo material
+    # e produzem o mesmo formato de trace, para que a comparação isole a arquitetura.
+    architecture: str = "multi"
 
     def model_for(self, role: str) -> str:
         """Modelo do papel, caindo no modelo geral quando não há um específico."""
@@ -75,4 +79,5 @@ def load_settings() -> Settings:
             if (value := (os.getenv(f"MODEL_{role.upper()}") or "").strip())
         },
         evidence_policy=(os.getenv("EVIDENCE_POLICY") or "fixed").strip().lower(),
+        architecture=(os.getenv("AGENT_ARCHITECTURE") or "multi").strip().lower(),
     )

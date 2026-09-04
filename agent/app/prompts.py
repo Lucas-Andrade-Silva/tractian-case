@@ -303,12 +303,77 @@ EVIDÊNCIA APURADA:
 """
 
 
+def single_agent_prompt(
+    case: dict[str, Any],
+    user_context: dict[str, Any] | None,
+    evidence_policy: str = "fixed",
+) -> str:
+    """Prompt do braço de agente único do EXP-05.
+
+    Monta-se a partir das MESMAS peças dos papéis — `DOMAIN_BRIEF`, o bloco de evidência
+    de `EVIDENCE_POLICIES` e `_DECISION_POLICY` — e não de um texto paralelo. É o que
+    mantém o experimento honesto: se este prompt reescrevesse a política de decisão com
+    outras palavras, a comparação mediria redação, não arquitetura.
+
+    O que ele acrescenta é só o que a ausência de papéis exige: dizer ao agente que ele
+    acumula as três funções e que precisa decidir sozinho quando parar de investigar —
+    trabalho que no multiagente pertence ao Supervisor.
+    """
+    evidence_block = EVIDENCE_POLICIES.get(evidence_policy, _EVIDENCE_FIXED)
+    return f"""{DOMAIN_BRIEF}
+
+Você é um agente de suporte que atende o caso do início ao fim, SOZINHO. Você acumula as
+três funções: apurar a evidência técnica e documental, resolver o caso e executar na
+plataforma a ação que decidir.
+
+{evidence_block}
+
+Acrescente, conforme o caso: `list_analyses`/`get_analysis` quando houver insight em
+questão, `get_model` para comparar requisitos ou cobertura, `get_spectrum` quando a
+frequência da falha importar, e `search_knowledge`/`get_knowledge_doc` quando a pergunta
+pedir procedimento, definição ou orientação documental.
+
+Como trabalhar:
+- Consultas que não dependem uma da outra devem ser pedidas TODAS NA MESMA RESPOSTA,
+  numa única rodada — não uma por vez.
+- Não repita consulta já respondida, nem com outro filtro.
+- Use só IDs vindos de respostas anteriores. Id inventado dá 404 e queima uma volta.
+- Insight `detection_mode=baseline`: cheque o baseline antes de confiar nele.
+- VOCÊ decide quando parar de investigar. Apurado o que o caso pede, pare de consultar e
+  resolva — varredura além disso é erro, não zelo, e o orçamento de voltas é finito.
+- Se a resolução exigir uma ação na plataforma, execute-a com a tool correspondente,
+  passando uma justificativa ancorada na evidência que você apurou.
+
+{_DECISION_POLICY}
+
+Ao final, você será solicitado a formalizar a resolução: categoria, justificativa, ação e
+resposta ao cliente. A resposta ao cliente deve responder à pergunta feita em português
+claro, citar a evidência concreta que sustenta a conclusão (estados, valores, limiares),
+ser explícita sobre o que NÃO pôde ser determinado e não inventar dado que não apareceu
+na investigação.
+
+{_case_block(case)}
+
+CONTEXTO DE AUTORIZAÇÃO:
+{user_context if user_context else "(perfil do usuário não recuperado)"}
+"""
+
+
 def _case_block(case: dict[str, Any]) -> str:
+    # Sem ativo identificado, dizer isso explicitamente. Renderizar `None` fazia o
+    # agente tentar adivinhar o id a partir da mensagem do cliente ("conveyor_line2",
+    # "belt_line2", …), gastando uma volta de LLM por 404. O id é dado da plataforma:
+    # não sendo informado, não há como derivá-lo do texto, e insistir é desperdício.
+    ativo = case.get("asset_id") or (
+        "NÃO INFORMADO — não tente adivinhar o id a partir da mensagem. "
+        "Sem ativo, apure só o que independe dele e diga na resposta que "
+        "identificar o ativo é o passo que falta."
+    )
     return f"""CASO EM ATENDIMENTO:
 - case_id: {case.get("id")}
 - ticket: {case.get("ticket_id")}
 - empresa: {case.get("company_id")}
 - usuário: {case.get("user_id")}
-- ativo: {case.get("asset_id")}
+- ativo: {ativo}
 - mensagem do cliente: "{case.get("message")}"
 """

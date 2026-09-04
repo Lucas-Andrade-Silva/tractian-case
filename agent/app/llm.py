@@ -15,7 +15,12 @@ from langchain_core.language_models import BaseChatModel
 
 from .config import ROLES, Settings
 
-_SUPPORTED = ("groq", "openai")
+_SUPPORTED = ("groq", "openai", "openrouter")
+
+# OpenRouter fala o protocolo da OpenAI, então reaproveita o mesmo cliente — o que muda é
+# só o endereço. Fica aqui, e não no .env, porque é característica do provedor e não
+# configuração de quem usa.
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def build_llm(settings: Settings, **overrides: Any) -> BaseChatModel:
@@ -59,16 +64,18 @@ def build_llm(settings: Settings, **overrides: Any) -> BaseChatModel:
             params["api_key"] = settings.llm_api_key
         return ChatGroq(**params)
 
-    if provider == "openai":
+    if provider in ("openai", "openrouter"):
         try:
             from langchain_openai import ChatOpenAI
         except ImportError as exc:  # pragma: no cover - depende de instalação opcional
             raise LlmNotConfigured(
-                "Provedor 'openai' escolhido mas langchain-openai não está instalado. "
+                f"Provedor '{provider}' escolhido mas langchain-openai não está instalado. "
                 'Rode: uv pip install -e ".[openai]"'
             ) from exc
         if settings.llm_api_key:
             params["api_key"] = settings.llm_api_key
+        if provider == "openrouter":
+            params.setdefault("base_url", _OPENROUTER_BASE_URL)
         return ChatOpenAI(**params)
 
     raise LlmNotConfigured(

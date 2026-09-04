@@ -16,6 +16,8 @@ dependencies = [
 # Instale só o que for usar: uv pip install -e ".[groq]"
 groq = ["langchain-groq>=0.2"]
 openai = ["langchain-openai>=0.2"]
+# Modo servidor (`python server.py --serve`): a aba Consulta do painel.
+serve = ["fastapi>=0.110", "uvicorn>=0.27", "pandas>=2.0", "pyarrow>=15"]
 dev = [
     "pytest>=8",
 ]

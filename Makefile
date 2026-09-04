@@ -22,7 +22,9 @@ MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
 .PHONY: help setup deps data agent-env up up-api up-agent up-all stop logs test clean clean-data \
-	my-setup agent-list agent-run eval eval-fast eval-report holdout-audit holdout my-test
+	my-setup agent-list agent-run eval eval-fast eval-report holdout-audit holdout my-test \
+	exp05 exp05-listar exp05-comparar \
+	painel painel-dados painel-completar painel-julgar painel-modelos consulta
 
 help: ## Mostra esta ajuda
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -137,6 +139,41 @@ holdout-audit: ## Auditoria mecânica do holdout contra a API real (ADR 0006)
 
 holdout: ## Avalia o agente no holdout (teste final — não usar durante o ajuste)
 	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --suite holdout --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
+
+painel-dados: ## Regenera o bundle do painel a partir dos traces e do CSV da bateria
+	@$(MY_PY) $(ROOT)/painel/build_bundle.py --verify
+
+painel-completar: ## Reexecuta as combinações caso×seed que faltam numa fase (FASE=pos-correcao)
+	@$(MY_PY) $(ROOT)/painel/completar_fase.py --fase $(if $(FASE),$(FASE),pos-correcao)
+	@$(MY_PY) $(ROOT)/painel/recalcular_csv.py --fase $(if $(FASE),$(FASE),pos-correcao)
+	@$(MY_PY) $(ROOT)/painel/resumir_csv.py
+	@$(MY_PY) $(ROOT)/painel/build_bundle.py --verify
+
+painel-julgar: ## Roda o comitê de juízes numa execução por vez, via OpenRouter (N=1)
+	@$(MY_PY) $(ROOT)/painel/julgar.py --limite $(if $(N),$(N),1) $(if $(MODELO),--modelo $(MODELO),)
+	@$(MY_PY) $(ROOT)/painel/build_bundle.py
+
+painel-modelos: ## Lista os modelos gratuitos do OpenRouter conhecidos pelo juiz
+	@$(MY_PY) $(ROOT)/painel/julgar.py --modelos
+
+painel: painel-dados ## Sobe o painel de operação/avaliação, somente-leitura (:$(AGENT_PORT))
+	@echo "   Painel: http://localhost:$(AGENT_PORT)"
+	@echo "   (a aba Consulta exige o agente no ar: use 'make consulta')"
+	@cd $(ROOT)/painel && $(MY_PY) -m http.server $(AGENT_PORT)
+
+consulta: ## Sobe o painel COM a aba Consulta — executa o agente ao vivo (:$(AGENT_PORT))
+	@echo "   Painel + consulta: http://localhost:$(AGENT_PORT)"
+	@echo "   Exige a API industrial no ar (make up) e o extra: uv pip install --python \"$(MY_PY)\" -e \"./agent[serve]\""
+	@cd $(ROOT)/agent && $(MY_PY) server.py --serve --port $(AGENT_PORT)
+
+exp05-listar: ## EXP-05: mostra o que falta rodar no braço de agente único
+	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py --listar
+
+exp05: ## EXP-05: roda o braço de agente único (N=limite, ex.: make exp05 N=3)
+	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py $(if $(N),--limite $(N),)
+
+exp05-comparar: ## EXP-05: compara agente único x multiagente, pareado
+	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py --comparar
 
 my-test: ## Roda os testes da minha solução (agente + avaliação)
 	@cd $(ROOT)/agent && $(MY_PY) -m pytest -q

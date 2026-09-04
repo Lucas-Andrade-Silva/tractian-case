@@ -17,6 +17,7 @@ from .api_client import ApiClient
 from .config import Settings, load_settings
 from .graph import build_graph
 from .llm import RoleModels
+from .single_graph import build_single_graph
 from .tools import action_tools, investigation_tools, knowledge_tools
 from .trace import Trace
 
@@ -71,10 +72,18 @@ def run_case(
             # Registra a configuração efetiva: sem ela, comparar duas rodadas depois
             # depende de lembrar o que estava no .env na hora.
             trace.model = json.dumps(
-                {**models.describe(), "_evidence_policy": settings.evidence_policy},
+                {
+                    **models.describe(),
+                    "_evidence_policy": settings.evidence_policy,
+                    "_architecture": settings.architecture,
+                },
                 ensure_ascii=False,
             )
-            graph = build_graph(
+            # EXP-05: a arquitetura é variável de experimento. Os dois construtores têm
+            # a mesma assinatura e produzem o mesmo formato de trace, de modo que a
+            # avaliação lê os dois braços sem saber qual rodou.
+            build = build_single_graph if settings.architecture == "single" else build_graph
+            graph = build(
                 models=models,
                 client=client,
                 settings=settings,

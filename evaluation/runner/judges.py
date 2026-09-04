@@ -125,6 +125,75 @@ def judge_settings() -> Settings:
     )
 
 
+class SaidaEstruturadaIndisponivel(RuntimeError):
+    """O modelo do juiz não produz nota e raciocínio em campos separados."""
+
+
+class CotaEsgotada(RuntimeError):
+    """O provedor recusou por limite de uso (429) — o modelo serve, só não agora."""
+
+
+class _LlmComMetodoFixo:
+    """Envolve o chat model fixando o método de saída estruturada que funciona.
+
+    `with_structured_output` sem `method` usa function calling, e entre os modelos
+    gratuitos o suporte varia: uns só respondem por `json_schema`, outros só por
+    `function_calling`, e alguns anunciam suporte que na prática devolve prosa —
+    Markdown com "**Nota: 5**" no fim, que o parser rejeita depois de o modelo já ter
+    feito o trabalho. Como `run_committee` chama `with_structured_output` internamente,
+    este envelope descobre uma vez qual método o modelo aceita e passa a usá-lo.
+    """
+
+    def __init__(self, llm: Any, metodo: str) -> None:
+        self._llm = llm
+        self._metodo = metodo
+        self.metodo = metodo
+
+    def with_structured_output(self, schema: Any, **kwargs: Any) -> Any:
+        kwargs.setdefault("method", self._metodo)
+        return self._llm.with_structured_output(schema, **kwargs)
+
+    def __getattr__(self, nome: str) -> Any:
+        return getattr(self._llm, nome)
+
+
+def com_saida_estruturada(llm: Any, schema: Any = None, *, verboso: bool = False) -> Any:
+    """Descobre qual método de saída estruturada o modelo aceita, testando de fato.
+
+    Uma sonda curta custa pouco e evita a alternativa: descobrir a incompatibilidade no
+    meio da rodada, com metade das dimensões julgadas. Levanta exceção em vez de sair do
+    processo, para que um servidor possa transformar a falha em resposta HTTP.
+    """
+    schema = schema or JudgeVerdict
+    limitado = False
+
+    for metodo in ("function_calling", "json_schema", "json_mode"):
+        try:
+            resposta = llm.with_structured_output(schema, method=metodo).invoke(
+                "Responda com uma análise de uma frase e a nota 3."
+            )
+            if resposta is not None and getattr(resposta, "score", None) is not None:
+                if verboso:
+                    print(f"  (saída estruturada por {metodo})")
+                return _LlmComMetodoFixo(llm, metodo)
+        except Exception as erro:  # noqa: BLE001 - a sonda existe para achar o que falha
+            # Cota estourada não é incompatibilidade: o modelo funciona, só não agora.
+            # Confundir os dois mandaria trocar de modelo sem necessidade.
+            if "429" in str(erro) or "rate" in str(erro).lower():
+                limitado = True
+            continue
+
+    if limitado:
+        raise CotaEsgotada(
+            "O provedor recusou por limite de uso (429) — a cota gratuita do modelo se "
+            "esgotou por agora. Espere alguns minutos ou troque de JUDGE_MODEL."
+        )
+    raise SaidaEstruturadaIndisponivel(
+        "O modelo do juiz não produz saída estruturada utilizável — o comitê precisa de "
+        "raciocínio e nota em campos separados. Troque JUDGE_MODEL."
+    )
+
+
 def run_committee(
     trace: dict[str, Any],
     golden: GoldenCase,
