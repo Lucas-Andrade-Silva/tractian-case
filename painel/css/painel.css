@@ -50,17 +50,21 @@
   --tonal-atencao: color-mix(in oklab, var(--ambar-fundo) 46%, var(--superficie));
   --tonal-erro:    color-mix(in oklab, var(--vermelho-fundo) 46%, var(--superficie));
 
-  /* Escala tipográfica para projetor: corpo a 16px, ancorada em passo ~1.2.
-     A escala anterior (corpo 13,5px) era de leitura em monitor a 60 cm; a banca
-     lê a 4 m de distância. Números de veredito a 76px. */
-  --t-micro: 12px;
+  /* Escala tipográfica para projetor, ancorada em 16px de corpo — a banca lê a 4 m.
+     Os degraus do topo abrem (1.17, 1.29) porque é onde a hierarquia precisa ser
+     vista de longe; os de baixo são apertados de propósito, porque micro/mini/meta
+     são papéis de texto pequeno que convivem, não níveis de hierarquia.
+     --t-h3 é igual ao corpo: um título de seção se distingue por peso e caixa alta,
+     não por tamanho — e um título menor que o corpo, que é o que havia aqui, lê como
+     legenda. --t-metrica é outlier deliberado: é o número da batida ①. */
+  --t-micro: 11px;
   --t-mini:  13px;
-  --t-meta:  14px;
+  --t-meta:  14.5px;
   --t-corpo: 16px;
-  --t-leitura: 17.5px;
-  --t-h3:    15px;
-  --t-h2:    19px;
-  --t-h1:    24px;
+  --t-h3:    16px;
+  --t-leitura: 18px;
+  --t-h2:    21px;
+  --t-h1:    27px;
   --t-metrica: 76px;
 
   /* Fundo da seleção: aba ativa, botão primário, seleção de texto. No claro é o
