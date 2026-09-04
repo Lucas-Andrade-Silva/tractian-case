@@ -1086,3 +1086,41 @@ button.celula { background: none; }
   color: var(--texto-fraco); font-size: var(--t-meta);
 }
 .passo:hover { color: var(--texto); }
+
+/* -- batida ① veredito --------------------------------------------------- */
+.veredito { display: flex; flex-direction: column; justify-content: center; gap: 26px; }
+
+.veredito-numero b {
+  display: block;
+  font-size: var(--t-metrica);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.94;
+}
+.veredito-numero small {
+  display: block;
+  font-size: var(--t-leitura);
+  color: var(--texto-fraco);
+  margin-top: 10px;
+}
+
+.veredito-seta { font-size: var(--t-leitura); color: var(--texto-fraco); }
+.veredito-seta b { color: var(--texto); font-size: 26px; font-weight: 500; margin: 0 4px; }
+.veredito-seta .seta { color: var(--verde-exec); margin: 0 12px; }
+.veredito-seta .ganho { color: var(--verde-exec); font-weight: 500; margin-left: 10px; }
+
+/* A ressalva de comparabilidade mora aqui, não na gaveta — quando ela invalida a
+   manchete não pode ficar atrás de um clique. Precisa ser lida, não competir com
+   o número: por isso fica em tom de meta, nunca no peso do título. */
+.veredito-licenca { font-size: var(--t-meta); color: var(--texto-fraco); max-width: 68ch; }
+
+.veredito-tiles {
+  display: flex; gap: 40px;
+  padding-top: 22px;
+  border-top: 1px solid var(--regua);
+}
+.veredito-tiles .tile span { display: block; font-size: 30px; font-weight: 500; line-height: 1.1; }
+.veredito-tiles .tile span.baixa { color: var(--azul-neutro); }
+.veredito-tiles .tile em { font-style: normal; font-size: var(--t-meta); color: var(--texto-fraco); }
+
+.veredito-frase { font-size: 21px; line-height: 1.45; max-width: 36ch; color: var(--texto); }
