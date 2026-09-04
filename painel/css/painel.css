@@ -1054,3 +1054,35 @@ button.celula { background: none; }
   cursor: pointer;
 }
 .gaveta-gatilho:hover { border-style: solid; }
+
+/* -- layout das batidas -------------------------------------------------- */
+.batidas-nav { display: flex; gap: 0; }
+.batidas-nav button {
+  padding: 10px 16px;
+  font-size: var(--t-meta);
+  color: var(--texto-fraco);
+  background: none; border: none; border-right: 1px solid var(--faixa);
+  cursor: pointer;
+}
+.batidas-nav button[aria-selected="true"] { background: var(--sel-fundo); color: var(--sel-texto); }
+
+.batida {
+  display: flex; flex-direction: column;
+  min-height: calc(100vh - 58px);
+}
+.batida-corpo { flex: 1; padding: 26px 30px; overflow-y: auto; }
+
+.batida-rodape {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 30px;
+  background: var(--superficie);
+  border-top: 1px solid var(--regua);
+  font-size: var(--t-meta);
+  color: var(--texto-fraco);
+}
+.passos { display: flex; gap: 12px; }
+.passo {
+  background: none; border: none; cursor: pointer;
+  color: var(--texto-fraco); font-size: var(--t-meta);
+}
+.passo:hover { color: var(--texto); }
