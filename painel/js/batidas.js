@@ -64,13 +64,35 @@ export function rodape(redesenha, gatilho = ["ⓘ método e ressalvas", "metodo"
   ]);
 }
 
-/** Setas do teclado avançam a narrativa — o autor conduz sem procurar o mouse. */
+/** Campos onde as setas pertencem ao texto, não à narrativa. */
+function digitando(alvo) {
+  if (!alvo) return false;
+  if (alvo.isContentEditable) return true;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName);
+}
+
+/**
+ * Setas do teclado avançam a narrativa — o autor conduz sem procurar o mouse.
+ *
+ * O guarda de `digitando` não é detalhe: as batidas ② e ④ têm campo de texto, e
+ * sem ele apertar ← para corrigir um typo trocaria de tela e apagaria o que estava
+ * sendo escrito. Modificadores também passam direto, para não sequestrar os atalhos
+ * de navegação do próprio navegador.
+ */
 export function ligaTeclado(redesenha) {
   window.addEventListener("keydown", (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+
     if (ESTADO.gaveta) {
-      if (ev.key === "Escape") { ESTADO.gaveta = null; redesenha(); }
+      if (ev.key === "Escape") {
+        ESTADO.gaveta = null;
+        redesenha();
+      }
       return;
     }
+
+    if (digitando(ev.target)) return;
+
     const indice = BATIDAS.findIndex((b) => b.chave === ESTADO.batida);
     if (ev.key === "ArrowRight" && BATIDAS[indice + 1]) {
       ESTADO.batida = BATIDAS[indice + 1].chave;
