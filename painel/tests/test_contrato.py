@@ -254,3 +254,30 @@ def test_veredito_expoe_ressalva_de_comparabilidade_sem_clique(js_fonte):
     assert "config_diverge_entre_fases" in fonte, (
         "a batida ① não lê o flag de comparabilidade — a ressalva ficaria só na gaveta"
     )
+
+
+def test_matriz_usa_quatro_categorias(js_fonte):
+    """Escalar nunca é vermelho, e reprovação com decisão certa é atenção, não erro."""
+    fonte = js_fonte("batida-matriz.js")
+    for tom in ("sucesso", "neutro", "atencao", "erro"):
+        assert f'"{tom}"' in fonte, f"categoria {tom} ausente na matriz"
+
+
+def test_estabilidade_virou_selo_e_nao_secao(bundle):
+    """17/17 estáveis é um selo, não uma seção.
+
+    Se algum dia deixar de ser 17/17, o selo passa a mentir e a batida ③ precisa
+    de revisão — por isso o teste falha em vez de o painel exibir um número errado.
+    """
+    casos = [c for c in bundle["casos"] if c["por_fase"].get("pos-correcao")]
+    mediveis = [c for c in casos if c["por_fase"]["pos-correcao"]["estabilidade"]["medivel"]]
+    estaveis = [c for c in mediveis if c["por_fase"]["pos-correcao"]["estabilidade"]["estavel"]]
+    assert len(estaveis) == len(mediveis), "a premissa do selo mudou — revisar a batida ③"
+
+
+def test_campos_do_diff_existem_no_bundle(bundle):
+    """A gaveta lateral da batida ③ lê estes campos; nomes inventados renderizam vazio."""
+    av = bundle["execucoes"][0]["avaliacao"]
+    for campo in ("decisoes_aceitas", "queries_faltantes", "queries_extras",
+                  "acoes_faltantes", "diff_trajetoria"):
+        assert campo in av, f"campo {campo} ausente — a batida ③ contava com ele"
