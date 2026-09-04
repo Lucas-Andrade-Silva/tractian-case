@@ -1124,3 +1124,54 @@ button.celula { background: none; }
 .veredito-tiles .tile em { font-style: normal; font-size: var(--t-meta); color: var(--texto-fraco); }
 
 .veredito-frase { font-size: 21px; line-height: 1.45; max-width: 36ch; color: var(--texto); }
+
+/* -- batida ② um chamado ------------------------------------------------- */
+.chamado-cabeca { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.seletor-wrap { position: relative; }
+.seletor-caso {
+  font-size: var(--t-h1);
+  font-weight: 500;
+  background: none; border: none; cursor: pointer;
+  color: var(--texto);
+  padding: 0;
+}
+.fila-gaveta {
+  position: absolute; top: 100%; left: 0; z-index: 20;
+  width: 420px; max-height: 60vh; overflow-y: auto;
+  background: var(--superficie);
+  border: 1px solid var(--regua);
+  border-radius: var(--r);
+  box-shadow: 0 6px 20px color-mix(in oklab, var(--ardosia-900) 16%, transparent);
+  padding: 10px;
+}
+.fila-gaveta input { width: 100%; margin-bottom: 8px; }
+
+.kpis {
+  display: flex; gap: 30px;
+  padding: 14px 0 15px;
+  border-bottom: 1px solid var(--regua);
+  margin-bottom: 0;
+}
+.kpi-item span { display: block; font-size: 26px; font-weight: 500; line-height: 1.1; }
+.kpi-item em { font-style: normal; font-size: var(--t-meta); color: var(--texto-fraco); }
+
+.bloco-resposta { margin-top: 18px; }
+.resposta-final {
+  background: var(--superficie);
+  border: 1px solid var(--regua);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: var(--t-corpo);
+  line-height: 1.6;
+  max-width: 88ch;
+}
+
+/* Único border-left do painel com este sentido: sinaliza citação literal da
+   mensagem do cliente, e nada mais nesta batida usa borda lateral — resposta e
+   justificativa recebem rótulo acima, não uma barra. Qualificado por tag porque
+   `.mensagem` também é reaproveitada em consulta.js para a resposta do próprio
+   agente; ali não é citação de ninguém e não deve herdar a mesma marca. */
+blockquote.mensagem {
+  border-left: 3px solid var(--tenue-forte);
+}
