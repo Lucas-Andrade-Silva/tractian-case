@@ -56,12 +56,38 @@ Nenhum dos dois primeiros leitores alcança o terceiro diretório, e
 `tests/test_consulta.py::test_consultas_ficam_fora_dos_traces_avaliados` falha se esse
 caminho mudar.
 
+### Trocar o modelo do juiz
+
+O comitê tem três dimensões e **cada uma pode usar um modelo diferente**, escolhido na
+própria aba (bloco "Modelos do comitê de juízes", recolhido por padrão) sem reiniciar o
+servidor. A lista vem ao vivo do OpenRouter, filtrada pelos `:free` que declaram saída
+estruturada — o comitê exige nota e raciocínio em campos separados, e modelo sem esse
+suporte devolve Markdown que o parser rejeita depois de já ter gasto a chamada.
+
+O juiz roda **sempre no OpenRouter**; os papéis do agente, sempre na Groq. Isso separa as
+cotas e garante que nenhum juiz coincida com o gerador do gabarito, que é da Groq. Não
+existe `JUDGE_PROVIDER`: herdar o provedor do agente era o que mandava a chave de um para
+o outro e produzia 401.
+
+Para fixar uma escolha que deu resultado, use as variáveis por dimensão em `agent/.env`:
+
+```bash
+JUDGE_API_KEY=sk-or-...                 # chave do OpenRouter
+JUDGE_MODEL=minimax/minimax-m3:free     # padrão das três dimensões
+JUDGE_MODEL_CAUSA_RAIZ=z-ai/glm-5.2:free   # sobrepõe só esta
+```
+
+Cada nota exibe o modelo que a produziu. Quando as dimensões usam modelos diferentes, o
+painel avisa que a média das três não tem denominador comum — compare dimensão por
+dimensão.
+
 Duas garantias adicionais, ambas em código:
 
 - **gerador ≠ juiz.** O modelo que escreve o gabarito sintético (`GERADOR_MODEL`) não pode
-  ser o que julga a resposta (`JUDGE_MODEL`). Igual, o juiz mediria a própria
-  auto-consistência. `assert_modelos_distintos` recusa a consulta antes de gastar execução,
-  e `GET /saude` diz de antemão se o par está válido.
+  ser o que julga a resposta. Igual, o juiz mediria a própria auto-consistência. A
+  verificação corre por dimensão — checar só uma deixaria passar o caso em que apenas ela
+  colide — e recusa a consulta antes de gastar execução. `GET /saude` diz de antemão se o
+  conjunto está válido.
 - **camada 1 desligada.** Sem trajetória de referência ela calcularia `recall = 1.0` sobre
   conjunto vazio. Fica `null`, com o motivo no próprio JSON. O que não depende de gabarito
   — repetição de chamada, insistência após 403, execução concluída — continua medido.
