@@ -34,51 +34,14 @@ sys.path.insert(0, str(REPO / "evaluation"))
 NOTAS = Path(__file__).resolve().parent / "dados" / "juizes.json"
 BUNDLE = Path(__file__).resolve().parent / "dados" / "bundle.json"
 
-# Modelos gratuitos do OpenRouter (sufixo `:free`), como atalho e documentação do que dá
-# para rodar sem crédito. Qualquer outro id do OpenRouter também é aceito.
-#
-# A lista fica desatualizada sozinha — o catálogo muda e um modelo sai do plano gratuito
-# sem aviso (o DeepSeek V3.1 saiu). Por isso `--modelos` consulta a API ao vivo e só cai
-# nesta lista se a consulta falhar, e todos aqui declaram suporte a saída estruturada, que
-# o comitê exige: o juiz precisa devolver raciocínio e nota em campos separados.
-MODELOS_GRATUITOS = [
-    ("minimax/minimax-m3:free", "MiniMax M3 — contexto amplo, JSON estável"),
-    ("nvidia/nemotron-3-super-120b-a12b:free", "Nemotron 3 Super 120B — forte em análise"),
-    ("z-ai/glm-5.2:free", "GLM 5.2 — bom raciocínio técnico"),
-    ("google/gemma-4-31b-it:free", "Gemma 4 31B — rápido"),
-    ("dots-studio/dots-3-note-preview:free", "Dots 3 Note — contexto muito amplo"),
-]
-
-PADRAO = MODELOS_GRATUITOS[0][0]
-URL_MODELOS = "https://openrouter.ai/api/v1/models"
-
-
-def modelos_ao_vivo() -> list[tuple[str, str]] | None:
-    """Modelos `:free` que a API do OpenRouter lista agora, com saída estruturada.
-
-    Consultar ao vivo evita o problema que a lista fixa tem por natureza: um modelo sai do
-    plano gratuito e a única pista é um 404 no meio de uma rodada de julgamento.
-    """
-    import urllib.error
-    import urllib.request
-
-    try:
-        with urllib.request.urlopen(URL_MODELOS, timeout=20) as resposta:
-            dados = json.loads(resposta.read().decode("utf-8"))["data"]
-    except (urllib.error.URLError, KeyError, ValueError, TimeoutError):
-        return None
-
-    achados = []
-    for modelo in dados:
-        identificador = modelo.get("id", "")
-        suportados = modelo.get("supported_parameters") or []
-        if not identificador.endswith(":free"):
-            continue
-        if not ({"structured_outputs", "response_format"} & set(suportados)):
-            continue
-        contexto = modelo.get("context_length") or 0
-        achados.append((identificador, f"contexto {contexto:,}".replace(",", ".")))
-    return sorted(achados, key=lambda par: par[0]) or None
+# A lista de modelos e a consulta ao vivo vivem em `runner/juiz_modelos.py`, que a aba
+# Consulta do painel também usa. Duas listas divergiriam: um modelo sairia do plano
+# gratuito e só um dos dois lugares saberia.
+from runner.juiz_modelos import (  # noqa: E402 - depende do sys.path acima
+    MODELOS_GRATUITOS,
+    PADRAO,
+    modelos_ao_vivo,
+)
 
 
 def carrega_notas() -> dict:

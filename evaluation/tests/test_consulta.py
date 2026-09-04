@@ -239,3 +239,127 @@ def test_lista_ignora_o_trace_bruto_da_propria_consulta(tmp_path, monkeypatch):
 
     assert len(listadas) == 1
     assert listadas[0]["id"] == "consulta_20260101T000000"
+
+
+# -- seleção de modelo do juiz ---------------------------------------------
+def test_juiz_nunca_herda_o_provedor_do_agente(monkeypatch):
+    """O juiz é sempre OpenRouter, mesmo com LLM_PROVIDER=groq.
+
+    Herdar o provedor foi o defeito que produziu 401: a chave do OpenRouter enviada à
+    Groq. `settings_juiz` fixa o provedor, não o lê do ambiente do agente.
+    """
+    from runner.juiz_modelos import settings_juiz
+
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("JUDGE_API_KEY", "sk-or-teste")
+
+    s = settings_juiz("minimax/minimax-m3:free")
+    assert s.llm_provider == "openrouter"
+    assert s.llm_api_key == "sk-or-teste"
+    assert s.llm_temperature == 0.0  # juiz é determinístico
+
+
+def test_sem_chave_do_openrouter_falha_explicitamente(monkeypatch):
+    """Sem chave, recusar é melhor que tentar e receber 401 no meio do julgamento."""
+    from runner.juiz_modelos import ChaveDeJuizAusente, settings_juiz
+
+    monkeypatch.delenv("JUDGE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(ChaveDeJuizAusente, match="OpenRouter"):
+        settings_juiz("minimax/minimax-m3:free")
+
+
+def test_judge_model_da_groq_nao_vira_padrao_do_juiz(monkeypatch):
+    """`JUDGE_MODEL` apontando para a Groq é ignorado — usá-lo causaria 401.
+
+    Um id sem `:free` existe nos dois provedores (`openai/gpt-oss-120b` está na Groq),
+    então tratá-lo como OpenRouter mandaria a chave para o provedor errado.
+    """
+    from runner.juiz_modelos import PADRAO, modelo_padrao
+
+    monkeypatch.delenv("JUDGE_MODEL_HONESTIDADE", raising=False)
+    monkeypatch.setenv("JUDGE_MODEL", "qwen/qwen3.8-27b")
+    assert modelo_padrao("honestidade") == PADRAO
+
+    monkeypatch.setenv("JUDGE_MODEL", "z-ai/glm-5.2:free")
+    assert modelo_padrao("honestidade") == "z-ai/glm-5.2:free"
+
+
+def test_variavel_por_dimensao_tem_precedencia(monkeypatch):
+    from runner.juiz_modelos import modelo_padrao
+
+    monkeypatch.setenv("JUDGE_MODEL", "minimax/minimax-m3:free")
+    monkeypatch.setenv("JUDGE_MODEL_CAUSA_RAIZ", "z-ai/glm-5.2:free")
+    assert modelo_padrao("causa_raiz") == "z-ai/glm-5.2:free"
+    assert modelo_padrao("honestidade") == "minimax/minimax-m3:free"
+
+
+def test_comite_aceita_um_modelo_por_dimensao():
+    """Cada dimensão pode ser julgada por um modelo distinto, e a nota registra qual."""
+    from runner.golden import GoldenCase
+    from runner.judges import run_committee
+
+    class _Juiz:
+        def __init__(self, nome, nota):
+            self.model_name = nome
+            self._nota = nota
+
+        def with_structured_output(self, _schema):
+            return self
+
+        def invoke(self, _msgs):
+            from runner.judges import JudgeVerdict
+
+            return JudgeVerdict(reasoning="analise de teste", score=self._nota)
+
+    golden = GoldenCase(
+        case_id="c", ticket_id="", root_question="q", mode="complete",
+        expected_path=[], expected_notes={},
+    )
+    trace = {"final_answer": "resposta", "steps": [], "findings": []}
+
+    vereditos = run_committee(
+        trace,
+        golden,
+        llm_por_dimensao={
+            "honestidade": _Juiz("modelo-a:free", 5),
+            "causa_raiz": _Juiz("modelo-b:free", 2),
+            "justificativa": _Juiz("modelo-a:free", 4),
+        },
+    )
+
+    assert vereditos["honestidade"]["score"] == 5
+    assert vereditos["causa_raiz"]["score"] == 2
+    # A procedência é o que torna a nota interpretável quando os modelos diferem.
+    assert vereditos["honestidade"]["modelo"] == "modelo-a:free"
+    assert vereditos["causa_raiz"]["modelo"] == "modelo-b:free"
+
+
+def test_mapa_parcial_sem_reserva_e_erro():
+    """Dimensão sem modelo não pode cair num padrão inventado em silêncio.
+
+    `honestidade` é a primeira dimensão do comitê e tem modelo; o erro tem de aparecer
+    na seguinte, que não tem — e sem tocar a rede para descobrir isso.
+    """
+    from runner.golden import GoldenCase
+    from runner.judges import JudgeVerdict, run_committee
+
+    class _JuizOk:
+        model_name = "modelo-a:free"
+
+        def with_structured_output(self, _schema):
+            return self
+
+        def invoke(self, _msgs):
+            return JudgeVerdict(reasoning="analise", score=4)
+
+    golden = GoldenCase(
+        case_id="c", ticket_id="", root_question="q", mode="complete",
+        expected_path=[], expected_notes={},
+    )
+    with pytest.raises(ValueError, match="causa_raiz"):
+        run_committee(
+            {"final_answer": "r", "steps": [], "findings": []},
+            golden,
+            llm_por_dimensao={"honestidade": _JuizOk()},
+        )

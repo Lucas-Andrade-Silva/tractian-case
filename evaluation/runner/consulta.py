@@ -32,10 +32,10 @@ from pathlib import Path
 from typing import Any
 
 from app.config import Settings, load_settings
-from app.llm import build_llm
 from app.runner import run_case
 
-from .judges import com_saida_estruturada, judge_settings, run_committee
+from .judges import run_committee
+from .juiz_modelos import DIMENSOES, constroi_juizes, modelo_padrao, settings_juiz
 from .sintetico import GabaritoSintetico, assert_modelos_distintos, gera_gabarito
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -55,11 +55,15 @@ def executa_consulta(
     seed: str | None = None,
     settings: Settings | None = None,
     julgar: bool = True,
+    modelos_juizes: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Roda uma consulta livre de ponta a ponta e devolve o registro completo.
 
     `julgar=False` executa o agente e pula o comitê — útil para ver a resposta sem
-    gastar duas chamadas de LLM adicionais quando a cota está apertada.
+    gastar chamadas de LLM adicionais quando a cota está apertada.
+
+    `modelos_juizes` escolhe o modelo OpenRouter de cada dimensão
+    (`{"causa_raiz": "z-ai/glm-5.2:free"}`); dimensão ausente usa o padrão do `.env`.
     """
     settings = settings or load_settings()
     mensagem = (mensagem or "").strip()
@@ -75,10 +79,15 @@ def executa_consulta(
 
     # Gerador e juiz precisam ser modelos distintos, e a verificação vem antes de
     # qualquer chamada: descobrir isso depois de rodar o agente desperdiçaria a execução.
+    # Verifica cada dimensão contra o gerador, porque o modelo é escolhido por dimensão —
+    # checar só um deixaria passar o caso em que apenas uma delas colide.
     gabarito: GabaritoSintetico | None = None
     erro_gabarito: str | None = None
     if julgar:
-        assert_modelos_distintos(_gerador_settings(), judge_settings())
+        gerador = _gerador_settings()
+        for dimensao in DIMENSOES:
+            escolhido = (modelos_juizes or {}).get(dimensao) or modelo_padrao(dimensao)
+            assert_modelos_distintos(gerador, settings_juiz(escolhido))
         try:
             gabarito = gera_gabarito(caso, contexto_ativo=contexto_ativo)
         except Exception as exc:  # noqa: BLE001 - vira dado do registro, não interrompe
@@ -89,13 +98,16 @@ def executa_consulta(
 
     vereditos: dict[str, Any] | None = None
     erro_juiz: str | None = None
+    modelos_juiz: dict[str, str] | None = None
     if gabarito is not None:
         try:
-            # A sonda descobre qual método de saída estruturada o modelo do juiz aceita.
-            # Sem ela, um modelo que devolve a nota em Markdown ("**Nota: 5**") derruba
-            # o comitê depois de já ter feito o raciocínio — nota perdida por formato.
-            llm_juiz = com_saida_estruturada(build_llm(judge_settings()))
-            vereditos = run_committee(dados_trace, gabarito.golden, llm=llm_juiz)
+            # Um LLM por dimensão, todos no OpenRouter. `constroi_juizes` já aplica a
+            # sonda de saída estruturada: sem ela, um modelo que devolve a nota em
+            # Markdown ("**Nota: 5**") derruba o comitê depois de já ter raciocinado.
+            llms, modelos_juiz = constroi_juizes(modelos_juizes)
+            vereditos = run_committee(
+                dados_trace, gabarito.golden, llm_por_dimensao=llms
+            )
         except Exception as exc:  # noqa: BLE001 - idem
             erro_juiz = f"{type(exc).__name__}: {exc}"
 
@@ -123,6 +135,7 @@ def executa_consulta(
             ),
             "execucao": metricas_execucao(dados_trace),
             "juizes": vereditos,
+            "modelos_juiz": modelos_juiz,
             "erro_juiz": erro_juiz,
             "comparavel_com_cenarios": False,
         },
