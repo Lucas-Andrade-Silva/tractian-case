@@ -105,7 +105,9 @@ function matriz(bundle, fase, redesenha) {
         }
         const av = execucao.avaliacao;
         const tom = tomDaCelula(execucao);
-        return el("td", {}, [
+        // O tom vai no `td` — é ele que estica com a altura da linha, então o fundo
+        // não deixa faixa vazia quando a célula vizinha ocupa duas linhas de texto.
+        return el("td", { class: `cel-${tom}` }, [
           el(
             "button",
             {

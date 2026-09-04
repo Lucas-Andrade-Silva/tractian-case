@@ -31,6 +31,11 @@ export const CONSULTA = {
   carregouCatalogo: false,
   erroCatalogo: null,
   saude: null,
+  juizes: null,
+  // Escolha de modelo por dimensao. Vazio = usa o padrao que /saude reporta; assim a
+  // interface nao precisa repetir a configuracao do .env para funcionar.
+  modelosJuizes: {},
+  mostrarJuizes: false,
   form: { user_id: "", company_id: "", asset_id: "", mensagem: "", seed: "", julgar: true },
   enviando: false,
   erroEnvio: null,
@@ -58,14 +63,17 @@ async function pegaJson(rota, opcoes) {
 export async function carregaCatalogo(redesenha) {
   if (CONSULTA.carregouCatalogo) return;
   try {
-    const [catalogo, saude, historico] = await Promise.all([
+    const [catalogo, saude, historico, juizes] = await Promise.all([
       pegaJson("/catalogo"),
       pegaJson("/saude").catch(() => null),
       pegaJson("/consultas").catch(() => ({ consultas: [] })),
+      // A consulta ao OpenRouter pode demorar ou falhar; o formulario nao depende dela.
+      pegaJson("/juiz/modelos").catch(() => null),
     ]);
     CONSULTA.usuarios = catalogo.usuarios || [];
     CONSULTA.saude = saude;
     CONSULTA.historico = historico.consultas || [];
+    CONSULTA.juizes = juizes;
     CONSULTA.erroCatalogo = null;
   } catch (erro) {
     CONSULTA.erroCatalogo = erro.message;
@@ -104,6 +112,11 @@ async function envia(redesenha) {
         mensagem: form.mensagem,
         seed: form.seed || null,
         julgar: form.julgar,
+        // Só manda as dimensões efetivamente trocadas: dimensão ausente cai no padrão
+        // do servidor, e mandar o padrão de volta duplicaria a fonte da verdade.
+        modelos_juizes: Object.keys(CONSULTA.modelosJuizes).length
+          ? CONSULTA.modelosJuizes
+          : null,
         contexto_ativo: ativo
           ? {
               nome: ativo.name,
@@ -146,7 +159,36 @@ export function desenhaConsulta(raiz, redesenha) {
     raiz.append(aviso("erro", [el("strong", { text: "Falha na consulta. " }), CONSULTA.erroEnvio]));
   }
   if (CONSULTA.resultado) raiz.append(resultado(CONSULTA.resultado));
-  if (CONSULTA.historico.length > 1) raiz.append(historico(redesenha));
+  // `> 1` escondia o histórico justamente quando ele tinha a primeira consulta: com um
+  // único registro gravado a lista existia e não aparecia.
+  if (CONSULTA.historico.length) raiz.append(historico(redesenha));
+  // Sem resultado e sem histórico a aba terminava numa tela vazia que não dizia o que
+  // ia acontecer ao enviar — e o que vai acontecer aqui consome cota de LLM.
+  if (!CONSULTA.resultado && !CONSULTA.historico.length) raiz.append(primeiraVez());
+}
+
+/** Estado de primeira execução: diz o que a aba faz antes de existir resultado. */
+function primeiraVez() {
+  return el("div", { class: "consulta-primeira" }, [
+    el("h3", { text: "O que acontece ao enviar" }),
+    el("ol", { class: "consulta-etapas" }, [
+      el("li", {}, [
+        el("strong", { text: "O agente investiga. " }),
+        "O mesmo grafo dos 17 cenários, com as permissões do usuário escolhido — " +
+          "sem atalho e sem nada especial para esta aba.",
+      ]),
+      el("li", {}, [
+        el("strong", { text: "A trajetória fica visível. " }),
+        "Cada chamada à API industrial na ordem em que aconteceu, inclusive as recusadas " +
+          "por permissão.",
+      ]),
+      el("li", {}, [
+        el("strong", { text: "A avaliação vem marcada como sintética. " }),
+        "A questão de referência é escrita por um LLM, não por humano: as notas ordenam " +
+          "consultas livres entre si e nunca entram nas métricas dos cenários com gabarito.",
+      ]),
+    ]),
+  ]);
 }
 
 function painelOffline() {
@@ -242,6 +284,8 @@ function formulario(redesenha) {
         })
       ),
 
+      form.julgar ? seletorJuizes(redesenha) : null,
+
       el("div", { class: "consulta-acoes" }, [
         el("label", { class: "controle" }, [
           el("input", {
@@ -263,10 +307,121 @@ function formulario(redesenha) {
       ]),
 
       CONSULTA.enviando
-        ? el("p", { class: "secao-nota", text: "O agente está investigando. Isso leva alguns segundos e consome cota de LLM." })
+        ? el("div", { class: "consulta-executando" }, [
+            el("span", { class: "pulso", "aria-hidden": "true" }),
+            el("span", {}, [
+              el("strong", { text: "O agente está investigando. " }),
+              "Leva alguns segundos e consome cota de LLM" +
+                (form.julgar ? ", mais o gerador do gabarito e o comitê de juízes." : "."),
+            ]),
+          ])
         : null,
     ])
   );
+}
+
+/* Seletor de modelo por dimensão do comitê.
+ *
+ * Recolhido por padrão: quem só quer a resposta não precisa decidir isso, e o padrão do
+ * `.env` já funciona. Aberto, mostra as três dimensões porque elas medem coisas
+ * diferentes — `causa_raiz` é raciocínio técnico sobre limiares e espectro,
+ * `honestidade` é leitura de hedge no texto — e entre modelos gratuitos a competência
+ * varia muito de uma para outra. Trocar uma sem mexer nas outras é o ponto.
+ *
+ * Só OpenRouter: o juiz nunca roda no provedor dos agentes (Groq). Isso separa as cotas
+ * e garante que nenhum juiz coincida com o gerador do gabarito, que é da Groq.
+ */
+function seletorJuizes(redesenha) {
+  const catalogo = CONSULTA.juizes;
+
+  if (!catalogo) {
+    return el("div", { class: "consulta-juizes-config" }, [
+      el("span", {
+        class: "secao-nota",
+        text:
+          "Não foi possível listar os modelos do OpenRouter agora — a avaliação usará os " +
+          "modelos padrão do agent/.env.",
+      }),
+    ]);
+  }
+
+  const trocadas = Object.keys(CONSULTA.modelosJuizes).length;
+  const cabeca = el("button", {
+    class: "consulta-disclosure",
+    "aria-expanded": String(CONSULTA.mostrarJuizes),
+    onclick: () => {
+      CONSULTA.mostrarJuizes = !CONSULTA.mostrarJuizes;
+      redesenha();
+    },
+    text: `${CONSULTA.mostrarJuizes ? "▾" : "▸"} Modelos do comitê de juízes${
+      trocadas ? ` — ${trocadas} alterado${trocadas > 1 ? "s" : ""}` : ""
+    }`,
+  });
+
+  if (!CONSULTA.mostrarJuizes) {
+    return el("div", { class: "consulta-juizes-config" }, [cabeca]);
+  }
+
+  const semChave = catalogo.chave_configurada === false;
+
+  return el("div", { class: "consulta-juizes-config aberta" }, [
+    cabeca,
+    el("p", { class: "secao-nota" }, [
+      `Juiz roda sempre no OpenRouter (${catalogo.modelos.length} modelos gratuitos`,
+      catalogo.origem === "api" ? ", listados agora" : ", lista local — API indisponível",
+      "); os agentes seguem na Groq.",
+    ]),
+    semChave
+      ? aviso("atencao", [
+          el("strong", { text: "Sem chave do OpenRouter. " }),
+          "Defina JUDGE_API_KEY em agent/.env para que o comitê possa rodar.",
+        ])
+      : null,
+    el("div", { class: "consulta-juizes-grade" },
+      catalogo.dimensoes.map((dim) =>
+        el("label", { class: "consulta-campo" }, [
+          el("span", { text: dim.titulo }),
+          el(
+            "select",
+            {
+              onchange: (ev) => {
+                const valor = ev.target.value;
+                // Voltar ao padrão remove a chave, em vez de gravar o id do padrão:
+                // assim uma troca posterior do .env passa a valer sem reabrir a aba.
+                if (valor) CONSULTA.modelosJuizes[dim.chave] = valor;
+                else delete CONSULTA.modelosJuizes[dim.chave];
+                redesenha();
+              },
+            },
+            [
+              el("option", {
+                value: "",
+                text: `padrão — ${dim.padrao}`,
+                selected: !CONSULTA.modelosJuizes[dim.chave],
+              }),
+              ...catalogo.modelos.map((m) =>
+                el("option", {
+                  value: m.id,
+                  text: m.descricao ? `${m.id} · ${m.descricao}` : m.id,
+                  selected: CONSULTA.modelosJuizes[dim.chave] === m.id,
+                })
+              ),
+            ]
+          ),
+        ])
+      )
+    ),
+    trocadas
+      ? el("button", {
+          class: "consulta-link-btn",
+          text: "restaurar os padrões",
+          onclick: () => {
+            CONSULTA.modelosJuizes = {};
+            redesenha();
+          },
+        })
+      : null,
+  ]);
 }
 
 function campo(rotulo, controle) {
@@ -277,14 +432,19 @@ function campo(rotulo, controle) {
 }
 
 function fichaPermissoes(usuario) {
+  const permissoes = usuario.permissions || [];
   return el("div", { class: "consulta-permissoes" }, [
-    el("span", { class: "secao-nota", text: "Permissões deste usuário: " }),
-    el("span", { class: "permissoes" },
-      (usuario.permissions || []).map((p) => selo(p, "quieto"))
-    ),
-    el("span", {
-      class: "secao-nota",
-      text: " — o agente só executa o que elas autorizam; um 403 na trajetória é resultado, não falha.",
+    el("div", { class: "consulta-permissoes-topo" }, [
+      el("span", { class: "rotulo-cru", text: "permissões deste usuário" }),
+      el("span", { class: "permissoes" },
+        permissoes.length
+          ? permissoes.map((p) => selo(p, "quieto", { class: "selo selo-quieto mono" }))
+          : [selo("nenhuma", "atencao")]
+      ),
+    ]),
+    el("p", {
+      class: "consulta-permissoes-nota",
+      text: "O agente só executa o que elas autorizam. Um 403 na trajetória é resultado, não falha.",
     }),
   ]);
 }
@@ -304,14 +464,21 @@ function resultado(registro) {
           seloDecisao(trace.decision),
           el("span", { class: "secao-nota", text: `${(trace.steps || []).length} chamadas · ${num((trace.token_usage || {}).total_tokens)} tokens` }),
         ]),
-        el("div", { class: "mensagem", text: texto(trace.final_answer) }),
+        // Sem resposta final o bloco de leitura viraria uma caixa grande com "não
+        // determinado" dentro: a ausência é dita em tom de ausência, não emoldurada.
+        (trace.final_answer || "").trim()
+          ? el("div", { class: "mensagem", text: trace.final_answer })
+          : el("p", {
+              class: "consulta-sem-resposta",
+              text: "A execução não produziu resposta final.",
+            }),
         el("dl", { class: "campos" }, [
           el("dt", { text: "justificativa" }),
           el("dd", { text: texto(trace.justification) }),
           el("dt", { text: "parada" }),
           el("dd", { text: texto(trace.stop_reason) }),
         ]),
-        trace.error ? aviso("erro", [el("strong", { text: "Erro de execução: " }), trace.error]) : null,
+        trace.error ? blocoErroExecucao(trace.error) : null,
       ])
     ),
 
@@ -333,6 +500,67 @@ function resultado(registro) {
 
     secaoAvaliacao(registro, avaliacao),
   ]);
+}
+
+/**
+ * Falha de execução com a causa nomeada antes do texto cru do provedor.
+ *
+ * O erro do provedor chega como uma linha só, com JSON aninhado e link de billing no
+ * meio — quem lê precisa decidir se espera, se troca de modelo ou se o agente está
+ * quebrado, e essa distinção não sai de um stack trace. A mensagem original continua
+ * aí embaixo, recolhida: é ela que serve para depurar.
+ */
+function blocoErroExecucao(erro) {
+  const bruto = String(erro);
+  const diagnostico = diagnosticaErro(bruto);
+
+  return el("div", { class: "aviso aviso-erro" }, [
+    el("div", {}, [
+      el("strong", { text: `${diagnostico.titulo} ` }),
+      diagnostico.explicacao,
+    ]),
+    el("details", { class: "erro-cru" }, [
+      el("summary", { text: "mensagem do provedor" }),
+      el("pre", { class: "cru", text: bruto }),
+    ]),
+  ]);
+}
+
+/** Classifica a falha pelo que o leitor precisa fazer a seguir, não pelo tipo do erro. */
+function diagnosticaErro(bruto) {
+  if (/rate.?limit|429|too large for model|tokens per minute|TPM|OTPM/i.test(bruto)) {
+    return {
+      titulo: "Cota do provedor de LLM esgotada.",
+      explicacao:
+        "O agente não chegou a concluir — não é decisão errada nem falha de lógica. " +
+        "O limite do plano gratuito é por minuto e por dia: se for por minuto, esperar " +
+        "resolve; se for por dia, só renova no ciclo seguinte.",
+    };
+  }
+  if (/timeout|timed out|ETIMEDOUT/i.test(bruto)) {
+    return {
+      titulo: "O provedor não respondeu no tempo.",
+      explicacao: "A execução foi interrompida em trânsito. Reenviar a mesma consulta é seguro.",
+    };
+  }
+  if (/connection|ECONNREFUSED|Failed to fetch|network/i.test(bruto)) {
+    return {
+      titulo: "Sem conexão com a API industrial.",
+      explicacao: "Verifique se ela está no ar com `make up` antes de reenviar.",
+    };
+  }
+  if (/401|403|api.?key|unauthorized|invalid.*key/i.test(bruto)) {
+    return {
+      titulo: "Credencial do provedor recusada.",
+      explicacao: "A chave em `agent/.env` está ausente, expirada ou sem acesso ao modelo pedido.",
+    };
+  }
+  return {
+    titulo: "Falha de execução.",
+    explicacao:
+      "O agente parou antes de produzir resposta final. Isso é categoria própria: " +
+      "não conta como decisão errada.",
+  };
 }
 
 function secaoAvaliacao(registro, avaliacao) {
@@ -397,18 +625,38 @@ function blocoJuizes(juizes) {
   const notas = linhas.map(([, v]) => v.score).filter((n) => typeof n === "number");
   const media = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
 
+  // Cada dimensão pode ter sido julgada por um modelo diferente. Se foram, a média das
+  // três não tem denominador comum — dizer isso importa mais do que exibir o número.
+  const modelos = new Set(linhas.map(([, v]) => v.modelo).filter(Boolean));
+  const modelosMistos = modelos.size > 1;
+
   return el("div", { class: "consulta-juizes" }, [
     el("h3", { text: `Comitê de juízes${media !== null ? ` — média ${media.toFixed(1)}/5` : ""}` }),
-    ...linhas.map(([dimensao, veredito]) =>
-      el("div", { class: "consulta-veredito" }, [
+    modelosMistos
+      ? el("p", {
+          class: "secao-nota",
+          text:
+            "As dimensões foram julgadas por modelos diferentes: a média serve de resumo " +
+            "visual, não de medida comparável. Compare dimensão por dimensão.",
+        })
+      : null,
+    ...linhas.map(([dimensao, veredito]) => {
+      // "sem nota" é ausência de medida, não nota baixa: cai no tom quieto, nunca em
+      // vermelho. Pintar de erro faria a falha de execução parecer mau julgamento.
+      const semNota = veredito.score === null || veredito.score === undefined;
+      return el("div", { class: "consulta-veredito" }, [
         el("div", { class: "consulta-veredito-topo" }, [
-          el("strong", { text: dimensao }),
-          selo(veredito.score === null || veredito.score === undefined ? "sem nota" : `${veredito.score}/5`,
-               veredito.score >= 4 ? "sucesso" : veredito.score >= 3 ? "atencao" : "erro"),
+          el("strong", { text: (dimensao || "").replace(/_/g, " ") }),
+          semNota
+            ? selo("sem nota", "quieto")
+            : selo(`${veredito.score}/5`,
+                   veredito.score >= 4 ? "sucesso" : veredito.score >= 3 ? "atencao" : "erro"),
+          // Procedência ao lado da nota, não em rodapé: é o que a torna interpretável.
+          veredito.modelo ? el("code", { class: "consulta-modelo", text: veredito.modelo }) : null,
         ]),
         el("p", { class: "secao-nota", text: texto(veredito.reasoning) }),
-      ])
-    ),
+      ]);
+    }),
   ]);
 }
 
