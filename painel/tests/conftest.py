@@ -29,6 +29,11 @@ def js_fonte():
     return _ler
 
 
+@pytest.fixture(scope="session")
+def css_fonte() -> str:
+    return (PAINEL / "css" / "painel.css").read_text(encoding="utf-8")
+
+
 def imports_de(fonte: str) -> set[str]:
     """Módulos importados por um arquivo JS, como aparecem no `from "..."`."""
     return set(re.findall(r'from\s+"\./([\w.]+)"', fonte))
