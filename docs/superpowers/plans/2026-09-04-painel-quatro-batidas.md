@@ -1673,14 +1673,24 @@ def test_matriz_usa_quatro_categorias(js_fonte):
         assert f'"{tom}"' in fonte, f"categoria {tom} ausente na matriz"
 
 
-def test_estabilidade_virou_selo_e_nao_secao(bundle, js_fonte):
-    """17/17 estáveis é um selo. Se algum dia deixar de ser 17/17, o selo tem de contar a verdade."""
+def test_estabilidade_virou_selo_e_nao_secao(bundle):
+    """17/17 estáveis é um selo, não uma seção.
+
+    Se algum dia deixar de ser 17/17, o selo passa a mentir e a batida ③ precisa
+    de revisão — por isso o teste falha em vez de o painel exibir um número errado.
+    """
     casos = [c for c in bundle["casos"] if c["por_fase"].get("pos-correcao")]
     mediveis = [c for c in casos if c["por_fase"]["pos-correcao"]["estabilidade"]["medivel"]]
     estaveis = [c for c in mediveis if c["por_fase"]["pos-correcao"]["estabilidade"]["estavel"]]
     assert len(estaveis) == len(mediveis), "a premissa do selo mudou — revisar a batida ③"
-    # A seção antiga não pode ter sobrevivido em avaliacao.js
-    assert "function estabilidade" not in js_fonte("avaliacao.js")
+
+
+def test_campos_do_diff_existem_no_bundle(bundle):
+    """A gaveta lateral da batida ③ lê estes campos; nomes inventados renderizam vazio."""
+    av = bundle["execucoes"][0]["avaliacao"]
+    for campo in ("decisoes_aceitas", "queries_faltantes", "queries_extras",
+                  "acoes_faltantes", "diff_trajetoria"):
+        assert campo in av, f"campo {campo} ausente — a batida ③ contava com ele"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1758,22 +1768,36 @@ function lateral(redesenha) {
 
   const av = execucao.avaliacao;
   const tom = tomDaCelula(execucao);
-  const faltantes = av.evidencia_faltante || [];
-  const extras = av.consultas_extras || [];
+  // Nomes reais do bundle — conferidos contra dados/bundle.json.
+  const aceitas = av.decisoes_aceitas || [];
+  const faltantes = av.queries_faltantes || [];
+  const extras = av.queries_extras || [];
+  const acoesFaltantes = av.acoes_faltantes || [];
+  const diff = av.diff_trajetoria || [];
 
   const partes = [
     el("h3", { class: "mono", text: `${execucao.cenario} · ${execucao.seed}` }),
     el("dl", { class: "campos" }, [
-      el("dt", { text: "esperado" }),
-      el("dd", { text: texto(av.decisao_esperada) }),
+      // Cenário ambíguo aceita mais de uma resolução: é uma lista, não um valor.
+      el("dt", { text: aceitas.length > 1 ? "aceitas" : "esperado" }),
+      el("dd", { text: aceitas.length ? aceitas.join(" ou ") : VAZIO }),
       el("dt", { text: "decidiu" }),
       el("dd", { text: texto(execucao.operacao.decisao) }),
     ]),
     el("div", { class: "lateral-bloco" }, [
-      el("div", { class: "rotulo-cru", text: "o que faltou apurar" }),
-      faltantes.length
-        ? el("ul", {}, faltantes.map((f) => el("li", { class: "mono", text: f })))
-        : el("p", { class: "gaveta-meta", text: "nada" }),
+      el("div", { class: "rotulo-cru", text: "trajetória esperada" }),
+      diff.length
+        ? el(
+            "ul",
+            { class: "diff-lista" },
+            diff.map((passo) =>
+              el("li", { class: `diff-${passo.situacao || "atendida"}` }, [
+                el("span", { class: "mono", text: passo.step }),
+                passo.nota ? el("em", { text: passo.nota }) : null,
+              ])
+            )
+          )
+        : el("p", { class: "gaveta-meta", text: "sem trajetória documentada" }),
     ]),
     el("div", { class: "lateral-bloco" }, [
       el("div", { class: "rotulo-cru", text: "consultas extras" }),
@@ -1782,6 +1806,19 @@ function lateral(redesenha) {
         : el("p", { class: "gaveta-meta", text: "nenhuma" }),
     ]),
   ];
+
+  if (faltantes.length || acoesFaltantes.length) {
+    partes.push(
+      el("div", { class: "lateral-bloco" }, [
+        el("div", { class: "rotulo-cru", text: "o que faltou" }),
+        el(
+          "ul",
+          {},
+          [...faltantes, ...acoesFaltantes].map((f) => el("li", { class: "mono", text: f }))
+        ),
+      ])
+    );
+  }
 
   // Célula de artefato abre já na explicação: sem isso, um amarelo sem contexto
   // se lê como desculpa.
@@ -1864,11 +1901,7 @@ export function batidaMatriz(redesenha) {
 }
 ```
 
-- [ ] **Step 4: Remover as seções absorvidas de `avaliacao.js`**
-
-Delete de `painel/js/avaliacao.js` as funções `estabilidade()` (linhas ~422-507), `comparativo()` (linhas ~320-420) e `placar()` (linhas ~36-79), e as referências a elas em `desenhaAvaliacao`. `auditoria()` também sai — já vive na gaveta. Mantenha `juizes()` no arquivo, sem chamador: o comitê está ausente deste bundle mas volta por `make painel-julgar`, e a gaveta o renderiza condicionalmente.
-
-- [ ] **Step 5: Adicionar o CSS da batida ③**
+- [ ] **Step 4: Adicionar o CSS da batida ③**
 
 Ao final de `painel/css/painel.css`:
 
@@ -1925,23 +1958,35 @@ Ao final de `painel/css/painel.css`:
   font-size: var(--t-meta); line-height: 1.5;
 }
 .lateral-nota .gaveta-gatilho { margin-top: 8px; display: inline-block; }
+
+.diff-lista { list-style: none; padding: 0; margin: 4px 0 0; }
+.diff-lista li {
+  font-size: var(--t-mini);
+  padding: 3px 0 3px 14px;
+  position: relative;
+}
+/* O marcador carrega a situação do passo; a cor sozinha não bastaria. */
+.diff-lista li::before { position: absolute; left: 0; }
+.diff-atendida::before { content: "✓"; color: var(--verde-exec); }
+.diff-faltante::before { content: "×"; color: var(--ambar-atencao); }
+.diff-lista em { display: block; font-style: normal; color: var(--texto-fraco); }
 ```
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 5: Run tests**
 
 Run: `cd painel && python -m pytest tests/ -q`
-Expected: PASS — 15 passed.
+Expected: PASS — 16 passed.
 
-- [ ] **Step 7: Verificar no navegador**
+- [ ] **Step 6: Verificar no navegador**
 
 Run: `make painel`
 Na batida ③, confirme: 17 linhas × 3 colunas; selos `17/17 estáveis`, `0 falhas de execução`, `1 erro real · 8 artefatos de gabarito`; CEN-09 em vermelho nas três seeds; clicar numa célula amarela mostra a nota do artefato com o botão para a gaveta; o link "ver este chamado na batida ②" navega e carrega o caso certo.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add painel/js/batida-matriz.js painel/js/avaliacao.js painel/css/painel.css painel/tests
-git commit -m "feat: batida 3 matriz com diff lateral; absorve estabilidade e comparativo"
+git add painel/js/batida-matriz.js painel/css/painel.css painel/tests
+git commit -m "feat: batida 3 matriz com diff lateral da trajetoria"
 ```
 
 ---
@@ -2014,7 +2059,8 @@ import { ESTADO, el, texto, num, duracao } from "./dados.js";
 import { selo, aviso, vazio } from "./componentes.js";
 import { faixasPorPapel } from "./faixas.js";
 import { rodape } from "./batidas.js";
-import { CONSULTA, carregaCatalogo, enviaConsulta } from "./consulta.js";
+// `envia` é o nome real da função em consulta.js:97 — hoje sem `export`.
+import { CONSULTA, carregaCatalogo, envia } from "./consulta.js";
 
 const PAPEIS_ESPERADOS = ["supervisor", "investigador", "decisor", "executor"];
 
@@ -2064,7 +2110,7 @@ function formulario(redesenha) {
       class: "botao-primario",
       text: CONSULTA.enviando ? "investigando…" : "perguntar",
       disabled: !pronto,
-      onclick: () => enviaConsulta(redesenha),
+      onclick: () => envia(redesenha),
     }),
   ]);
 }
@@ -2157,7 +2203,15 @@ export function batidaAoVivo(redesenha) {
 
 - [ ] **Step 4: Expor o que a batida ④ consome de `consulta.js`**
 
-Em `painel/js/consulta.js`, garanta que `CONSULTA`, `carregaCatalogo` e `enviaConsulta` estão exportados (`export const CONSULTA`, `export function carregaCatalogo`, `export function enviaConsulta`). Adicione `papeisVistos: []` ao objeto `CONSULTA` e, em `enviaConsulta`, popule-o com os papéis do trace ao receber a resposta. Remova `desenhaConsulta` e as funções de layout antigas (`primeiraVez`, `formulario`, `seletorJuizes`, `fichaPermissoes`, `resultado`, `secaoAvaliacao`, `historico`) — a batida ④ as substitui. Mantenha `blocoErroExecucao` e `diagnosticaErro`: o diagnóstico de erro por ação do leitor continua valioso.
+Estado atual verificado: `consulta.js` exporta apenas `CONSULTA` (linha 28), `carregaCatalogo` (63) e `desenhaConsulta` (142). A função de envio chama-se **`envia`** (linha 97) e **não** está exportada.
+
+Faça três coisas:
+
+1. Adicione `export` a `async function envia(redesenha)`. Não renomeie — `envia(redesenha)` já é claro no ponto de uso, e renomear espalha churn por um ganho nulo.
+2. Adicione `papeisVistos: []` ao objeto `CONSULTA`, e em `envia`, ao receber a resposta, popule-o com os papéis presentes no trace (`[...new Set(trace.steps.map(s => s.agent).filter(Boolean))]`, ou equivalente conforme o formato real da resposta).
+3. Remova `desenhaConsulta` e as funções de layout que a batida ④ substitui: `primeiraVez`, `painelOffline`, `avisoAvaliacaoIndisponivel`, `formulario`, `seletorJuizes`, `campo`, `fichaPermissoes`, `resultado`, `secaoAvaliacao`, `blocoGabarito`, `blocoJuizes`, `historico`.
+
+**Mantenha** `blocoErroExecucao` e `diagnosticaErro`: classificam a falha pelo que o leitor precisa fazer a seguir (esperar, trocar de modelo, ou consertar o agente), e isso não sai de um stack trace. Se após a remoção elas ficarem sem chamador, exporte-as — a batida ④ as usa no ramo de `erroEnvio`.
 
 - [ ] **Step 5: Apagar os módulos absorvidos e limpar o estado**
 
