@@ -25,9 +25,14 @@ def test_operacao_nao_importa_avaliacao(js_fonte):
 
 
 def _token(css: str, nome: str) -> float:
-    """Valor numérico de um custom property como `--t-corpo: 16px`."""
-    achado = re.search(rf"{re.escape(nome)}:\s*([\d.]+)px", css)
-    assert achado, f"token {nome} não encontrado no CSS"
+    """Valor de um custom property no bloco `:root` base.
+
+    Ancorado no primeiro `:root` de propósito: um override por tema definido mais
+    abaixo no arquivo não pode ser lido no lugar do valor base sem ninguém notar.
+    """
+    raiz = css.split(":root", 1)[1].split("}", 1)[0]
+    achado = re.search(rf"{re.escape(nome)}:\s*([\d.]+)px", raiz)
+    assert achado, f"token {nome} não encontrado no bloco :root do CSS"
     return float(achado.group(1))
 
 
@@ -39,3 +44,16 @@ def test_corpo_legivel_em_projetor(css_fonte):
 def test_metrica_de_veredito_e_grande(css_fonte):
     """O 94,1% da batida ① é o objeto mais importante do painel."""
     assert _token(css_fonte, "--t-metrica") >= 58
+
+
+def test_titulos_se_destacam_do_corpo(css_fonte):
+    """Hierarquia de título é o que a batida ① e a ③ usam para dizer onde olhar.
+
+    O painel antigo tinha h1 a 15px contra corpo de 14px. Um degrau de 1px não é
+    hierarquia, e a 4 m de distância não é nada — por isso o passo mínimo aqui é
+    testado em vez de combinado.
+    """
+    corpo = _token(css_fonte, "--t-corpo")
+    assert _token(css_fonte, "--t-h2") >= corpo * 1.15, "h2 perto demais do corpo"
+    assert _token(css_fonte, "--t-h1") >= _token(css_fonte, "--t-h2") * 1.2, "h1 perto demais do h2"
+    assert _token(css_fonte, "--t-h3") >= corpo, "título de seção menor que o corpo lê como legenda"
