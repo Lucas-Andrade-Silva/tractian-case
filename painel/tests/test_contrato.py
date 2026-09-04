@@ -185,3 +185,36 @@ def test_setas_nao_sequestram_campos_de_texto(js_fonte):
         "ligaTeclado não protege campos de texto das setas"
     )
     assert "isContentEditable" in fonte, "ligaTeclado ignora campos contentEditable"
+
+
+def test_veredito_nao_faz_aritmetica_a_mao(js_fonte):
+    """Todo agregado da batida ① vem do bundle.
+
+    Durante o desenho eu escrevi "48 de 51" por dedução antes de conferir. Bateu,
+    mas o hábito é a falha: um número derivado no renderizador não é auditável
+    contra o bundle e ninguém percebe quando fica errado.
+    """
+    fonte = js_fonte("batida-veredito.js")
+    assert "agregados" in fonte, "a batida ① precisa ler bundle.agregados"
+    # Nenhum literal percentual escrito na mão.
+    assert not re.search(r'"\d{1,3},\d%"', fonte), "percentual literal no código"
+
+
+def test_delta_entre_fases_vem_das_duas_fases(bundle):
+    """A seta baseline → pós-correção substitui o dropdown de fase."""
+    base = bundle["agregados"]["baseline"]["acuracia_decisao"]
+    pos = bundle["agregados"]["pos-correcao"]["acuracia_decisao"]
+    assert pos > base, "a narrativa da batida ① depende do ganho entre fases"
+
+
+def test_veredito_expoe_ressalva_de_comparabilidade_sem_clique(js_fonte):
+    """A ressalva que invalidaria a manchete não pode ficar atrás de um clique.
+
+    A gaveta já explica a comparabilidade entre fases, mas isso é ressalva de
+    segundo plano. Quando ela invalida o número principal — modelos divergentes
+    entre as fases —, a batida ① precisa dizer isso na própria tela.
+    """
+    fonte = js_fonte("batida-veredito.js")
+    assert "config_diverge_entre_fases" in fonte, (
+        "a batida ① não lê o flag de comparabilidade — a ressalva ficaria só na gaveta"
+    )
