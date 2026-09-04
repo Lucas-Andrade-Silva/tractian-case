@@ -7,8 +7,8 @@
  * Nada foi apagado na migração: se um texto existia no painel antigo e não está
  * numa destas abas, é bug. */
 
-import { el, ESTADO, num, pct, texto, rotuloAcao, acoesDeImpacto, execucoesDaFase } from "./dados.js";
-import { selo, metrica } from "./componentes.js";
+import { el, ESTADO, num, pct, texto, rotuloAcao, acoesDeImpacto, execucoesDaFase, PAPEIS_PT } from "./dados.js";
+import { selo, metrica, aviso } from "./componentes.js";
 import { exportaCsv } from "./export.js";
 
 const ABAS = [
@@ -59,8 +59,63 @@ function corpoMetodo() {
   ]);
 }
 
+/**
+ * Comparabilidade entre fases (RN-26).
+ *
+ * A seta da batida ① atribui todo o ganho às correções de prompt e política. Isso
+ * só é honesto se as duas fases rodaram com a mesma configuração de modelo por
+ * papel — caso contrário parte da diferença vem da troca de modelo, e a manchete
+ * do painel estaria dando crédito ao lugar errado.
+ */
+function blocoComparabilidade(bundle) {
+  const diverge = bundle.meta.config_diverge_entre_fases;
+  const modelos = bundle.meta.modelos_por_fase || {};
+  const papeis = Object.keys(modelos.baseline || {}).filter((p) => !p.startsWith("_"));
+
+  return el("div", {}, [
+    el("h3", { text: "As duas fases são comparáveis?" }),
+    diverge
+      ? aviso("atencao", [
+          el("strong", { text: "Não: a configuração de modelos diverge entre as fases. " }),
+          "Parte da diferença pode vir da troca de modelo por papel, não das correções — " +
+            "a comparação não isola o efeito que a batida ① atribui a elas.",
+        ])
+      : aviso("neutro", [
+          el("strong", { text: "Sim: mesma configuração de modelos nas duas fases. " }),
+          "Os " + papeis.length + " papéis e a política de evidência são idênticos no " +
+            "baseline e na pós-correção, então a diferença isola o efeito das correções " +
+            "de prompt e política.",
+        ]),
+    el(
+      "table",
+      { class: "tabela-papeis" },
+      [
+        el("thead", {}, [
+          el("tr", {}, [
+            el("th", { text: "papel" }),
+            el("th", { text: "baseline" }),
+            el("th", { text: "pós-correção" }),
+          ]),
+        ]),
+        el(
+          "tbody",
+          {},
+          papeis.map((papel) =>
+            el("tr", {}, [
+              el("td", { text: PAPEIS_PT[papel] || papel }),
+              el("td", { class: "mono", text: texto((modelos.baseline || {})[papel]) }),
+              el("td", { class: "mono", text: texto((modelos["pos-correcao"] || {})[papel]) }),
+            ])
+          )
+        ),
+      ]
+    ),
+  ]);
+}
+
 function corpoRessalvas(bundle) {
   const partes = [
+    blocoComparabilidade(bundle),
     el("h3", { text: "O que estes números não dizem" }),
     el("p", {}, [
       el("strong", { text: "Reprovação com decisão certa costuma ser artefato. " }),
