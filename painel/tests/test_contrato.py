@@ -110,10 +110,37 @@ def test_gaveta_cobre_as_quatro_abas(js_fonte):
         assert f'"{aba}"' in fonte, f"gaveta.js não define a aba {aba}"
 
 
-def test_ressalva_de_juiz_nao_calibrado_sobreviveu(js_fonte):
-    """Nota de juiz não calibrado não é verdade — a ressalva não pode se perder no refactor."""
+def test_comite_de_juizes_e_lido_dos_campos_reais(bundle, js_fonte):
+    """O comitê existe neste bundle: 20 execuções julgadas em três dimensões.
+
+    Um teste que apenas procura a palavra "calibra" no fonte passa mesmo quando o
+    ramo que a exibe é inalcançável — foi exatamente o que aconteceu. Este amarra o
+    nome do campo, que é onde o erro estava.
+    """
+    assert bundle["meta"]["juizes_disponiveis"] is True
+    assert bundle["meta"]["juizes_resumo"], "o resumo do comitê sumiu do bundle"
+
     fonte = js_fonte("gaveta.js")
-    assert "calibra" in fonte.lower(), "a ressalva de calibração do juiz sumiu"
+    assert "juizes_resumo" in fonte, "a gaveta não lê meta.juizes_resumo"
+    assert "juizes_disponiveis" in fonte, "a gaveta não lê meta.juizes_disponiveis"
+    assert "calibra" in fonte.lower(), "a ressalva de calibração sumiu"
+
+
+def test_juizes_nao_aparecem_em_nenhuma_batida(js_fonte):
+    """Nota de juiz não calibrado não sobe para o veredito.
+
+    A separação é o que mantém a manchete defensável: 94,1% é medida contra gabarito
+    humano; 3,65 de honestidade é um LLM opinando sobre outro. Misturar as duas
+    produziria um número que não significa nada.
+    """
+    import pytest
+    for batida in ("batida-veredito.js", "batida-chamado.js",
+                   "batida-matriz.js", "batida-aovivo.js"):
+        try:
+            fonte = js_fonte(batida)
+        except FileNotFoundError:
+            continue  # a batida ainda não existe nesta altura do plano
+        assert "juizes" not in fonte, f"{batida} exibe nota de juiz — não deve"
 
 
 def test_comparabilidade_entre_fases_e_declarada(bundle, js_fonte):
