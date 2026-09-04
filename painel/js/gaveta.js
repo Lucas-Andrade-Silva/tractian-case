@@ -7,7 +7,7 @@
  * Nada foi apagado na migração: se um texto existia no painel antigo e não está
  * numa destas abas, é bug. */
 
-import { el, ESTADO, num, pct, texto, rotuloAcao, acoesDeImpacto, execucoesDaFase, PAPEIS_PT } from "./dados.js";
+import { el, ESTADO, num, pct, texto, rotuloAcao, acoesDeImpacto, execucoesDaFase, PAPEIS_PT, VAZIO } from "./dados.js";
 import { selo, metrica, aviso } from "./componentes.js";
 import { exportaCsv } from "./export.js";
 
@@ -70,7 +70,12 @@ function corpoMetodo() {
 function blocoComparabilidade(bundle) {
   const diverge = bundle.meta.config_diverge_entre_fases;
   const modelos = bundle.meta.modelos_por_fase || {};
-  const papeis = Object.keys(modelos.baseline || {}).filter((p) => !p.startsWith("_"));
+  const papeis = [
+    ...new Set([
+      ...Object.keys(modelos.baseline || {}),
+      ...Object.keys(modelos["pos-correcao"] || {}),
+    ]),
+  ].filter((p) => !p.startsWith("_")).sort();
 
   return el("div", {}, [
     el("h3", { text: "As duas fases são comparáveis?" }),
@@ -113,6 +118,66 @@ function blocoComparabilidade(bundle) {
   ]);
 }
 
+/**
+ * Comitê de juízes — notas reais, com a ressalva que as torna legíveis.
+ *
+ * A nota existe e é interessante, mas não foi calibrada contra um conjunto anotado
+ * por humano. Média de juiz não validado não é verdade: ordena execuções entre si e
+ * não mede acerto. Por isso vive aqui, e não em nenhuma das quatro batidas.
+ */
+function blocoJuizes(bundle) {
+  const resumo = bundle.meta.juizes_resumo;
+  if (!bundle.meta.juizes_disponiveis || !resumo) {
+    return el("div", {}, [
+      el("h3", { text: "Comitê de juízes" }),
+      el("p", { class: "gaveta-meta", text: "Nenhuma execução julgada neste bundle." }),
+    ]);
+  }
+
+  const dimensoes = Object.entries(resumo);
+
+  return el("div", {}, [
+    el("h3", { text: "Comitê de juízes" }),
+    aviso("atencao", [
+      el("strong", { text: "Não calibrado. " }),
+      "As notas abaixo só passam a ser leitura válida depois da calibração manual " +
+        "contra um conjunto anotado por humano. Enquanto isso não for feito, média de " +
+        "juiz não validado não é verdade — ela ordena execuções entre si, não mede " +
+        "acerto. É por isso que nenhuma das quatro batidas exibe estas notas.",
+    ]),
+    el(
+      "table",
+      { class: "tabela-papeis" },
+      [
+        el("thead", {}, [
+          el("tr", {}, [
+            el("th", { text: "dimensão" }),
+            el("th", { text: "julgadas" }),
+            el("th", { text: "média" }),
+            el("th", { text: "distribuição 1→5" }),
+          ]),
+        ]),
+        el(
+          "tbody",
+          {},
+          dimensoes.map(([nome, d]) => {
+            const dist = d.distribuicao || {};
+            const barras = ["1", "2", "3", "4", "5"]
+              .map((n) => `${n}:${dist[n] ?? 0}`)
+              .join("  ");
+            return el("tr", {}, [
+              el("td", { text: nome.replace(/_/g, " ") }),
+              el("td", { text: num(d.julgadas) }),
+              el("td", { text: d.media != null ? d.media.toFixed(2) : VAZIO }),
+              el("td", { class: "mono", text: barras }),
+            ]);
+          })
+        ),
+      ]
+    ),
+  ]);
+}
+
 function corpoRessalvas(bundle) {
   const partes = [
     blocoComparabilidade(bundle),
@@ -136,20 +201,7 @@ function corpoRessalvas(bundle) {
     ]),
   ];
 
-  // O comitê só aparece se o bundle o trouxer. Quando aparece, vem com a ressalva
-  // de calibração — nota de juiz não validado contra conjunto anotado por humano
-  // não é verdade, e não sobe para nenhuma batida.
-  if (bundle.juizes) {
-    partes.push(
-      el("h3", { text: "Comitê de juízes" }),
-      el("p", {}, [
-        el("strong", { text: "Não calibrado. " }),
-        "As notas do comitê só passam a ser leitura válida depois da calibração manual contra um " +
-          "conjunto anotado por humano. Enquanto isso não for feito, média de juiz não validado não " +
-          "é verdade — este aviso permanece mesmo quando houver notas.",
-      ])
-    );
-  }
+  partes.push(blocoJuizes(bundle));
 
   return el("div", { class: "gaveta-corpo" }, partes);
 }
@@ -244,6 +296,7 @@ export function desenhaGaveta(redesenha) {
       {
         class: "gaveta",
         role: "dialog",
+        "aria-modal": "true",
         "aria-label": "Método e ressalvas",
         onclick: (ev) => ev.stopPropagation(),
       },
