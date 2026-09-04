@@ -155,3 +155,19 @@ def test_comparabilidade_entre_fases_e_declarada(bundle, js_fonte):
     assert "config_diverge_entre_fases" in js_fonte("gaveta.js"), (
         "a gaveta não lê o flag de comparabilidade — RN-26"
     )
+
+
+def test_quatro_batidas_na_ordem_da_narrativa(js_fonte):
+    """A ordem é o roteiro da demo: veredito, um caso, a matriz, ao vivo."""
+    fonte = js_fonte("batidas.js")
+    for chave in ("veredito", "chamado", "matriz", "aovivo"):
+        assert f'"{chave}"' in fonte, f"batida {chave} ausente"
+    assert fonte.index('"veredito"') < fonte.index('"chamado"')
+    assert fonte.index('"chamado"') < fonte.index('"matriz"')
+    assert fonte.index('"matriz"') < fonte.index('"aovivo"')
+
+
+def test_painel_nao_tem_mais_abas_antigas(js_fonte):
+    """Operação/Avaliação/Consulta eram audiências, não uma narrativa."""
+    fonte = js_fonte("painel.js")
+    assert 'botaoAba' not in fonte, "painel.js ainda usa o sistema de abas antigo"
