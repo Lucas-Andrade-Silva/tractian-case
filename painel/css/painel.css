@@ -1175,3 +1175,68 @@ button.celula { background: none; }
 blockquote.mensagem {
   border-left: 3px solid var(--tenue-forte);
 }
+
+/* -- batida ③ matriz ----------------------------------------------------- */
+.matriz-layout { display: grid; grid-template-columns: 1fr 300px; gap: 22px; align-items: start; }
+
+.matriz-cabeca { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.matriz-cabeca h2 { font-size: var(--t-h2); margin: 0; }
+
+.matriz { border-collapse: collapse; width: 100%; }
+.matriz th {
+  font-size: var(--t-mini); font-weight: 500; color: var(--texto-fraco);
+  text-align: left; padding: 5px 7px; border-bottom: 1px solid var(--regua);
+}
+.matriz td { padding: 0; border-bottom: 1px solid var(--faixa); }
+.mx-cen { font-size: var(--t-meta); padding: 5px 8px; white-space: nowrap; }
+
+.celula {
+  display: block; width: 100%; height: 27px;
+  font-size: var(--t-mini);
+  border: 1px solid; border-radius: var(--r);
+  margin: 2px; cursor: pointer;
+}
+.celula-sucesso { background: var(--verde-fundo);    border-color: var(--verde-exec);    color: var(--verde-exec); }
+.celula-neutro  { background: var(--azul-fundo);     border-color: var(--azul-neutro);   color: var(--azul-neutro); }
+.celula-atencao { background: var(--ambar-fundo);    border-color: var(--ambar-atencao); color: var(--ambar-atencao); }
+.celula-erro    { background: var(--vermelho-fundo); border-color: var(--vermelho-erro); color: var(--vermelho-erro); }
+.celula[aria-current="true"] { outline: 2px solid var(--acento); outline-offset: 1px; }
+.celula.vazia { background: none; border-color: var(--faixa); color: var(--texto-ausente); cursor: default; }
+
+.legenda { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: var(--t-meta); color: var(--texto-fraco); }
+.legenda i {
+  display: inline-block; width: 11px; height: 11px;
+  border-radius: 2px; border: 1px solid;
+  margin-right: 5px; vertical-align: -1px;
+}
+
+.matriz-lateral {
+  background: var(--superficie);
+  border: 1px solid var(--regua);
+  border-radius: var(--r);
+  padding: 14px 15px;
+  position: sticky; top: 20px;
+}
+.matriz-lateral h3 { font-size: var(--t-h3); margin: 0 0 10px; }
+.lateral-bloco { margin-top: 12px; }
+.lateral-bloco ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--t-mini); }
+.lateral-nota {
+  margin-top: 14px; padding: 10px 11px;
+  background: var(--tonal-atencao);
+  border: 1px solid var(--ambar-atencao);
+  border-radius: var(--r);
+  font-size: var(--t-meta); line-height: 1.5;
+}
+.lateral-nota .gaveta-gatilho { margin-top: 8px; display: inline-block; }
+
+.diff-lista { list-style: none; padding: 0; margin: 4px 0 0; }
+.diff-lista li {
+  font-size: var(--t-mini);
+  padding: 3px 0 3px 14px;
+  position: relative;
+}
+/* O marcador carrega a situação do passo; a cor sozinha não bastaria. */
+.diff-lista li::before { position: absolute; left: 0; }
+.diff-atendida::before { content: "✓"; color: var(--verde-exec); }
+.diff-faltante::before { content: "×"; color: var(--ambar-atencao); }
+.diff-lista em { display: block; font-style: normal; color: var(--texto-fraco); }
