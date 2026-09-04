@@ -35,10 +35,15 @@ export async function carregaBundle() {
 
 export const VAZIO = "—";
 
-/** Percentual. `null`/`undefined` viram "—": ausência de medida não é zero. */
+/** Percentual. `null`/`undefined` viram "—": ausência de medida não é zero.
+ *  Separador pt-BR como em `num`: o painel é todo em português, e `94.1%` a 76px
+ *  na batida ① lê como erro de digitação para quem vai assistir. */
 export function pct(valor, casas = 1) {
   if (valor === null || valor === undefined || Number.isNaN(valor)) return VAZIO;
-  return `${(valor * 100).toFixed(casas)}%`;
+  return `${(valor * 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  })}%`;
 }
 
 export function num(valor, casas = 0) {

@@ -207,6 +207,20 @@ def test_delta_entre_fases_vem_das_duas_fases(bundle):
     assert pos > base, "a narrativa da batida ① depende do ganho entre fases"
 
 
+def test_percentuais_usam_separador_pt_br(js_fonte):
+    """O painel é todo em português e o 94,1% da batida ① aparece a 76px.
+
+    `num()` já usava toLocaleString("pt-BR") enquanto `pct()` usava toFixed — a
+    mesma tela mostrava `18.730` e `94.1%`. Um separador errado no maior número da
+    primeira tela lê como descuido para exatamente a plateia que o painel quer
+    convencer.
+    """
+    fonte = js_fonte("dados.js")
+    trecho = fonte.split("export function pct", 1)[1].split("export function", 1)[0]
+    assert "pt-BR" in trecho, "pct() não usa separador pt-BR"
+    assert "toFixed" not in trecho, "pct() ainda formata com toFixed"
+
+
 def test_veredito_expoe_ressalva_de_comparabilidade_sem_clique(js_fonte):
     """A ressalva que invalidaria a manchete não pode ficar atrás de um clique.
 
