@@ -14,6 +14,7 @@ export const ESTADO = {
   filtros: { empresa: "", ativo: "", papel: "", decisao: "" },
   busca: "",
   expandidas: new Set(),
+  faixasAbertas: new Set(),
 };
 
 export async function carregaBundle() {
