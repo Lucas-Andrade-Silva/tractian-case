@@ -50,17 +50,18 @@
   --tonal-atencao: color-mix(in oklab, var(--ambar-fundo) 46%, var(--superficie));
   --tonal-erro:    color-mix(in oklab, var(--vermelho-fundo) 46%, var(--superficie));
 
-  /* Escala tipográfica: passo ~1.18, ancorada em 13px de corpo. A escala antiga
-     tinha h1 a 15px contra corpo de 14px — um degrau de 1px não é hierarquia. */
-  --t-micro: 10.5px;
-  --t-mini:  11.5px;
-  --t-meta:  12.5px;
-  --t-corpo: 13.5px;
-  --t-leitura: 15px;
-  --t-h3:    13px;
-  --t-h2:    15.5px;
-  --t-h1:    19px;
-  --t-metrica: 30px;
+  /* Escala tipográfica para projetor: corpo a 16px, ancorada em passo ~1.2.
+     A escala anterior (corpo 13,5px) era de leitura em monitor a 60 cm; a banca
+     lê a 4 m de distância. Números de veredito a 76px. */
+  --t-micro: 12px;
+  --t-mini:  13px;
+  --t-meta:  14px;
+  --t-corpo: 16px;
+  --t-leitura: 17.5px;
+  --t-h3:    15px;
+  --t-h2:    19px;
+  --t-h1:    24px;
+  --t-metrica: 76px;
 
   /* Fundo da seleção: aba ativa, botão primário, seleção de texto. No claro é o
      ardósia escuro sobre branco; o tema escuro o substitui por um ardósia médio. */
