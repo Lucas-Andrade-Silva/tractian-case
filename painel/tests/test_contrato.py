@@ -187,17 +187,24 @@ def test_setas_nao_sequestram_campos_de_texto(js_fonte):
     assert "isContentEditable" in fonte, "ligaTeclado ignora campos contentEditable"
 
 
-def test_veredito_nao_faz_aritmetica_a_mao(js_fonte):
-    """Todo agregado da batida ① vem do bundle.
+def test_veredito_nao_reconstroi_numeros(js_fonte):
+    """Números da batida ① saem do bundle ou de uma contagem, nunca de reconstrução.
 
-    Durante o desenho eu escrevi "48 de 51" por dedução antes de conferir. Bateu,
-    mas o hábito é a falha: um número derivado no renderizador não é auditável
-    contra o bundle e ninguém percebe quando fica errado.
+    A versão anterior escrevia `Math.round(acuracia * execucoes)` para chegar em "48 de
+    51". Bate hoje só porque nenhuma execução falhou: a acurácia é medida sobre as que
+    concluíram, e multiplicá-la pelo total usa um denominador que não é o dela. O
+    sintoma de um erro assim é uma frase confiante e errada na maior tipografia do
+    painel — nada quebra, ninguém percebe.
     """
     fonte = js_fonte("batida-veredito.js")
     assert "agregados" in fonte, "a batida ① precisa ler bundle.agregados"
-    # Nenhum literal percentual escrito na mão.
     assert not re.search(r'"\d{1,3},\d%"', fonte), "percentual literal no código"
+    assert "Math.round" not in fonte, (
+        "batida ① reconstrói um número em vez de contar ou ler do bundle"
+    )
+    assert "decision_match" in fonte, (
+        "a frase de fecho deve contar execuções, não derivar de uma porcentagem"
+    )
 
 
 def test_delta_entre_fases_vem_das_duas_fases(bundle):
