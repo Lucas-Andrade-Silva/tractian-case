@@ -80,3 +80,24 @@ def test_achados_do_bundle_sao_parseaveis(bundle):
     assert any("baseline.state=invalidated" in l for l in linhas)
     assert any("status=stale" in l for l in linhas)
     assert all("=" in l for l in linhas), "toda linha de achado tem chave=valor"
+
+
+def test_achados_empacotados_por_virgula(bundle):
+    """Uma linha de achado pode carregar vários fatos separados por vírgula.
+
+    `analysis.id=an_9906, status=stale, created_at=2026-07-09` é um caso real. Se o
+    parser não separar, a tag vira uma frase longa e ilegível a quatro metros — que é
+    exatamente o defeito que este redesenho existe para remover.
+    """
+    execucao = next(
+        e for e in bundle["execucoes"]
+        if e["ticket_id"] == "TKT-INV-09"
+        and e["fase"] == "pos-correcao"
+        and e["seed"] == "complete"
+    )
+    linhas = execucao["operacao"]["achados"][0]["summary"].splitlines()
+    empacotadas = [l for l in linhas if l.count("=") > 1]
+    assert empacotadas, "o caso exemplar perdeu as linhas com vários fatos"
+
+    duplo = [l for l in linhas if l.rstrip().endswith(")") and l.count("(") > 1]
+    assert duplo, "o caso exemplar perdeu a linha com dois parênteses finais"

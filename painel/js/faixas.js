@@ -9,28 +9,62 @@
 
 import { el, num, pct, texto, PAPEIS_PT } from "./dados.js";
 
-/** Tom da tag pelo teor do fato. Neutro é o padrão: só o que é anômalo colore. */
-const PADROES_TOM = [
-  [/invalidated|stale|exceeds_alarm|=true/, "atencao"],
-  [/online|ok|=false/, "sucesso"],
-];
+/* Um fato é "notável" quando o valor denuncia um estado, não quando a chave
+ * contém uma palavra alarmante: `baseline.invalidated_at=2026-07-11` é uma data,
+ * e pintá-la de âmbar porque a chave diz "invalidated" é alarme falso. */
+const VALOR_ATENCAO = /^(invalidated|stale|offline|failed|degraded|missing|unknown)$/i;
+const VALOR_BOM = /^(online|ok|healthy|valid|active|complete)$/i;
 
-/** Quebra `achados[].summary` em tags. Formato: `chave=valor (origem)` por linha. */
+/** Tom de um fato já separado. Booleano só é notável quando a chave diz o que ele mede. */
+function tomDoFato(chave, valor) {
+  if (/^exceeds|_exceeded$/i.test(chave)) return valor === "true" ? "atencao" : "sucesso";
+  if (VALOR_ATENCAO.test(valor)) return "atencao";
+  if (VALOR_BOM.test(valor)) return "sucesso";
+  return "quieto";
+}
+
+/**
+ * Quebra `achados[].summary` em fatos individuais.
+ *
+ * Cada linha é `chave=valor (origem)`, mas uma linha pode empacotar vários fatos
+ * separados por vírgula — `analysis.id=an_9906, status=stale, created_at=2026-07-09` —
+ * e pode trazer mais de um parêntese no fim. Sem separar, a tag vira uma frase longa
+ * que ninguém lê a quatro metros; sem remover todos os parênteses, sobra `(histórico)`
+ * pendurado no valor.
+ */
 export function fatosDoAchado(resumo) {
   const linhas = String(resumo || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  return linhas.map((linha) => {
-    const semOrigem = linha.replace(/\s*\([^)]*\)\s*$/, "");
-    const corte = semOrigem.indexOf("=");
-    const chave = corte === -1 ? semOrigem : semOrigem.slice(0, corte);
-    const valor = corte === -1 ? "" : semOrigem.slice(corte + 1);
-    const tom = (PADROES_TOM.find(([re]) => re.test(semOrigem)) || [null, "quieto"])[1];
-    return { chave, valor, tom };
-  });
+  const fatos = [];
+
+  for (const linha of linhas) {
+    // Remove todos os parênteses finais, não só o último.
+    const semOrigem = linha.replace(/(\s*\([^)]*\))+\s*$/, "").trim();
+
+    for (const pedaco of semOrigem.split(",")) {
+      const bruto = pedaco.trim();
+      if (!bruto) continue;
+      const corte = bruto.indexOf("=");
+      if (corte === -1) continue;
+      const chave = bruto.slice(0, corte).trim();
+      const valor = bruto.slice(corte + 1).trim();
+      if (!chave || !valor) continue;
+      fatos.push({ chave, valor, tom: tomDoFato(chave, valor) });
+    }
+  }
+
+  // Notáveis primeiro: é a ordem em que a banca deve ler, e a que sobrevive ao corte.
+  return fatos.sort((a, b) => (a.tom === "quieto" ? 1 : 0) - (b.tom === "quieto" ? 1 : 0));
 }
 
 function tagFato(fato) {
-  const rotulo = fato.valor ? `${fato.chave} ${fato.valor}` : fato.chave;
-  return el("span", { class: `fato fato-${fato.tom} mono`, text: rotulo });
+  // A chave já diz o que o valor significa; repetir "chave=valor" dobra o texto sem
+  // acrescentar leitura. `baseline.state invalidated` lê melhor que `baseline.state=invalidated`.
+  const nome = fato.chave.split(".").pop();
+  return el("span", {
+    class: `fato fato-${fato.tom} mono`,
+    text: `${nome} ${fato.valor}`,
+    title: `${fato.chave}=${fato.valor}`,
+  });
 }
 
 /** Uma faixa: nome do papel, o que ele fez, e quanto custou. */
@@ -109,7 +143,27 @@ export function faixasPorPapel(execucao, estado, redesenha) {
     const fatos = fatosDoAchado(achadosPorPapel.get(papel));
     const meio = [pontoLlm()];
 
-    if (fatos.length) meio.push(...fatos.map(tagFato));
+    const LIMITE_FATOS = 6;
+    if (fatos.length) {
+      const chaveFatos = `${execucao.id}:${papel}:fatos`;
+      const todos = estado.faixasAbertas.has(chaveFatos);
+      const visiveis = todos ? fatos : fatos.slice(0, LIMITE_FATOS);
+      meio.push(...visiveis.map(tagFato));
+      if (fatos.length > LIMITE_FATOS) {
+        meio.push(
+          el("button", {
+            class: "faixa-rotas",
+            "aria-expanded": String(todos),
+            text: todos ? "menos" : `+${fatos.length - LIMITE_FATOS} ⌄`,
+            onclick: () => {
+              if (todos) estado.faixasAbertas.delete(chaveFatos);
+              else estado.faixasAbertas.add(chaveFatos);
+              redesenha();
+            },
+          })
+        );
+      }
+    }
     if (chamadas.length) {
       const chave = `${execucao.id}:${papel}`;
       const aberta = estado.faixasAbertas.has(chave);
