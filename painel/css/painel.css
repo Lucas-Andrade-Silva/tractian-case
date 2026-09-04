@@ -1003,3 +1003,54 @@ button.celula { background: none; }
 
 .faixa-cruas { padding: 6px 12px 8px 144px; background: var(--fundo); border-bottom: 1px solid var(--faixa); }
 .crua-linha { display: flex; gap: 10px; align-items: center; font-size: var(--t-mini); padding: 2px 0; }
+
+/* -- gaveta -------------------------------------------------------------- */
+.gaveta-fundo {
+  position: fixed; inset: 0;
+  background: color-mix(in oklab, var(--ardosia-900) 42%, transparent);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 50;
+}
+
+.gaveta {
+  background: var(--superficie);
+  border: 1px solid var(--regua);
+  border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0;
+  width: min(980px, 94vw);
+  max-height: 78vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -8px 28px color-mix(in oklab, var(--ardosia-900) 18%, transparent);
+}
+
+.gaveta-abas {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--regua);
+  background: var(--fundo);
+}
+.gaveta-abas button {
+  padding: 11px 18px;
+  font-size: var(--t-meta);
+  color: var(--texto-fraco);
+  background: none; border: none; border-right: 1px solid var(--faixa);
+  cursor: pointer;
+}
+.gaveta-abas button[aria-selected="true"] { background: var(--sel-fundo); color: var(--sel-texto); }
+.gaveta-abas .gaveta-fechar { margin-left: auto; border-right: none; }
+
+.gaveta-corpo { padding: 20px 22px 26px; overflow-y: auto; }
+.gaveta-corpo h3 { font-size: var(--t-h3); margin: 18px 0 8px; }
+.gaveta-corpo h3:first-child { margin-top: 0; }
+.gaveta-corpo p { font-size: var(--t-corpo); line-height: 1.55; max-width: 78ch; margin: 0 0 11px; }
+.gaveta-meta { font-size: var(--t-mini); color: var(--texto-fraco); }
+
+.gaveta-gatilho {
+  border: 1px dashed var(--tenue-forte);
+  border-radius: var(--r);
+  background: none;
+  color: var(--azul-neutro);
+  font-size: var(--t-meta);
+  padding: 4px 11px;
+  cursor: pointer;
+}
+.gaveta-gatilho:hover { border-style: solid; }
