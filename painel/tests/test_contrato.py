@@ -101,3 +101,16 @@ def test_achados_empacotados_por_virgula(bundle):
 
     duplo = [l for l in linhas if l.rstrip().endswith(")") and l.count("(") > 1]
     assert duplo, "o caso exemplar perdeu a linha com dois parênteses finais"
+
+
+def test_gaveta_cobre_as_quatro_abas(js_fonte):
+    """A gaveta é o único destino da prosa: se uma aba sumir, a ressalva some junto."""
+    fonte = js_fonte("gaveta.js")
+    for aba in ("metodo", "ressalvas", "auditoria", "arquitetura"):
+        assert f'"{aba}"' in fonte, f"gaveta.js não define a aba {aba}"
+
+
+def test_ressalva_de_juiz_nao_calibrado_sobreviveu(js_fonte):
+    """Nota de juiz não calibrado não é verdade — a ressalva não pode se perder no refactor."""
+    fonte = js_fonte("gaveta.js")
+    assert "calibra" in fonte.lower(), "a ressalva de calibração do juiz sumiu"

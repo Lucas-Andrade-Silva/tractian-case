@@ -15,6 +15,7 @@ export const ESTADO = {
   busca: "",
   expandidas: new Set(),
   faixasAbertas: new Set(),
+  gaveta: null,
 };
 
 export async function carregaBundle() {
