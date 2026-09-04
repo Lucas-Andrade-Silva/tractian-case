@@ -60,6 +60,13 @@ class ConsultaRequest(BaseModel):
     contexto_ativo: dict | None = Field(
         default=None, description="O que a UI já sabe do ativo (nome, tipo, criticidade)."
     )
+    modelos_juizes: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Modelo OpenRouter por dimensão do comitê "
+            '(ex.: {"causa_raiz": "z-ai/glm-5.2:free"}). Dimensão ausente usa o padrão.'
+        ),
+    )
 
 
 def build_app():
@@ -92,7 +99,12 @@ def build_app():
         lista_consultas,
     )
     from runner.sintetico import ModelosIndistintos, gerador_settings  # noqa: E402
-    from runner.judges import judge_settings  # noqa: E402
+    from runner.juiz_modelos import (  # noqa: E402
+        ChaveDeJuizAusente,
+        catalogo_modelos,
+        modelo_padrao,
+        settings_juiz,
+    )
 
     app = FastAPI(
         title="Agente de suporte industrial — consulta livre",
@@ -111,23 +123,32 @@ def build_app():
     @app.get("/saude", tags=["Infra"])
     def saude():
         """Diz se o par gerador/juiz está configurado — antes de gastar uma execução."""
-        gerador = gerador_settings()
-        juiz = judge_settings()
-        try:
-            from runner.sintetico import assert_modelos_distintos
+        from runner.juiz_modelos import DIMENSOES  # noqa: PLC0415 - depende do sys.path
+        from runner.sintetico import assert_modelos_distintos  # noqa: PLC0415
 
-            assert_modelos_distintos(gerador, juiz)
-            avaliacao_ok, motivo = True, None
-        except ModelosIndistintos as exc:
+        gerador = gerador_settings()
+        padroes = {d: modelo_padrao(d) for d in DIMENSOES}
+
+        avaliacao_ok, motivo = True, None
+        try:
+            for dimensao, modelo in padroes.items():
+                assert_modelos_distintos(gerador, settings_juiz(modelo))
+        except (ModelosIndistintos, ChaveDeJuizAusente) as exc:
             avaliacao_ok, motivo = False, str(exc)
 
         return {
             "ok": True,
             "modelo_gerador": gerador.llm_model,
-            "modelo_juiz": juiz.llm_model,
+            "provedor_gerador": gerador.llm_provider,
+            "modelos_juiz": padroes,
             "avaliacao_disponivel": avaliacao_ok,
             "motivo": motivo,
         }
+
+    @app.get("/juiz/modelos", tags=["Consulta"])
+    def juiz_modelos():
+        """Modelos OpenRouter que servem de juiz, consultados ao vivo quando possível."""
+        return catalogo_modelos()
 
     @app.get("/catalogo", tags=["Consulta"])
     def catalogo():
@@ -150,8 +171,9 @@ def build_app():
                 contexto_ativo=pedido.contexto_ativo,
                 seed=pedido.seed,
                 julgar=pedido.julgar,
+                modelos_juizes=pedido.modelos_juizes,
             )
-        except ModelosIndistintos as exc:
+        except (ModelosIndistintos, ChaveDeJuizAusente) as exc:
             # 409: a requisição está correta; a configuração do ambiente é que não
             # permite um julgamento válido. Dizer isso é melhor do que devolver nota.
             raise HTTPException(status_code=409, detail=str(exc)) from exc

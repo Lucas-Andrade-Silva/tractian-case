@@ -199,11 +199,19 @@ def run_committee(
     golden: GoldenCase,
     *,
     llm: Any = None,
+    llm_por_dimensao: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Roda os três juízes sobre um trace e devolve `{dimensão: {score, reasoning}}`.
 
     Traces de execução quebrada não vão a julgamento: não há texto a avaliar, e uma nota
     baixa aqui seria confundida com má decisão do agente em vez de falha de execução.
+
+    `llm_por_dimensao` permite um modelo diferente por dimensão (`{"honestidade": llm_a,
+    …}`), caindo em `llm` para as que não aparecerem no mapa. Dimensões distintas têm
+    exigências distintas — `causa_raiz` é raciocínio técnico sobre limiares e espectro,
+    `honestidade` é leitura de hedge no texto — e modelos gratuitos variam muito entre as
+    duas. Uma nota por dimensão registra qual modelo a produziu, senão comparar duas
+    execuções julgadas por modelos diferentes viraria comparação sem denominador.
     """
     if trace.get("error") or not trace.get("final_answer"):
         return {
@@ -214,19 +222,47 @@ def run_committee(
             for judge in COMMITTEE
         }
 
-    llm = llm or build_llm(judge_settings())
+    por_dimensao = llm_por_dimensao or {}
+    padrao = llm or (build_llm(judge_settings()) if not por_dimensao else None)
     context = _context_block(trace, golden)
 
     verdicts: dict[str, dict[str, Any]] = {}
     for judge in COMMITTEE:
-        verdict: JudgeVerdict = llm.with_structured_output(JudgeVerdict).invoke(
+        alvo = por_dimensao.get(judge.key) or padrao
+        if alvo is None:
+            # Só acontece se o chamador passou um mapa parcial sem `llm` de reserva:
+            # é erro de configuração, e inventar um modelo aqui esconderia isso.
+            raise ValueError(
+                f"Nenhum modelo de juiz para a dimensão '{judge.key}'. Passe `llm` como "
+                "reserva ou inclua a dimensão em `llm_por_dimensao`."
+            )
+        verdict: JudgeVerdict = alvo.with_structured_output(JudgeVerdict).invoke(
             [
                 SystemMessage(_SYSTEM),
                 HumanMessage(f"DIMENSÃO: {judge.title}\n\nRUBRICA:\n{judge.rubric}\n\n{context}"),
             ]
         )
-        verdicts[judge.key] = {"score": verdict.score, "reasoning": verdict.reasoning}
+        verdicts[judge.key] = {
+            "score": verdict.score,
+            "reasoning": verdict.reasoning,
+            # Procedência da nota. Sem isso, um painel que mistura dimensões julgadas por
+            # modelos diferentes apresenta uma média que não tem denominador comum.
+            "modelo": _nome_do_modelo(alvo),
+        }
     return verdicts
+
+
+def _nome_do_modelo(llm: Any) -> str | None:
+    """Id do modelo de um chat model, atravessando o envelope da sonda.
+
+    `_LlmComMetodoFixo` delega por `__getattr__`, então `.model_name` chega ao objeto
+    real; provedores diferentes nomeiam esse atributo de formas diferentes.
+    """
+    for atributo in ("model_name", "model", "model_id"):
+        valor = getattr(llm, atributo, None)
+        if isinstance(valor, str) and valor:
+            return valor
+    return None
 
 
 def _context_block(trace: dict[str, Any], golden: GoldenCase) -> str:

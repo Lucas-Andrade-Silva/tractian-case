@@ -32,6 +32,20 @@ mesmo mede auto-consistência, não acurácia — e a nota resultante é indisti
 quando chega ao painel. Por isso a verificação falha alto e cedo em vez de degradar em silêncio, e
 por isso `GERADOR_*` é um bloco de configuração separado de `JUDGE_*`.
 
+**2b. Juiz sempre OpenRouter, agentes sempre Groq — e um modelo por dimensão.** A
+separação de provedores faz duas coisas ao mesmo tempo: separa as cotas (uma bateria de
+julgamento não consome o orçamento diário que o Investigador precisa) e torna a regra
+acima estrutural, já que o gerador roda na Groq e nenhum juiz pode coincidir com ele.
+`settings_juiz` fixa o provedor em vez de herdar `LLM_PROVIDER` — herdá-lo foi o defeito
+que enviou a chave de um provedor ao outro e produziu 401.
+
+Cada dimensão do comitê tem modelo próprio, escolhível na interface sem reiniciar o
+servidor. As três medem coisas diferentes — `causa_raiz` é raciocínio técnico sobre
+limiares e espectro, `honestidade` é leitura de hedge no texto — e entre modelos gratuitos
+a competência varia muito de uma para outra. Cada nota registra o modelo que a produziu:
+sem isso, uma média de dimensões julgadas por modelos diferentes não teria denominador
+comum, e o painel avisa quando é o caso.
+
 **3. A camada 1 é pulada, não adaptada.** O que dela sobrevive sem gabarito é apurado direto do
 trace por `metricas_execucao`: se a execução concluiu, quantas chamadas foram repetidas, se o agente
 insistiu numa chamada já recusada com 403. São propriedades do próprio trace — uma chamada idêntica
