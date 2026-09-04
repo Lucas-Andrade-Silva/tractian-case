@@ -52,7 +52,7 @@ Verificados contra `painel/dados/bundle.json` nesta sessão:
 | repetição | 6,5% → 3,0% | idem |
 | estabilidade | **17/17 cenários estáveis** nas 3 seeds | elimina a seção Estabilidade |
 | taxa de aprovação | 78,4%, praticamente parada | fica fora do veredito (decisão do autor) |
-| comitê de juízes | **ausente do bundle** (`juizes: false`) | não entra em nenhuma batida |
+| comitê de juízes | **presente**: 20 execuções julgadas — honestidade 3,65 · causa-raiz 4,55 · justificativa 4,90 | fica na gaveta, com a ressalva de calibração; não entra em nenhuma batida |
 | desfechos das 51 células | 42 passaram · 8 artefatos · 1 erro real (CEN-09) | legenda de 4 categorias da matriz |
 
 ## Arquitetura: quatro batidas
@@ -131,6 +131,13 @@ demanda — que é a regra geral deste redesenho.
 
 **Absorve:** `matriz()` e `drilldown()`.
 **Elimina:** `estabilidade()` (~85 linhas) — 17/17 é um selo, não uma seção.
+
+**O comitê de juízes não aparece aqui, e a razão não é ausência de dado.** Há 20
+execuções julgadas no bundle, com médias reais. Elas ficam na gaveta porque o comitê
+não foi calibrado contra um conjunto anotado por humano: média de juiz não validado
+ordena execuções entre si, não mede acerto. Misturá-la com os 94,1% — que são medidos
+contra gabarito escrito por humano — produziria um número sem significado. A separação
+é o que mantém a manchete defensável.
 
 ### ④ Ao vivo — "de verdade?"
 
