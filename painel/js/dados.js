@@ -17,6 +17,7 @@ export const ESTADO = {
   expandidas: new Set(),
   faixasAbertas: new Set(),
   gaveta: null,
+  filaAberta: false,
 };
 
 export async function carregaBundle() {

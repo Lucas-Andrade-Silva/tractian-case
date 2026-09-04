@@ -18,7 +18,7 @@ def test_bundle_tem_as_fases_esperadas(bundle):
 
 def test_operacao_nao_importa_avaliacao(js_fonte):
     """RN-01 estrutural: a visão de quem atende não pode ler o gabarito."""
-    for modulo in ("operacao.js",):
+    for modulo in ("operacao.js", "batida-chamado.js"):
         assert "avaliacao.js" not in imports_de(js_fonte(modulo)), (
             f"{modulo} importou avaliacao.js — RN-01 quebrado"
         )
@@ -226,6 +226,21 @@ def test_percentuais_usam_separador_pt_br(js_fonte):
     trecho = fonte.split("export function pct", 1)[1].split("export function", 1)[0]
     assert "pt-BR" in trecho, "pct() não usa separador pt-BR"
     assert "toFixed" not in trecho, "pct() ainda formata com toFixed"
+
+
+def test_batida_chamado_respeita_rn01(js_fonte):
+    """A batida ② é a visão de quem atende: não pode ler o gabarito."""
+    fonte = js_fonte("batida-chamado.js")
+    assert "avaliacao.js" not in imports_de(fonte), "RN-01 quebrado na batida ②"
+    for proibido in ("passou", "decision_match", "aprovacao"):
+        assert proibido not in fonte, f"batida ② expôs `{proibido}` — RN-01"
+
+
+def test_resposta_final_nao_e_truncada(js_fonte):
+    """RN-16: a resposta ao cliente é o produto entregue, e vai íntegra."""
+    fonte = js_fonte("batida-chamado.js")
+    assert ".slice(" not in fonte, "truncamento na batida ② — RN-16"
+    assert "substring" not in fonte, "truncamento na batida ② — RN-16"
 
 
 def test_veredito_expoe_ressalva_de_comparabilidade_sem_clique(js_fonte):
