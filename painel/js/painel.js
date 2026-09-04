@@ -78,7 +78,8 @@ carregaBundle()
         ]),
         el("p", { class: "secao-nota" }, [
           "O painel lê um bundle gerado a partir dos traces já gravados. Rode " +
-            "`python painel/build_bundle.py` e sirva a pasta por HTTP: `make painel`.",
+            "`python painel/build_bundle.py` e sirva a pasta por HTTP (o navegador bloqueia " +
+            "fetch em file://): `make painel`.",
         ]),
       ])
     );

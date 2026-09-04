@@ -171,3 +171,17 @@ def test_painel_nao_tem_mais_abas_antigas(js_fonte):
     """Operação/Avaliação/Consulta eram audiências, não uma narrativa."""
     fonte = js_fonte("painel.js")
     assert 'botaoAba' not in fonte, "painel.js ainda usa o sistema de abas antigo"
+
+
+def test_setas_nao_sequestram_campos_de_texto(js_fonte):
+    """As batidas ② e ④ têm campo de texto.
+
+    Sem o guarda, apertar ← para corrigir um typo troca de batida e o `limpa(raiz)`
+    descarta o que estava sendo digitado. Num projetor, no meio da demo, isso não
+    tem recuperação — e nenhum teste de renderização existe aqui para pegar.
+    """
+    fonte = js_fonte("batidas.js")
+    assert "INPUT" in fonte and "TEXTAREA" in fonte and "SELECT" in fonte, (
+        "ligaTeclado não protege campos de texto das setas"
+    )
+    assert "isContentEditable" in fonte, "ligaTeclado ignora campos contentEditable"
