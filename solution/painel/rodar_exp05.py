@@ -29,12 +29,12 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "agent"))
+SOLUCAO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SOLUCAO / "agent"))
 
 SEEDS = ("complete", "s2", "s3")
-DESTINO = REPO / ".run" / "traces_exp05_single"
-BUNDLE = REPO / "painel" / "dados" / "bundle.json"
+DESTINO = SOLUCAO / ".run" / "traces_exp05_single"
+BUNDLE = SOLUCAO / "painel" / "dados" / "bundle.json"
 
 # Braço de comparação: a fase mais recente do multiagente, mesma configuração de modelos.
 FASE_MULTI = "pos-correcao"
@@ -96,7 +96,7 @@ def comparar() -> int:
     único, em vez de reimplementar as fórmulas: se a definição de `passou` mudar lá,
     muda aqui junto.
     """
-    sys.path.insert(0, str(REPO / "evaluation"))
+    sys.path.insert(0, str(SOLUCAO / "evaluation"))
     from runner.deterministic import evaluate_deterministic  # type: ignore
     from runner.golden import load_golden  # type: ignore
 
@@ -220,7 +220,7 @@ def main() -> int:
 
     casos = {c["id"]: c for c in load_cases(settings)}
     DESTINO.mkdir(parents=True, exist_ok=True)
-    print(f"\nArquitetura: {settings.architecture} · gravando em {DESTINO.relative_to(REPO)}\n")
+    print(f"\nArquitetura: {settings.architecture} · gravando em {DESTINO.relative_to(SOLUCAO)}\n")
 
     concluidas = falhas = 0
     for indice, (case_id, ticket, seed) in enumerate(falta, 1):

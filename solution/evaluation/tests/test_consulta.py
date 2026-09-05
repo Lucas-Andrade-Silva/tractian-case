@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT / "agent"))
+SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(SOLUTION_DIR / "agent"))
 
 from app.config import Settings  # noqa: E402
 

@@ -41,17 +41,20 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-REPO = Path(__file__).resolve().parent.parent
+# `SOLUCAO` é o que eu construí; `RAIZ` é o repositório, onde vive o material da Tractian.
+# Separar as duas é o que impede um `.parent` a mais ou a menos de apontar para o vazio.
+SOLUCAO = Path(__file__).resolve().parent.parent
+RAIZ = SOLUCAO.parent
 SAIDA = Path(__file__).resolve().parent / "dados" / "bundle.json"
 
 # Os dois diretórios de trace. `agent/.run` não é sobra: as 3 execuções de baseline de
 # case_tkt_exe_16 só existem lá, e varrer só a raiz as perderia em silêncio.
-RAIZES_TRACE = [REPO / ".run", REPO / "agent" / ".run"]
+RAIZES_TRACE = [SOLUCAO / ".run", SOLUCAO / "agent" / ".run"]
 
-CSV_EXECUCOES = REPO / ".run" / "resultados_avaliacao.csv"
-CSV_RESUMO = REPO / ".run" / "resumo_por_cenario.csv"
-CSV_LEGENDA = REPO / ".run" / "legenda_seeds_e_metricas.csv"
-GABARITO = REPO / "eval" / "expected-paths.json"
+CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
+CSV_RESUMO = SOLUCAO / ".run" / "resumo_por_cenario.csv"
+CSV_LEGENDA = SOLUCAO / ".run" / "legenda_seeds_e_metricas.csv"
+GABARITO = RAIZ / "eval" / "expected-paths.json"
 # Notas do comitê, gravadas por painel/julgar.py. Opcional: sem elas o painel mostra o
 # estado vazio, que é a leitura honesta enquanto a camada 2 não rodou.
 JUIZES = Path(__file__).resolve().parent / "dados" / "juizes.json"
@@ -208,7 +211,7 @@ def junta_por_tokens(
         elif not candidatos:
             faltantes.append(f"  {rotulo} (tokens={linha['tokens_total']})")
         else:
-            arquivos = "\n      ".join(str(c.relative_to(REPO)) for c, _ in candidatos)
+            arquivos = "\n      ".join(str(c.relative_to(SOLUCAO)) for c, _ in candidatos)
             ambiguos.append(f"  {rotulo} casa com {len(candidatos)} arquivos:\n      {arquivos}")
 
     if faltantes or ambiguos:
@@ -656,7 +659,7 @@ def monta_bundle() -> tuple[dict[str, Any], list[dict[str, str]]]:
                 "cenario": linha["cenario"],
                 "seed": linha["seed"],
                 "fase": linha["fase"],
-                "arquivo": str(caminho.relative_to(REPO)).replace("\\", "/"),
+                "arquivo": str(caminho.relative_to(SOLUCAO)).replace("\\", "/"),
                 "operacao": secao_operacao(trace),
                 "avaliacao": avaliacao,
             }
@@ -792,7 +795,7 @@ def main() -> int:
     SAIDA.write_text(
         json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
     )
-    print(f"  bundle: {SAIDA.relative_to(REPO)} ({SAIDA.stat().st_size / 1024:.0f} KB)")
+    print(f"  bundle: {SAIDA.relative_to(SOLUCAO)} ({SAIDA.stat().st_size / 1024:.0f} KB)")
     return 0
 
 

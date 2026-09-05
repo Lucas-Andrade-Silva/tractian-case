@@ -24,12 +24,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "agent"))
-sys.path.insert(0, str(REPO / "evaluation"))
+SOLUCAO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SOLUCAO / "agent"))
+sys.path.insert(0, str(SOLUCAO / "evaluation"))
 
-CSV_EXECUCOES = REPO / ".run" / "resultados_avaliacao.csv"
-RAIZES_TRACE = [REPO / ".run", REPO / "agent" / ".run"]
+CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
+RAIZES_TRACE = [SOLUCAO / ".run", SOLUCAO / "agent" / ".run"]
 
 # Qual diretório de trace pertence a qual fase. É a informação que o trace não grava; a
 # correção de fundo seria gravá-la em agent/app/trace.py.
@@ -184,7 +184,7 @@ def main() -> int:
         escritor.writeheader()
         escritor.writerows(saida)
 
-    print(f"\ngravado: {CSV_EXECUCOES.relative_to(REPO)}")
+    print(f"\ngravado: {CSV_EXECUCOES.relative_to(SOLUCAO)}")
     print("Depois: python painel/resumir_csv.py && python painel/build_bundle.py --verify")
     return 0
 

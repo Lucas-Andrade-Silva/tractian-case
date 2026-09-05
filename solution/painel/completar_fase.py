@@ -24,17 +24,17 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "agent"))
+SOLUCAO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SOLUCAO / "agent"))
 
 SEEDS = ("complete", "s2", "s3")
-CSV_EXECUCOES = REPO / ".run" / "resultados_avaliacao.csv"
+CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
 
 # Cada fase tem seu diretório de destino. Os traces novos precisam cair num lugar que o
 # build varre, e separados dos da fase anterior.
 DESTINO = {
-    "pos-correcao": REPO / ".run" / "traces_fix_policy2",
-    "baseline": REPO / ".run" / "traces_restantes",
+    "pos-correcao": SOLUCAO / ".run" / "traces_fix_policy2",
+    "baseline": SOLUCAO / ".run" / "traces_restantes",
 }
 
 
@@ -109,7 +109,7 @@ def main() -> int:
     casos = {c["id"]: c for c in load_cases(settings)}
     destino = DESTINO[args.fase]
 
-    print(f"\nGravando em {destino.relative_to(REPO)}\n")
+    print(f"\nGravando em {destino.relative_to(SOLUCAO)}\n")
     concluidas = falhas = 0
 
     for indice, (case_id, ticket, seed) in enumerate(pendentes, 1):

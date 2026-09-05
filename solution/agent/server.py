@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 from app.config import load_settings
 from app.runner import get_case, load_cases, run_case
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+SOLUTION_DIR = Path(__file__).resolve().parent.parent
 
 
 class ConsultaRequest(BaseModel):
@@ -88,7 +88,7 @@ def build_app():
     # `evaluation/` não é pacote instalado do agente; entra no path para o servidor
     # poder orquestrar gabarito sintético + juízes. O agente em si nunca importa daqui
     # (ver runner.py) — é o servidor, camada de fora, que junta as duas coisas.
-    evaluation_dir = REPO_ROOT / "evaluation"
+    evaluation_dir = SOLUTION_DIR / "evaluation"
     if str(evaluation_dir) not in sys.path:
         sys.path.insert(0, str(evaluation_dir))
 
@@ -185,7 +185,7 @@ def build_app():
         """Histórico das consultas livres já executadas, da mais recente à mais antiga."""
         return {"consultas": lista_consultas()}
 
-    painel_dir = REPO_ROOT / "painel"
+    painel_dir = SOLUTION_DIR / "painel"
     if painel_dir.exists():
         app.mount("/", StaticFiles(directory=painel_dir, html=True), name="painel")
 

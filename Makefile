@@ -14,9 +14,12 @@ PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/nul
 API_PORT ?= 8000
 AGENT_PORT ?= 8001
 ROOT := $(abspath $(dir $(MAKEFILE_LIST)))
+# `ROOT` é o repositório (material da Tractian: api/, data/, eval/, agent-input/, docs/);
+# `SOL` é a minha solução. Separar os dois é o que mantém visível de quem é cada artefato.
+SOL := $(ROOT)/solution
 VENV := $(ROOT)/api/.venv
 PY := $(shell test -f "$(VENV)/Scripts/python.exe" && echo "$(VENV)/Scripts/python.exe" || echo "$(VENV)/bin/python")
-PID_DIR := $(ROOT)/.run
+PID_DIR := $(SOL)/.run
 MAKEFLAGS += --no-print-directory
 
 .DEFAULT_GOAL := help
@@ -48,7 +51,7 @@ data: ## Gera data/*.parquet, agent-input/, eval/
 	@echo "✓ dados gerados (data/, agent-input/, eval/)"
 
 agent-env: ## Cria agent/.env a partir do .env.example (edite a API key depois)
-	@if [ ! -f agent/.env ]; then cp agent/.env.example agent/.env && echo "✓ agent/.env criado — edite OPENAI_API_KEY/BASE_URL/MODEL"; else echo "✓ agent/.env já existe (não sobrescrito)"; fi
+	@if [ ! -f $(SOL)/agent/.env ]; then cp $(SOL)/agent/.env.example $(SOL)/agent/.env && echo "✓ solution/agent/.env criado — edite OPENAI_API_KEY/BASE_URL/MODEL"; else echo "✓ solution/agent/.env já existe (não sobrescrito)"; fi
 
 # ---------------------------------------------------------------------------
 # Rodar (background)
@@ -96,7 +99,7 @@ stop: ## Para API industrial e agente
 	done
 	@# mata sobras por nome (caso os pids tenham sumido)
 	@-pkill -f "uvicorn app.main:app --host 127.0.0.1 --port $(API_PORT)" 2>/dev/null || true
-	@-pkill -f "agent/server.py" 2>/dev/null || true
+	@-pkill -f "solution/agent/server.py" 2>/dev/null || true
 
 logs: ## Mostra logs da API e do agente (tail -f)
 	@echo "== API ==		== Agente =="
@@ -114,70 +117,70 @@ MY_PY := $(shell test -f "$(MY_VENV)/Scripts/python.exe" && echo "$(MY_VENV)/Scr
 my-setup: ## Cria .venv e instala agent/ + evaluation/ (+ extra do provedor de LLM)
 	@command -v uv >/dev/null 2>&1 || { echo "Instale o uv: https://docs.astral.sh/uv/"; exit 1; }
 	@cd $(ROOT) && uv venv --python $(PYTHON) .venv
-	@cd $(ROOT) && VIRTUAL_ENV= uv pip install --python "$(MY_PY)" -e ./agent -e ./evaluation pytest
+	@cd $(ROOT) && VIRTUAL_ENV= uv pip install --python "$(MY_PY)" -e ./solution/agent -e ./solution/evaluation pytest
 	@echo "✓ minha solução instalada em $(MY_VENV)"
-	@echo "  falta escolher o provedor de LLM:  uv pip install --python \"$(MY_PY)\" -e \"./agent[groq]\""
+	@echo "  falta escolher o provedor de LLM:  uv pip install --python \"$(MY_PY)\" -e \"./solution/agent[groq]\""
 
 agent-list: ## Lista os casos de agent-input/cases.json
-	@cd $(ROOT)/agent && $(MY_PY) server.py --list
+	@cd $(SOL)/agent && $(MY_PY) server.py --list
 
 agent-run: ## Roda o agente num caso (ex.: make agent-run CASE=TKT-INV-04 SEED=complete)
 	@if [ -z "$(CASE)" ]; then echo "Uso: make agent-run CASE=TKT-INV-04 [SEED=complete]"; exit 1; fi
-	@cd $(ROOT)/agent && $(MY_PY) -m app.runner --case $(CASE) $(if $(SEED),--seed $(SEED),)
+	@cd $(SOL)/agent && $(MY_PY) -m app.runner --case $(CASE) $(if $(SEED),--seed $(SEED),)
 
 eval: ## Avaliação completa, 3 camadas (ex.: make eval SEEDS=s1,s2,s3)
-	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
+	@cd $(SOL)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
 
 eval-fast: ## Avaliação sem os juízes LLM (camadas 1 e 3 apenas — não gasta LLM)
-	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3) --skip-judges
+	@cd $(SOL)/evaluation && $(MY_PY) -m runner.cli --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3) --skip-judges
 
 eval-report: ## Reavalia os traces já gravados, sem rodar o agente de novo
-	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --from-traces --skip-judges
+	@cd $(SOL)/evaluation && $(MY_PY) -m runner.cli --from-traces --skip-judges
 
 holdout-audit: ## Auditoria mecânica do holdout contra a API real (ADR 0006)
-	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.holdout
+	@cd $(SOL)/evaluation && $(MY_PY) -m runner.holdout
 
 holdout: ## Avalia o agente no holdout (teste final — não usar durante o ajuste)
-	@cd $(ROOT)/evaluation && $(MY_PY) -m runner.cli --suite holdout --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
+	@cd $(SOL)/evaluation && $(MY_PY) -m runner.cli --suite holdout --seeds $(if $(SEEDS),$(SEEDS),complete,s2,s3)
 
 painel-dados: ## Regenera o bundle do painel a partir dos traces e do CSV da bateria
-	@$(MY_PY) $(ROOT)/painel/build_bundle.py --verify
+	@$(MY_PY) $(SOL)/painel/build_bundle.py --verify
 
 painel-completar: ## Reexecuta as combinações caso×seed que faltam numa fase (FASE=pos-correcao)
-	@$(MY_PY) $(ROOT)/painel/completar_fase.py --fase $(if $(FASE),$(FASE),pos-correcao)
-	@$(MY_PY) $(ROOT)/painel/recalcular_csv.py --fase $(if $(FASE),$(FASE),pos-correcao)
-	@$(MY_PY) $(ROOT)/painel/resumir_csv.py
-	@$(MY_PY) $(ROOT)/painel/build_bundle.py --verify
+	@$(MY_PY) $(SOL)/painel/completar_fase.py --fase $(if $(FASE),$(FASE),pos-correcao)
+	@$(MY_PY) $(SOL)/painel/recalcular_csv.py --fase $(if $(FASE),$(FASE),pos-correcao)
+	@$(MY_PY) $(SOL)/painel/resumir_csv.py
+	@$(MY_PY) $(SOL)/painel/build_bundle.py --verify
 
 painel-julgar: ## Roda o comitê de juízes numa execução por vez, via OpenRouter (N=1)
-	@$(MY_PY) $(ROOT)/painel/julgar.py --limite $(if $(N),$(N),1) $(if $(MODELO),--modelo $(MODELO),)
-	@$(MY_PY) $(ROOT)/painel/build_bundle.py
+	@$(MY_PY) $(SOL)/painel/julgar.py --limite $(if $(N),$(N),1) $(if $(MODELO),--modelo $(MODELO),)
+	@$(MY_PY) $(SOL)/painel/build_bundle.py
 
 painel-modelos: ## Lista os modelos gratuitos do OpenRouter conhecidos pelo juiz
-	@$(MY_PY) $(ROOT)/painel/julgar.py --modelos
+	@$(MY_PY) $(SOL)/painel/julgar.py --modelos
 
 painel: painel-dados ## Sobe o painel de operação/avaliação, somente-leitura (:$(AGENT_PORT))
 	@echo "   Painel: http://localhost:$(AGENT_PORT)"
 	@echo "   (a aba Consulta exige o agente no ar: use 'make consulta')"
-	@cd $(ROOT)/painel && $(MY_PY) -m http.server $(AGENT_PORT)
+	@cd $(SOL)/painel && $(MY_PY) -m http.server $(AGENT_PORT)
 
 consulta: ## Sobe o painel COM a aba Consulta — executa o agente ao vivo (:$(AGENT_PORT))
 	@echo "   Painel + consulta: http://localhost:$(AGENT_PORT)"
-	@echo "   Exige a API industrial no ar (make up) e o extra: uv pip install --python \"$(MY_PY)\" -e \"./agent[serve]\""
-	@cd $(ROOT)/agent && $(MY_PY) server.py --serve --port $(AGENT_PORT)
+	@echo "   Exige a API industrial no ar (make up) e o extra: uv pip install --python \"$(MY_PY)\" -e \"./solution/agent[serve]\""
+	@cd $(SOL)/agent && $(MY_PY) server.py --serve --port $(AGENT_PORT)
 
 exp05-listar: ## EXP-05: mostra o que falta rodar no braço de agente único
-	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py --listar
+	@$(MY_PY) $(SOL)/painel/rodar_exp05.py --listar
 
 exp05: ## EXP-05: roda o braço de agente único (N=limite, ex.: make exp05 N=3)
-	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py $(if $(N),--limite $(N),)
+	@$(MY_PY) $(SOL)/painel/rodar_exp05.py $(if $(N),--limite $(N),)
 
 exp05-comparar: ## EXP-05: compara agente único x multiagente, pareado
-	@$(MY_PY) $(ROOT)/painel/rodar_exp05.py --comparar
+	@$(MY_PY) $(SOL)/painel/rodar_exp05.py --comparar
 
 my-test: ## Roda os testes da minha solução (agente + avaliação)
-	@cd $(ROOT)/agent && $(MY_PY) -m pytest -q
-	@cd $(ROOT)/evaluation && $(MY_PY) -m pytest -q
+	@cd $(SOL)/agent && $(MY_PY) -m pytest -q
+	@cd $(SOL)/evaluation && $(MY_PY) -m pytest -q
 
 # ---------------------------------------------------------------------------
 # Dev
@@ -190,5 +193,8 @@ clean-data: ## Apaga dados gerados (data/, agent-input/, eval/) — regenere com
 	@echo "✓ dados apagados (rode make data para regenerar)"
 
 clean: stop clean-data ## Para tudo e apaga dados + venv
-	@rm -rf $(VENV) $(PID_DIR)
-	@echo "✓ limpo"
+	@# Só pid/log: `solution/.run/` também guarda os traces e os CSVs das baterias, que
+	@# custaram cota de LLM e não são regeneráveis por `make`.
+	@rm -rf $(VENV)
+	@rm -f $(PID_DIR)/*.pid $(PID_DIR)/*.log
+	@echo "✓ limpo (traces e CSVs de .run preservados)"

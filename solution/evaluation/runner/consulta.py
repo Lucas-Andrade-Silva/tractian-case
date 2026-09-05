@@ -38,8 +38,10 @@ from .judges import run_committee
 from .juiz_modelos import DIMENSOES, constroi_juizes, modelo_padrao, settings_juiz
 from .sintetico import GabaritoSintetico, assert_modelos_distintos, gera_gabarito
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-CONSULTAS_DIR = REPO_ROOT / "evaluation" / "results" / "consultas"
+# `data/` é material da Tractian, na raiz; `evaluation/` é meu, dentro de `solution/`.
+SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = SOLUTION_DIR.parent
+CONSULTAS_DIR = SOLUTION_DIR / "evaluation" / "results" / "consultas"
 
 # Sinaliza um 403 da API no passo, sem depender da mensagem exata em português.
 _STATUS_NEGADO = 403

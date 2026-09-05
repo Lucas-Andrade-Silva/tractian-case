@@ -65,7 +65,7 @@ em vez de investigar indefinidamente sem nunca responder nem escalar.
 ```bash
 make my-setup                        # cria .venv (raiz) e instala agent/ + evaluation/
 cp agent/.env.example agent/.env     # e preencha LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
-uv pip install --python .venv/Scripts/python.exe -e "./agent[groq]"   # extra do provedor
+uv pip install --python .venv/Scripts/python.exe -e "./solution/agent[groq]"   # extra do provedor
 
 make up                              # sobe a API industrial em :8000
 make agent-list                      # lista os casos
@@ -86,7 +86,7 @@ final. É esse arquivo — não o LangSmith — que a Parte 2 lê
 ## Testes
 
 ```bash
-cd agent && ../.venv/Scripts/python.exe -m pytest -q
+cd solution/agent && ../.venv/Scripts/python.exe -m pytest -q
 ```
 
 `tests/test_api_client.py` roda contra a API industrial real (pulado se ela não estiver

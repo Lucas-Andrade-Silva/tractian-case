@@ -15,9 +15,9 @@ from collections import defaultdict
 from pathlib import Path
 from statistics import mean
 
-REPO = Path(__file__).resolve().parent.parent
-CSV_EXECUCOES = REPO / ".run" / "resultados_avaliacao.csv"
-CSV_RESUMO = REPO / ".run" / "resumo_por_cenario.csv"
+SOLUCAO = Path(__file__).resolve().parent.parent
+CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
+CSV_RESUMO = SOLUCAO / ".run" / "resumo_por_cenario.csv"
 
 COLUNAS = [
     "fase", "cenario", "ticket", "execucoes", "execucoes_validas", "decision_match",
@@ -107,7 +107,7 @@ def main() -> int:
         do_fase = [l for l in saida if l["fase"] == fase]
         execucoes = sum(int(l["execucoes"]) for l in do_fase)
         print(f"  {fase:14} {len(do_fase):2} cenários, {execucoes:3} execuções")
-    print(f"gravado: {CSV_RESUMO.relative_to(REPO)}")
+    print(f"gravado: {CSV_RESUMO.relative_to(SOLUCAO)}")
     return 0
 
 

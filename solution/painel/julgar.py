@@ -27,9 +27,9 @@ import os
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "agent"))
-sys.path.insert(0, str(REPO / "evaluation"))
+SOLUCAO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SOLUCAO / "agent"))
+sys.path.insert(0, str(SOLUCAO / "evaluation"))
 
 NOTAS = Path(__file__).resolve().parent / "dados" / "juizes.json"
 BUNDLE = Path(__file__).resolve().parent / "dados" / "bundle.json"
@@ -247,7 +247,7 @@ def main() -> int:
         julgadas += 1
 
     print(f"\n{julgadas} julgadas, {falhas} falharam. Total acumulado: {len(notas['vereditos'])}.")
-    print(f"Notas em {NOTAS.relative_to(REPO)} — rode build_bundle.py para o painel enxergar.")
+    print(f"Notas em {NOTAS.relative_to(SOLUCAO)} — rode build_bundle.py para o painel enxergar.")
     return 0
 
 
