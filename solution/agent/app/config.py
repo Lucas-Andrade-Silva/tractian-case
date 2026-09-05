@@ -12,7 +12,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 AGENT_DIR = Path(__file__).resolve().parent.parent
-REPO_ROOT = AGENT_DIR.parent
+# Duas raízes, deliberadamente separadas: `solution/` é o que eu construí, e a raiz do
+# repositório é onde vive o material da Tractian (`agent-input/`, `eval/`, `data/`). Uma
+# constante só para as duas voltaria a confundir os donos assim que uma delas mudar.
+SOLUTION_DIR = AGENT_DIR.parent
+REPO_ROOT = SOLUTION_DIR.parent
 
 load_dotenv(AGENT_DIR / ".env")
 
@@ -59,7 +63,7 @@ class Settings:
 
     @property
     def traces_dir(self) -> Path:
-        return REPO_ROOT / "evaluation" / "results" / "traces"
+        return SOLUTION_DIR / "evaluation" / "results" / "traces"
 
 
 def load_settings() -> Settings:

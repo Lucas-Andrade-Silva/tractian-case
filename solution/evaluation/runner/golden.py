@@ -28,7 +28,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# `eval/` é material da Tractian e fica na raiz do repositório, não dentro de `solution/`:
+# daí o nível extra em relação a `SOLUTION_DIR`.
+SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = SOLUTION_DIR.parent
 GOLDEN_PATH = REPO_ROOT / "eval" / "expected-paths.json"
 
 DecisionKind = Literal["orientar", "agir", "escalar"]

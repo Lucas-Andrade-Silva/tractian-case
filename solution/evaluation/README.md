@@ -85,7 +85,7 @@ make eval-report                # reavalia traces já gravados, sem rodar o agen
 Ou direto:
 
 ```bash
-cd evaluation
+cd solution/evaluation
 ../.venv/Scripts/python.exe -m runner.cli --cases TKT-INV-04,TKT-INV-05 --skip-judges
 ```
 
@@ -108,7 +108,7 @@ make holdout          # avalia o agente no holdout (teste final)
 ## Testes
 
 ```bash
-cd evaluation && ../.venv/Scripts/python.exe -m pytest -q
+cd solution/evaluation && ../.venv/Scripts/python.exe -m pytest -q
 ```
 
 Camadas 1 e 3 são código puro e são testadas com traces sintéticos — sem LLM e sem API.

@@ -1,7 +1,7 @@
 # Solução — Engenharia e Avaliação de Agentes Industriais
 
 Documentação técnica da minha solução para o Challenge TRACTIAN × Inteli. O briefing do
-parceiro está em [`STUDENT-GUIDE.md`](./STUDENT-GUIDE.md); este documento cobre o que eu
+parceiro está em [`STUDENT-GUIDE.md`](../STUDENT-GUIDE.md); este documento cobre o que eu
 construí.
 
 > **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
@@ -72,14 +72,34 @@ Registradas como ADRs em [`docs/adr/`](./docs/adr/):
 
 ## 3. Separação entre material do parceiro e solução própria
 
+A separação é física, não convenção: **tudo que é meu vive em `solution/`**, e a raiz do
+repositório ficou exclusivamente com o material do parceiro.
+
+```
+inteli-tractian-project/
+├── README.md · STUDENT-GUIDE.md · QUICKSTART.md   TRACTIAN
+├── api/ · data/ · agent-input/ · eval/            TRACTIAN
+├── docs/                                          TRACTIAN (contrato, chamados, cenários)
+├── Makefile                                       compartilhado (ROOT vs SOL)
+└── solution/                                      MINHA
+    ├── SOLUTION.md · docs/ (adr, experimentos)
+    ├── agent/ · evaluation/ · painel/
+    └── .run/                                      traces e CSVs das baterias
+```
+
 | Pasta | De quem | Regra |
 | :--- | :--- | :--- |
 | `api/`, `data/`, `docs/` | TRACTIAN | Não editados. A API é consumida só por HTTP |
 | `agent-input/` | TRACTIAN | Única entrada de casos do agente |
-| `eval/` | TRACTIAN (gabarito) | Lido exclusivamente por `evaluation/runner/golden.py`, após a execução |
-| `agent/` | Minha | Parte 1 |
-| `evaluation/` | Minha | Parte 2 |
-| `painel/` | Minha | Parte 3 — painel de operação/avaliação sobre os traces já gravados. Somente leitura; a aba Operação não lê gabarito |
+| `eval/` | TRACTIAN (gabarito) | Lido exclusivamente por `solution/evaluation/runner/golden.py`, após a execução |
+| `solution/agent/` | Minha | Parte 1 |
+| `solution/evaluation/` | Minha | Parte 2 |
+| `solution/painel/` | Minha | Parte 3 — painel de operação/avaliação sobre os traces já gravados. Somente leitura; a aba Operação não lê gabarito |
+
+No código, a fronteira aparece como duas constantes distintas — `SOLUTION_DIR`/`SOLUCAO` e
+`REPO_ROOT`/`RAIZ` — em vez de uma raiz única e ambígua. Quem lê `eval/` ou `data/` precisa
+dizer explicitamente que está saindo da minha parte para a do parceiro; no Makefile, os
+equivalentes são `SOL` e `ROOT`.
 
 Dois ambientes virtuais: `api/.venv` (do parceiro) e `.venv` na raiz (minha solução).
 
@@ -89,10 +109,10 @@ Requisitos: Python ≥ 3.10, [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 make setup                 # material da Tractian: venv da API + dados
-make my-setup              # minha solução: .venv na raiz com agent/ + evaluation/
+make my-setup              # minha solução: .venv na raiz com solution/agent + evaluation
 
-cp agent/.env.example agent/.env      # preencher LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
-uv pip install --python .venv/Scripts/python.exe -e "./agent[groq]"
+cp solution/agent/.env.example solution/agent/.env   # LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
+uv pip install --python .venv/Scripts/python.exe -e "./solution/agent[groq]"
 
 make up                                        # API industrial em :8000
 make agent-run CASE=TKT-INV-04 SEED=complete   # um caso
@@ -201,7 +221,7 @@ O que está verificado por teste, e não por execução:
    testado; falta cota. É a hipótese central do projeto. Estado em 2026-09-05: 0/51.
 2. **Rodar o comitê de juízes** (`make painel-julgar`) — 35/102 julgadas em 2026-09-05
    (cota diária do OpenRouter esgotada para todos os modelos `:free` da conta). Retomar em
-   lotes de 3–5 (`python painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
+   lotes de 3–5 (`python solution/painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
    travaram sem erro nem progresso numa sessão de teste.
 3. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias.
 4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.

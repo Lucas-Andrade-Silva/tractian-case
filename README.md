@@ -21,6 +21,11 @@ O briefing completo está em [`STUDENT-GUIDE.md`](./STUDENT-GUIDE.md).
 | Pacote do agente | [`agent-input/`](./agent-input/) | `cases.json` (mensagem + contexto) + contrato. O que o agente deve ver. |
 | Pacote de avaliação | [`eval/`](./eval/) | Gabarito: trajetórias esperadas, cenários, protocolo de avaliação, runner de exemplo. |
 
+> **Solução entregue:** tudo o que eu construí está em [`solution/`](./solution/) —
+> agente, avaliação e painel. Comece por
+> [`solution/SOLUTION.md`](./solution/SOLUTION.md). A raiz mantém apenas o material do
+> parceiro, listado acima.
+
 ## Como os artefatos se conectam
 
 ```

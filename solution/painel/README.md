@@ -15,7 +15,7 @@ make painel-modelos    # modelos gratuitos do OpenRouter
 
 Precisa ser servido por HTTP — o navegador bloqueia `fetch` em `file://`. A aba Consulta
 exige `make up` (API industrial) e o extra do servidor:
-`uv pip install --python .venv/Scripts/python.exe -e "./agent[serve]"`.
+`uv pip install --python .venv/Scripts/python.exe -e "./solution/agent[serve]"`.
 
 ## Quatro batidas, uma narrativa
 
@@ -116,7 +116,7 @@ A regra é estrutural, e por isso verificável:
 ```bash
 grep -nE "^import" painel/js/batida-chamado.js               # nenhum módulo de avaliação
 grep -nE "expected|passou|decision_match" painel/js/batida-chamado.js
-cd painel && python -m pytest tests/ -q -k rn01              # o teste que trava a regra
+cd solution/painel && python -m pytest tests/ -q -k rn01              # o teste que trava a regra
 ```
 
 É a mesma estratégia de `evaluation/runner/golden.py`, que concentra num único módulo a
@@ -148,10 +148,10 @@ veredito assim que chega e nunca refazendo o que já está salvo — julgar em l
 gratuito é o que produziu o estado anterior.
 
 ```bash
-python painel/julgar.py --modelos            # consulta a API e lista os :free de agora
-python painel/julgar.py --limite 1           # julga a próxima pendente
-python painel/julgar.py --modelo z-ai/glm-5.2:free
-python painel/julgar.py --execucao case_tkt_inv_04__complete__baseline
+python solution/painel/julgar.py --modelos            # consulta a API e lista os :free de agora
+python solution/painel/julgar.py --limite 1           # julga a próxima pendente
+python solution/painel/julgar.py --modelo z-ai/glm-5.2:free
+python solution/painel/julgar.py --execucao case_tkt_inv_04__complete__baseline
 ```
 
 `--modelos` consulta o catálogo do OpenRouter ao vivo, e não uma lista fixa: modelos saem
@@ -240,7 +240,7 @@ que concluíram, `None` (não `0`) para conjunto vazio, e `stable` ternário
 (`true`/`false`/`null`) como em `stability.py`.
 
 ```bash
-python painel/build_bundle.py --verify
+python solution/painel/build_bundle.py --verify
 ```
 
 confere os agregados recalculados contra `resumo_por_cenario.csv` e falha se divergirem.
