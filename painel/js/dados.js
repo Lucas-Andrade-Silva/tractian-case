@@ -7,7 +7,10 @@
 export const ESTADO = {
   bundle: null,
   batida: "veredito",
-  fase: "baseline",
+  // Fixo em "pos-correcao": o redesenho removeu o seletor global de fase e não há
+  // mais nada que atribua ESTADO.fase em runtime. A batida ① (batida-veredito.js)
+  // também hardcoda "pos-correcao" — se isto voltar a variar, mude as duas juntas.
+  fase: "pos-correcao",
   seed: "complete",
   execucaoId: null,
   celulaId: null,

@@ -335,6 +335,20 @@ def test_modulos_antigos_removidos(js_fonte):
             js_fonte(morto)
 
 
+def test_fase_exibida_e_a_mesma_em_todas_as_batidas(js_fonte):
+    """Beat ① fixa "pos-correcao"; ③ e a gaveta leem ESTADO.fase.
+
+    O seletor global de fase saiu no redesenho e o estado ficou preso em "baseline",
+    então a matriz mostrava 13/17 estáveis logo depois da batida ① afirmar 94,1%.
+    Nada quebrava: o painel só se contradizia na tela, na frente de quem viesse
+    avaliá-lo.
+    """
+    dados = js_fonte("dados.js")
+    trecho = dados.split("export const ESTADO", 1)[1].split("};", 1)[0]
+    assert '"pos-correcao"' in trecho, "ESTADO.fase não abre na fase que a batida ① afirma"
+    assert '"baseline"' not in trecho, "ESTADO ainda inicializa em baseline"
+
+
 def test_nenhuma_batida_importa_modulo_morto(js_fonte):
     """As batidas não podem importar os módulos que o redesenho absorveu.
 
