@@ -34,7 +34,7 @@ import { selo, aviso, vazio } from "./componentes.js";
 import { faixasPorPapel } from "./faixas.js";
 import { rodape } from "./batidas.js";
 // `envia` é o nome real da função em consulta.js:97 — agora exportada.
-import { CONSULTA, carregaCatalogo, envia } from "./consulta.js";
+import { CONSULTA, carregaCatalogo, envia, blocoErroExecucao } from "./consulta.js";
 
 const PAPEIS_ESPERADOS = ["supervisor", "investigador", "decisor", "executor"];
 
@@ -207,7 +207,7 @@ export function batidaAoVivo(redesenha) {
   } else if (CONSULTA.enviando) {
     partes.push(esperando());
   } else if (CONSULTA.erroEnvio) {
-    partes.push(aviso("erro", [el("strong", { text: "Falha na consulta. " }), CONSULTA.erroEnvio]));
+    partes.push(blocoErroExecucao(CONSULTA.erroEnvio));
   } else if (CONSULTA.resultado) {
     partes.push(resultado(CONSULTA.resultado, redesenha));
   }

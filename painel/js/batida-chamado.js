@@ -2,8 +2,8 @@
  *
  * REGRA INEGOCIÁVEL (RN-01): esta tela nunca exibe gabarito, decisão aceita ou
  * status de aprovação. Nem em texto, nem em cor, nem em tooltip. A regra é
- * estrutural: este módulo lê apenas `execucao.operacao` e não importa nada do
- * módulo de avaliação nem de `batida-matriz.js`. Verificável por leitura de import. */
+ * estrutural: este módulo lê apenas `execucao.operacao` e não importa nada de
+ * `avaliacao.js` nem de `batida-matriz.js`. Verificável por leitura de import. */
 
 import {
   ESTADO, el, texto, num, duracao, VAZIO,
