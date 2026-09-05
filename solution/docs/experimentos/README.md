@@ -1,7 +1,7 @@
 # docs/experimentos/ — metodologia experimental
 
 Registro dos experimentos, no formato da seção 8 do
-[`STUDENT-GUIDE.md`](../../../STUDENT-GUIDE.md): **hipótese → método → execução → análise →
+[`STUDENT-GUIDE.md`](../../../tractian/STUDENT-GUIDE.md): **hipótese → método → execução → análise →
 limitações**.
 
 Cada arquivo é um experimento, e cada um declara honestamente o que prova e o que não prova.

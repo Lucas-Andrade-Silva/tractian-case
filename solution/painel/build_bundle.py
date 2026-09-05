@@ -41,10 +41,10 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-# `SOLUCAO` é o que eu construí; `RAIZ` é o repositório, onde vive o material da Tractian.
+# `SOLUCAO` é o que eu construí; `TRACTIAN` é o material do parceiro, na pasta irmã.
 # Separar as duas é o que impede um `.parent` a mais ou a menos de apontar para o vazio.
 SOLUCAO = Path(__file__).resolve().parent.parent
-RAIZ = SOLUCAO.parent
+TRACTIAN = SOLUCAO.parent / "tractian"
 SAIDA = Path(__file__).resolve().parent / "dados" / "bundle.json"
 
 # Os dois diretórios de trace. `agent/.run` não é sobra: as 3 execuções de baseline de
@@ -54,7 +54,7 @@ RAIZES_TRACE = [SOLUCAO / ".run", SOLUCAO / "agent" / ".run"]
 CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
 CSV_RESUMO = SOLUCAO / ".run" / "resumo_por_cenario.csv"
 CSV_LEGENDA = SOLUCAO / ".run" / "legenda_seeds_e_metricas.csv"
-GABARITO = RAIZ / "eval" / "expected-paths.json"
+GABARITO = TRACTIAN / "eval" / "expected-paths.json"
 # Notas do comitê, gravadas por painel/julgar.py. Opcional: sem elas o painel mostra o
 # estado vazio, que é a leitura honesta enquanto a camada 2 não rodou.
 JUIZES = Path(__file__).resolve().parent / "dados" / "juizes.json"

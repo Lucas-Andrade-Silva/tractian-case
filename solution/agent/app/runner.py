@@ -3,7 +3,7 @@
 Ponto de entrada tanto do uso manual (`python -m app.runner --case ...`) quanto da
 Parte 2, que roda cenários em lote e lê os traces resultantes.
 
-Só lê `agent-input/cases.json`. O gabarito (`eval/`) nunca é tocado aqui — se entrasse
+Só lê `tractian/agent-input/cases.json`. O gabarito (`tractian/eval/`) nunca é tocado aqui — se entrasse
 no contexto do agente, a avaliação perderia validade.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ def get_case(case_id: str, settings: Settings | None = None) -> dict[str, Any]:
     for case in load_cases(settings):
         if case["id"] == case_id or case.get("ticket_id") == case_id:
             return case
-    raise KeyError(f"Caso não encontrado em agent-input/cases.json: {case_id}")
+    raise KeyError(f"Caso não encontrado em tractian/agent-input/cases.json: {case_id}")
 
 
 def run_case(
@@ -129,7 +129,7 @@ def run_case(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Roda o agente sobre um caso de agent-input/cases.json")
+    parser = argparse.ArgumentParser(description="Roda o agente sobre um caso de tractian/agent-input/cases.json")
     parser.add_argument("--case", required=True, help="case_id ou ticket_id (ex.: case_tkt_inv_04 / TKT-INV-04)")
     parser.add_argument("--seed", default=None, help="Seed da API para tornar a execução reprodutível")
     args = parser.parse_args()

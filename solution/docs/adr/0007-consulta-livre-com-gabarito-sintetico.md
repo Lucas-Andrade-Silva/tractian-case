@@ -66,7 +66,7 @@ valeriam para o que a aba Consulta executa. A única alteração em `agent/` foi
 do texto ("conveyor_line2", "belt_line2", …), gastando uma volta de LLM por 404. Todos os 17 casos
 têm `asset_id`, então o prompt deles é byte-idêntico ao anterior.
 
-A UI **não cria usuários**: o seletor lista quem já existe em `data/users.parquet`, porque é o
+A UI **não cria usuários**: o seletor lista quem já existe em `tractian/data/users.parquet`, porque é o
 `user_id` que determina a permissão efetiva na API via `x-user-id`. Um 403 na trajetória é
 resultado legítimo do enforcement (ADR 0003), e a interface o apresenta como tal.
 

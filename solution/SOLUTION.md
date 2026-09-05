@@ -1,7 +1,7 @@
 # Solução — Engenharia e Avaliação de Agentes Industriais
 
 Documentação técnica da minha solução para o Challenge TRACTIAN × Inteli. O briefing do
-parceiro está em [`STUDENT-GUIDE.md`](../STUDENT-GUIDE.md); este documento cobre o que eu
+parceiro está em [`STUDENT-GUIDE.md`](../tractian/STUDENT-GUIDE.md); este documento cobre o que eu
 construí.
 
 > **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
@@ -72,36 +72,42 @@ Registradas como ADRs em [`docs/adr/`](./docs/adr/):
 
 ## 3. Separação entre material do parceiro e solução própria
 
-A separação é física, não convenção: **tudo que é meu vive em `solution/`**, e a raiz do
-repositório ficou exclusivamente com o material do parceiro.
+A separação é física, não convenção: duas pastas irmãs, uma para cada dono.
 
 ```
 inteli-tractian-project/
-├── README.md · STUDENT-GUIDE.md · QUICKSTART.md   TRACTIAN
-├── api/ · data/ · agent-input/ · eval/            TRACTIAN
-├── docs/                                          TRACTIAN (contrato, chamados, cenários)
-├── Makefile                                       compartilhado (ROOT vs SOL)
-└── solution/                                      MINHA
+├── README.md                                  porta de entrada, aponta os dois lados
+├── Makefile                                   compartilhado (TRAC vs SOL)
+├── tractian/                                  DO PARCEIRO — nada editado
+│   ├── README.md · STUDENT-GUIDE.md · QUICKSTART.md
+│   ├── api/ · data/ · agent-input/ · eval/
+│   └── docs/                                  contrato, chamados, cenários
+└── solution/                                  MINHA
     ├── SOLUTION.md · docs/ (adr, experimentos)
     ├── agent/ · evaluation/ · painel/
-    └── .run/                                      traces e CSVs das baterias
+    └── .run/                                  traces e CSVs das baterias
 ```
 
 | Pasta | De quem | Regra |
 | :--- | :--- | :--- |
-| `api/`, `data/`, `docs/` | TRACTIAN | Não editados. A API é consumida só por HTTP |
-| `agent-input/` | TRACTIAN | Única entrada de casos do agente |
-| `eval/` | TRACTIAN (gabarito) | Lido exclusivamente por `solution/evaluation/runner/golden.py`, após a execução |
+| `tractian/api/`, `tractian/data/`, `tractian/docs/` | TRACTIAN | Não editados. A API é consumida só por HTTP |
+| `tractian/agent-input/` | TRACTIAN | Única entrada de casos do agente |
+| `tractian/eval/` | TRACTIAN (gabarito) | Lido exclusivamente por `solution/evaluation/runner/golden.py`, após a execução |
 | `solution/agent/` | Minha | Parte 1 |
 | `solution/evaluation/` | Minha | Parte 2 |
 | `solution/painel/` | Minha | Parte 3 — painel de operação/avaliação sobre os traces já gravados. Somente leitura; a aba Operação não lê gabarito |
 
-No código, a fronteira aparece como duas constantes distintas — `SOLUTION_DIR`/`SOLUCAO` e
-`REPO_ROOT`/`RAIZ` — em vez de uma raiz única e ambígua. Quem lê `eval/` ou `data/` precisa
-dizer explicitamente que está saindo da minha parte para a do parceiro; no Makefile, os
-equivalentes são `SOL` e `ROOT`.
+`api/` acompanha `data/`, `eval/` e `agent-input/` dentro de `tractian/` porque os
+geradores do parceiro (`seed_data.py`, `package_material.py`) e a própria API resolvem
+esses diretórios subindo um nível a partir de `api/`. Movê-los separadamente exigiria
+editar código da Tractian — precisamente o que a primeira linha desta tabela proíbe.
 
-Dois ambientes virtuais: `api/.venv` (do parceiro) e `.venv` na raiz (minha solução).
+No código, a fronteira aparece como constantes nomeadas — `SOLUTION_DIR`/`SOLUCAO` e
+`TRACTIAN_DIR`/`TRACTIAN` — em vez de uma raiz única e ambígua. São quatro os pontos que a
+cruzam (`cases.json`, `users.parquet` e o gabarito, lido em dois lugares); no Makefile, os
+equivalentes são `SOL` e `TRAC`.
+
+Dois ambientes virtuais: `tractian/api/.venv` (do parceiro) e `.venv` na raiz (minha solução).
 
 ## 4. Instalação e execução
 
@@ -202,7 +208,7 @@ O que está verificado por teste, e não por execução:
 - **Dados sintéticos.** Os 17 casos vêm de material fictício; generalização para
   operação real não está demonstrada.
 - **Resoluções aceitas transcritas à mão.** A tabela `ACCEPTED_DECISIONS` foi lida de
-  `docs/test-scenarios.md`; um erro de transcrição vira erro de medição. Está coberta por
+  `tractian/docs/test-scenarios.md`; um erro de transcrição vira erro de medição. Está coberta por
   teste que exige uma entrada por caso do gabarito.
 - **Camada 2 depende de LLM** — juízes LLM têm variância e viés próprios; a rubrica e o
   `temperature=0` mitigam, não eliminam.

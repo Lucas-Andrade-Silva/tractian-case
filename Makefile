@@ -3,8 +3,8 @@
 #
 # Uso típico:
 #   make setup           # 1x: cria venv e instala deps (api + agente)
-#   make data            # 1x: gera data/, agent-input/, eval/
-#   make agent-env       # 1x: cria agent/.env a partir do example (edite a API key)
+#   make data            # 1x: gera tractian/{data,agent-input,eval}
+#   make agent-env       # 1x: cria solution/agent/.env a partir do example (edite a key)
 #   make up              # sobe API industrial (:8000) + agente/UI (:8001) em background
 #   make stop            # para os dois
 #   make logs            # vê logs dos dois
@@ -14,10 +14,12 @@ PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/nul
 API_PORT ?= 8000
 AGENT_PORT ?= 8001
 ROOT := $(abspath $(dir $(MAKEFILE_LIST)))
-# `ROOT` é o repositório (material da Tractian: api/, data/, eval/, agent-input/, docs/);
-# `SOL` é a minha solução. Separar os dois é o que mantém visível de quem é cada artefato.
+# As duas metades do repositório, cada uma com seu dono: `TRAC` é o material do parceiro
+# (api/, data/, eval/, agent-input/, docs/) e `SOL` é a minha solução. Nenhum alvo deve
+# escrever do outro lado da fronteira.
+TRAC := $(ROOT)/tractian
 SOL := $(ROOT)/solution
-VENV := $(ROOT)/api/.venv
+VENV := $(TRAC)/api/.venv
 PY := $(shell test -f "$(VENV)/Scripts/python.exe" && echo "$(VENV)/Scripts/python.exe" || echo "$(VENV)/bin/python")
 PID_DIR := $(SOL)/.run
 MAKEFLAGS += --no-print-directory
@@ -39,15 +41,15 @@ setup: deps data ## Tudo que o aluno precisa: venv+deps e dados (API + pacotes)
 
 deps: ## Cria o venv e instala dependências da API
 	@command -v uv >/dev/null 2>&1 || { echo "Instale o uv: https://docs.astral.sh/uv/"; exit 1; }
-	@cd $(ROOT)/api && uv venv --python $(PYTHON) && uv pip install -e ".[dev]"
+	@cd $(TRAC)/api && uv venv --python $(PYTHON) && uv pip install -e ".[dev]"
 	@echo "✓ dependências instaladas em $(VENV)"
 
 # ---------------------------------------------------------------------------
 # Dados (1x, ou ao mudar seed_data.py / package_material.py)
 # ---------------------------------------------------------------------------
 data: ## Gera data/*.parquet, agent-input/, eval/
-	@cd $(ROOT)/api && $(PY) -m seed_data
-	@cd $(ROOT)/api && $(PY) -m package_material
+	@cd $(TRAC)/api && $(PY) -m seed_data
+	@cd $(TRAC)/api && $(PY) -m package_material
 	@echo "✓ dados gerados (data/, agent-input/, eval/)"
 
 agent-env: ## Cria agent/.env a partir do .env.example (edite a API key depois)
@@ -80,7 +82,7 @@ endef
 
 up-api: ## Só a API industrial (:8000) em background
 	@mkdir -p $(PID_DIR)
-	@cd $(ROOT)/api && $(PY) -m uvicorn app.main:app --host 127.0.0.1 --port $(API_PORT) \
+	@cd $(TRAC)/api && $(PY) -m uvicorn app.main:app --host 127.0.0.1 --port $(API_PORT) \
 		> $(PID_DIR)/api.log 2>&1 & echo $$! > $(PID_DIR)/api.pid
 	$(call wait_up,$(API_PORT))
 	@curl -s -o /dev/null -w "✓ API industrial em :$(API_PORT) (HTTP %{http_code})\n" http://localhost:$(API_PORT)/docs \
@@ -186,10 +188,10 @@ my-test: ## Roda os testes da minha solução (agente + avaliação)
 # Dev
 # ---------------------------------------------------------------------------
 test: ## Roda os testes da API industrial
-	@cd $(ROOT)/api && $(PY) -m pytest -q
+	@cd $(TRAC)/api && $(PY) -m pytest -q
 
 clean-data: ## Apaga dados gerados (data/, agent-input/, eval/) — regenere com make data
-	@rm -rf data agent-input eval
+	@rm -rf $(TRAC)/data $(TRAC)/agent-input $(TRAC)/eval
 	@echo "✓ dados apagados (rode make data para regenerar)"
 
 clean: stop clean-data ## Para tudo e apaga dados + venv

@@ -40,7 +40,7 @@ Setas ← → do teclado avançam a narrativa. O botão do rodapé abre a gaveta
 ressalvas, auditoria e arquitetura — é onde vive toda a prosa que antes disputava espaço
 com os números.
 
-A batida ④ não cria usuários: lista os que já existem em `data/users.parquet`, porque é o
+A batida ④ não cria usuários: lista os que já existem em `tractian/data/users.parquet`, porque é o
 `user_id` que determina a permissão real na API. Se um operador pedir uma ação que não pode
 executar, o 403 aparece na trajetória — é o enforcement funcionando (ADR 0003), não falha.
 

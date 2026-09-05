@@ -3,7 +3,7 @@
 ## Por que este módulo existe separado de `golden.py`
 
 `golden.py` carrega o gabarito da Tractian — trajetórias e questões de referência
-escritas por humanos a partir de `docs/test-scenarios.md`. Uma consulta digitada por um
+escritas por humanos a partir de `tractian/docs/test-scenarios.md`. Uma consulta digitada por um
 usuário na hora não tem nada disso: não há `root_question` revisada, não há
 `expected_path`, não há resolução declarada. O comitê de juízes, porém, exige um
 `GoldenCase` (`judges.run_committee`), e a rubrica de causa-raiz é comparativa por

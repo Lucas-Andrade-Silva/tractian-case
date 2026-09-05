@@ -69,7 +69,7 @@ derivação automática diria "orientar" — e reprovaria um agente que agiu ou 
 exatamente o que o cenário autoriza.
 
 Por isso `ACCEPTED_DECISIONS` em [`golden.py`](runner/golden.py) transcreve o campo
-"Resolução esperada" de cada cenário de `../docs/test-scenarios.md`, com o CEN de origem
+"Resolução esperada" de cada cenário de `tractian/docs/test-scenarios.md`, com o CEN de origem
 anotado em cada linha. Quando o cenário admite mais de um desfecho, a ação de impacto
 deixa de ser exigida e o escalonamento não conta como ação indevida.
 
