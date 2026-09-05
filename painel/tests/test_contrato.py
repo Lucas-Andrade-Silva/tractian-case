@@ -336,8 +336,18 @@ def test_modulos_antigos_removidos(js_fonte):
 
 
 def test_nenhuma_batida_importa_modulo_morto(js_fonte):
+    """As batidas não podem importar os módulos que o redesenho absorveu.
+
+    A versão anterior procurava o nome do arquivo em qualquer lugar do fonte, então
+    um comentário que apenas mencionasse `avaliacao.js` derrubava o teste — e a
+    correção acabava sendo reescrever a prosa, não o código. O que importa é o
+    import, então é o import que o teste olha.
+    """
+    verificados = 0
     for modulo in ("painel.js", "batida-veredito.js", "batida-chamado.js",
                    "batida-matriz.js", "batida-aovivo.js"):
-        fonte = js_fonte(modulo)
-        assert "operacao.js" not in fonte
-        assert "avaliacao.js" not in fonte
+        importados = imports_de(js_fonte(modulo))
+        verificados += 1
+        assert "operacao.js" not in importados, f"{modulo} importa operacao.js"
+        assert "avaliacao.js" not in importados, f"{modulo} importa avaliacao.js"
+    assert verificados == 5, "algum módulo de batida sumiu — o teste passaria vazio"
