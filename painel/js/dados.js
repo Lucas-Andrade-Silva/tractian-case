@@ -6,7 +6,6 @@
 
 export const ESTADO = {
   bundle: null,
-  aba: "operacao",
   batida: "veredito",
   fase: "baseline",
   seed: "complete",

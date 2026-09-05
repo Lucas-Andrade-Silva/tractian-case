@@ -1240,3 +1240,30 @@ blockquote.mensagem {
 .diff-atendida::before { content: "✓"; color: var(--verde-exec); }
 .diff-faltante::before { content: "×"; color: var(--ambar-atencao); }
 .diff-lista em { display: block; font-style: normal; color: var(--texto-fraco); }
+
+/* -- batida ④ ao vivo ---------------------------------------------------- */
+.aovivo-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.aovivo-mensagem { flex: 1; min-width: 320px; }
+
+.aovivo-espera {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 60px 20px;
+}
+.girando {
+  width: 36px; height: 36px;
+  border: 3px solid var(--regua);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: girar 0.9s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.espera-titulo { font-size: var(--t-leitura); }
+.espera-nota { font-size: var(--t-meta); color: var(--texto-fraco); }
+.espera-papeis { display: flex; gap: 8px; margin-top: 4px; }
+
+.rodape-direita { display: flex; gap: 10px; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .girando { animation-duration: 3s; }
+}
