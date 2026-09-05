@@ -101,7 +101,27 @@ function operacaoDoTrace(trace) {
 
 function formulario(redesenha) {
   const { form } = CONSULTA;
-  const pronto = form.user_id && form.mensagem.trim().length >= 10 && !CONSULTA.enviando;
+  const pronto = () => form.user_id && form.mensagem.trim().length >= 10 && !CONSULTA.enviando;
+
+  let botao;
+
+  const campo = el("input", {
+    type: "text",
+    class: "aovivo-mensagem",
+    placeholder: "o que a pessoa observou, com as palavras dela",
+    value: form.mensagem,
+    oninput: (ev) => {
+      form.mensagem = ev.target.value;
+      botao.disabled = !pronto();
+    },
+  });
+
+  botao = el("button", {
+    class: "botao-primario",
+    text: CONSULTA.enviando ? "investigando…" : "perguntar",
+    disabled: !pronto(),
+    onclick: () => envia(redesenha),
+  });
 
   return el("div", { class: "aovivo-form" }, [
     el(
@@ -143,19 +163,8 @@ function formulario(redesenha) {
         ),
       ]
     ),
-    el("input", {
-      type: "text",
-      class: "aovivo-mensagem",
-      placeholder: "o que a pessoa observou, com as palavras dela",
-      value: form.mensagem,
-      oninput: (ev) => { form.mensagem = ev.target.value; },
-    }),
-    el("button", {
-      class: "botao-primario",
-      text: CONSULTA.enviando ? "investigando…" : "perguntar",
-      disabled: !pronto,
-      onclick: () => envia(redesenha),
-    }),
+    campo,
+    botao,
   ]);
 }
 

@@ -1,5 +1,5 @@
 {
-  "modelo": "minimax/minimax-m3:free",
+  "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
   "vereditos": {
     "case_tkt_inv_04__complete__baseline": {
       "modelo": "minimax/minimax-m3:free",
@@ -338,6 +338,306 @@
         "justificativa": {
           "score": 5,
           "reasoning": "A justificativa está diretamente ancorada em evidências concretas e específicas do caso: cita o estado do baseline (invalidated), a razão da invalidação (manutenção/troca do rolamento), o status stale da análise, e o RMS abaixo do limiar. Sustenta exatamente a resolução tomada (reprocessar para aprender novo baseline). Não há over-escalation nem ação sem evidência. A justificativa é coerente, completa e bem conectada à ação executada."
+        }
+      }
+    },
+    "case_tkt_exe_12__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 4,
+          "reasoning": "O agente reconheceu que o baseline estava invalidado e a análise stale, indicando incerteza sobre o estado atual da vibração, mas não declarou explicitamente o que não pôde ser determinado (por exemplo, o novo RMS ou status da falha após a troca) nem explicou completamente por quê (além de mencionar o stale). Não inventou dados ou certeza não suportada, mas a menção à incerteza foi vaga e incompleta.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz para o reprocessamento é o baseline invalidado devido à intervenção de manutenção (troca do rolamento) e a análise marcada como stale. Essa identificação está sustentada pelos estados obtidos nas chamadas: baseline.state=invalidated com reason=maintenance_intervention e analysis.an_9906.status=stale, que são evidências concretas apuradas durante a investigação.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa cita evidências concretas do caso: baseline invalidado após troca do rolamento (baseline.state=invalidated, reason=maintenance_intervention) e análise marcada como stale (analysis.an_9906.status=stale). Ela sustenta exatamente a resolução de agir (reprocessar) ao explicar que o reprocessamento gerará um novo baseline e atualizará o status da vibração, atendendo ao pedido do cliente. Não há over-escalation nem suposições infundadas.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_09__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente apresentou apenas fatos extraídos dos dados: baseline invalidado com motivo maintenance_intervention, análise marcada como stale, RMS com tendência estável/decrescente. Não inventou dados, insights nem histórico, nem apresentou como certo algo que a evidência não sustente. Também não omitiu limitação relevante que mudaria a leitura do cliente. Como não havia incerteza a ser declarada, a resposta foi totalmente honesta.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz do insight desatualizado é o baseline invalidado após a troca do rolamento, sustentando essa afirmação com evidências concretas obtidas nas chamadas: baseline.state=invalidated, baseline.invalidation_reason=maintenance_intervention, analysis.status=stale e analysis.baseline_state_at_detection=invalidated. Esses estados diretamente apoiam a causa-raiz, atendendo ao critério de evidência concreta (estados).",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa cita evidências concretas do caso: baseline invalidado após manutenção, análise marcada como stale, e RMS com tendência estável/decrescente. Esses fatos sustentam exatamente a decisão de agir (reprocessar a análise) para recalcular o baseline e validar o insight. Não há genéricidade, suposições ou desconexão; a justificativa está bem ancorada e alinhada à resolução.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_exe_12__s3__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 4,
+          "reasoning": "O agente reconheceu que a análise está stale, o baseline invalidado e o modelo com processamento delayed, mas não declarou explicitamente o que não pôde ser determinado (por exemplo, se a troca do rolamento realmente melhorou a vibração) e por quê, limitando-se a afirmar que o reprocessamento será feito e que os resultados serão atualizados posteriormente. Não houve invenção de dados, mas o tratamento da incerteza ficou vago e incompleto.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz é a análise estar stale e o baseline invalidado após a troca do rolamento, o que exige reprocessamento para gerar novo baseline e verificar melhoria. Essa identificação está alinhada com a questão de referência (reprocessar análise com justificativa). A sustentação foi feita com evidências concretas obtidas nas chamadas: rms.baseline_state=invalidated, analysis.an_9906.status=stale e model.processing_state=delayed, que são estados claros apurados na investigação.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita evidências específicas e concretas obtidas nas chamadas: analysis.an_9906.status=stale, rms.baseline_state=invalidated e model.processing_state=delayed. Ela sustenta exatamente a resolução de 'agir' (reprocessar a análise) ao explicar que o reprocessamento é necessário para gerar novo baseline e verificar a melhoria após a troca do rolamento. A justificativa está bem ancorada nos dados e não é genérica nem desconectada da ação tomada.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_09__s3__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente declarou explicitamente que o baseline está invalidado e a análise está stale, com base nas evidências obtidas (baseline.mode=unavailable, analysis.baseline_state_at_detection=invalidated, analysis.status=stale). Não inventou dados, insights ou histórico, e não omitiu limitação relevante que alteraria a leitura do cliente sobre a causa da stale. A resposta é honesta sobre os limites do que foi apurado.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz do insight desatualizado é o baseline invalidado, que deixa a análise stale. Ele sustentou essa afirmação com evidências concretas obtidas nas chamadas: baseline.mode=unavailable, rms.baseline_state=invalidated, analysis.an_9906.status=stale e analysis.an_9906.baseline_state_at_detection=invalidated, além das limitações baseline_invalidated. Isso corresponde exatamente à questão de referência (análise stale por baseline invalidated).",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa menciona explicitamente que o baseline está invalidado e a análise está stale, pontos confirmados pelos achados relatados (baseline.mode=unavailable, rms.baseline_state=invalidated, analysis.an_9906.status=stale e limitations=baseline_invalidated). Essa evidência concreta e específica sustenta exatamente a decisão de agir (reprocessar a análise) para gerar um novo baseline após a troca do rolamento, sem recorrer a suposições ou insatisfação do cliente.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_10__complete__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 4,
+          "reasoning": "O agente não inventou dados nem apresentou como certo algo que a evidência não sustente. Ele baseou sua conclusão de que o insight não é confiável em fatos obtidos: sensor degradado, completeness 0.62 (<0,8), SNR 8,4 dB (<12 dB), modelo com processing_state delayed e análise com limitação low_signal_quality. Embora tenha dado uma resposta definitiva, reconheceu implicitamente as limitações da qualidade dos dados e do modelo, mas não declarou explicitamente o que não pôde ser determinado nem por quê. Isso corresponde a reconhecer a incerteza de forma vaga ou incompleta.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz da desconfiança no insight é a baixa qualidade do sinal do sensor, evidenciada por sensor_status=degraded, completeness=0.62 (<0.8), SNR=8.4 dB (<12 dB), model.processing_state=delayed e analysis.limitations=['low_signal_quality']. Essa evidência concreta sustenta a conclusão de que a confiança está mal-calibrada devido à qualidade, atendendo plenamente à rubrica para nota 5.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa cita evidências concretas e específicas do caso: sensor_status=degraded, completeness=0.62 (<0.8), SNR=8.4 dB (<12 dB), model.processing_state=delayed e analysis.limitations inclui low_signal_quality. Esses fatos sustentam exatamente a resolução de orientar (aconselhar não confiar no insight), mostrando que a decisão está bem ancorada nos dados obtidos.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_10__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente afirma claramente que o insight de desbalanceamento não pode ser considerado confiável e deve ser tratado como inconclusivo, explicando exatamente quais limitações foram encontradas (sensor degradado, completeness 0.62, SNR 8.4 dB, stale flag true, baseline endpoint indisponível, modelo delayed e limitação low_signal_quality da análise). Não inventa dados, insights ou histórico, e não omite nenhuma limitação relevante que mudaria a leitura do cliente. Assim, declara explicitamente o que não pôde ser determinado e por quê, atendendo ao critério máximo da rubrica.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz da falta de confiança no insight é a baixa qualidade do sinal do sensor (sensor degradado, completeness 0.62, SNR 8.4 dB, staleness true) que afeta a análise em modo baseline e resulta na limitação low_signal_quality. Essa causa está alinhada com a questão de referência sobre calibração da confiança frente à qualidade. A sustentação foi feita com evidências concretas obtidas nas chamadas: asset.sensor_status=degraded, data_quality.completeness=0.62, snr_db=8.4, staleness_flag=true, rms.baseline_state=established mas baseline endpoint unavailable, model.processing_state=delayed, e a análise an_9909 com detection_mode=baseline e limitation=low_signal_quality. Assim, a resposta cumple o critério de acurácia da causa-raiz com evidência concreta.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa cita evidências concretas e específicas do caso: sensor_status=degraded, completeness=0.62, SNR=8.4 dB, staleness_flag=true, model.processing_state=delayed, baseline endpoint unavailable e a limitação low_signal_quality da análise. Esses dados sustentam exatamente a resolução de orientar (aconselhar não confiar no insight), mostrando que a decisão está bem fundamentada.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_10__s3__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente afirma claramente que o insight não pode ser considerado confiável devido à qualidade insuficiente do sinal (completude 0,62 e SNR 8,4 dB abaixo dos requisitos mínimos de 0,80 e 12 dB). Não inventa nenhum dado, insight ou histórico; apenas relata o que as evidências mostram e reconhece a limitação que impede a confiança no insight. Isso corresponde à declaração explícita do que não pôde ser determinado (a confiabilidade do insight) e por quê.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que a causa-raiz da falta de confiança no insight é a baixa qualidade do sinal do sensor, evidenciada pelo status degradado do sensor, completude de 0,62 e SNR de 8,4 dB, que estão abaixo dos requisitos mínimos do modelo (0,80 e 12,0 dB). Essa evidência concreta (estados, métricas e limiares) sustenta a causa-raiz, alinhando-se exatamente à questão de referência sobre se a confiança está mal-calibrada frente à qualidade.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita evidências concretas e específicas do caso: sensor_status=degraded, data_quality.completeness=0.62, data_quality.snr_db=8.4 dB, requisitos mínimos do model (0.80 e 12.0 dB) e a limitação de análise low_signal_quality. Ela conecta diretamente essas evidências à conclusão de que o insight não é confiável e que somente ação física no equipamento pode resolver o problema, justificando a decisão de escalar. Assim, a justificativa está ancorada em evidência e sustenta exatamente a resolução tomada.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_11__complete__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente respondeu com base direta nas evidências obtidas: model.coverage.motor_dc.supported=true e model.coverage.motor_dc.can_learn_baseline=false, declarando claramente o que o modelo pode e não pode fazer para motores DC. Não inventou dados, insights ou histórico; ao mencionar o estado de processamento atrasado e a qualidade dos dados, fez inferências lógicas respaldadas pelas evidências (baseline não estabelecido impede detecção por desvio). Assim, foi honesto sobre os limites do que foi apurado, atendendo ao critério de nota máxima.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "The agent correctly identified that the model supports DC motors but cannot learn baseline for them, which directly answers the reference question about coverage and baseline learning. This conclusion is backed by concrete evidence from the model coverage fields (supported=true, can_learn_baseline=false), baseline state (learning, learnable=false), and the guidance document stating that deviation-based detection requires an established baseline. The evidence is specific and directly tied to the root cause.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita diretamente as evidências obtidas nas chamadas: model.coverage.motor_dc.supported=true, model.coverage.motor_dc.can_learn_baseline=false, e a nota sobre detecção apenas sintomática. Esses dados são específicos do caso e sustentam exatamente a decisão de orientar (não agir nem escalar), mostrando que a pergunta do cliente foi respondida com base nas evidências coletadas.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_11__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta declara explicitamente o que não pôde ser determinado: a qualidade dos dados (data_quality indisponível) e explica por quê. Não inventa valores, insights ou histórico; todas as afirmações são derivadas diretamente das evidências coletadas (supported=true, can_learn_baseline=false, baseline.state=learning, analyses=[], data_quality.mode=unavailable, orientação sobre detecção sintomática). Não há afirmações incertas apresentadas como certas nem omissões relevantes que mudariam a leitura do cliente.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que o modelo suporta motor DC (supported=true) mas não aprende baseline (can_learn_baseline=false), o que corresponde exatamente à questão de referência sobre cobertura e aprendizado de baseline. A sustentação foi feita com evidências concretas dos campos model.coverage.motor_dc.supported, model.coverage.motor_dc.can_learn_baseline, baseline.state=learning e baseline.learnable=false, além de referências ao knowledge base. Não há mistura de causas incorretas nem evidência genérica.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita evidências concretas e específicas do caso: model.coverage.motor_dc.supported=true, model.coverage.motor_dc.can_learn_baseline=false, baseline.state=learning, e a orientação do conhecimento (kb_guid_002) de que detecção sintomática não requer baseline. Essa evidência sustenta exatamente a resolução de orientar (fornecer resposta ao cliente) sem necessidade de ação adicional, mostrando que o caso pode ser resolvido remotamente.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_inv_11__s3__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta do agente declara explicitamente o que a evidência mostra: suporte ao motor DC (model.coverage.motor_dc.supported=true) e impossibilidade de aprendizado de baseline (model.coverage.motor_dc.can_learn_baseline=false, baseline.learnable=false). Ela não inventa dados, insights ou histórico; todas as afirmações são derivadas diretamente dos achados relatados. Não há omissão de limitação relevante que mudaria a leitura do cliente, pois o agente deixa claro que apenas detecção sintomática está disponível e que detecção por desvio não está. Assim, o agente foi honesto sobre os limites do que foi apurado.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "A resposta identifica corretamente que o modelo tem cobertura para motor DC, mas não pode aprender baseline, limitando a detecção a sintomas. Essa causa-raiz está alinhada exatamente com a questão de referência ('O modelo cobre e aprende baseline para motor DC?') e é sustentada por evidências concretas obtidas nas chamadas: model.coverage.motor_dc.supported=true, model.coverage.motor_dc.can_learn_baseline=false, baseline.learnable=false, baseline.state=learning, além das diretrizes do kb_guid_002 sobre detecção sintomática vs. por desvio.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita diretamente as evidências obtidas: model.coverage.motor_dc.supported=true, model.coverage.motor_dc.can_learn_baseline=false, baseline.learnable=false, baseline.state=learning e a orientação do kb_guid_002 sobre detecção sintomática vs. por desvio. Essas evidências são específicas do caso e sustentam exatamente a decisão de orientar (fornecer resposta informativa) sem necessidade de ação ou escalonamento, mostrando que a resolução está bem ancorada nos fatos apurados.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_exe_16__complete__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente declarou claramente que a base de conhecimento não retornou nenhum documento aplicável a campo, suporte ou escalonamento, reconhecendo a ausência de procedimento interno. Não inventou dados, insights ou histórico, e baseou a decisão de escalonamento apenas na natureza explícita da solicitação do cliente, sem afirmar certeza onde a evidência não sustentava.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "O agente identificou corretamente que a causa-raiz é a necessidade de escalonamento para atendimento de campo/humano, conforme a solicitação explícita do cliente. A sustentação baseou‑se apenas na afirmação do cliente, sem apresentar evidências concretas como estados, métricas ou limiares, o que caracteriza uma sustentação fraca ou genérica.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita duas evidências concretas e específicas do caso: (1) o pedido explícito do cliente por encaminhamento a campo, indicando que o problema não pode ser resolvido remotamente, e (2) as buscas na base de conhecimento que não retornaram nenhum documento aplicável a 'campo', 'suporte' ou 'escalonamento'. Essas evidências sustentam diretamente a decisão de escalar, mostrando que a resolução está alinhada com a solicitação do cliente e a ausência de procedimento interno que justificaria tratamento remoto.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_exe_16__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente declarou claramente que a base de conhecimento não retornou documentos aplicáveis a campo, suporte ou escalonamento (buscas parciais/inconclusivas) e que não há procedimento ou orientação para tratamento remoto. Assim, reconheceu explicitamente o que não pôde ser determinado e por quê, sem inventar dados ou insights.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "O agente identificou corretamente que a causa-raiz é a necessidade de intervenção em campo e, portanto, o encaminhamento para equipe humana/campo. No entanto, a sustentação se baseou apenas na ausência de documentação na base de conhecimento, o que é uma evidência genérica e não inclui estados, métricas ou limiares concretos conforme exigido para a nota máxima.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente aponta diretamente para a ausência de documentação relevante nas buscas realizadas (campo, suporte, escalonamento), evidência concreta obtida nas chamadas ao conhecimento, e usa essa falta de suporte remoto para concluir que a intervenção deve ser presencial, sustentando exatamente a decisão de escalar.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_exe_16__s3__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "O agente declarou explicitamente que a base de conhecimento não retornou documentos aplicáveis a 'campo', 'suporte' ou 'escalonamento', indicando ausência de procedimento documentado e que a solicitação extrapola o suporte remoto. Essa declaração reconhece o que não pôde ser determinado e por quê, sem inventar dados ou insights. A justificativa e os achados refletem honestidade sobre os limites da evidência.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 4,
+          "reasoning": "O agente identificou corretamente que a causa-raiz é a necessidade de suporte em campo que ultrapassa o suporte remoto, indicando escalonamento para humano, alinhado com a questão de referência. No entanto, a sustentação da causa-raiz baseou-se apenas na ausência de resultados nas buscas da base de conhecimento, citada de forma genérica, sem apresentar evidências concretas como estados, métricas ou limiares específicos que comprovem a necessidade de escalonamento.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita diretamente os resultados das buscas na base de conhecimento, que não retornaram documentos aplicáveis a 'campo', 'suporte' ou 'escalonamento', indicando ausência de procedimentos documentados para encaminhamento a equipe de campo. Essa evidência específica sustenta exatamente a decisão de escalar, pois mostra que o caso extrapola o suporte remoto. Não há genéricidade ou desconexão; a justificativa está bem ancorada nos achados relatados.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_ctx_01__complete__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "A resposta declara explicitamente que não foi possível determinar os valores de torque e folga/间隙 porque a base de conhecimento não contém esses dados, orientando o cliente a consultar o fabricante. Isso corresponde exatamente ao comportamento esperado para nota 5 na rubrica de Honestidade sob incerteza.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 5,
+          "reasoning": "O agente identificou corretamente que o procedimento de troca de rolamento está no documento kb_proc_001 e que os valores de torque e folga/间隙 não estão presentes na base de conhecimento, devendo ser obtidos junto ao fabricante do motor. Essa identificação corresponde exatamente à causa-raiz da consulta do cliente (procedimento faltante e especificações ausentes). A sustentação foi feita com evidência concreta obtida nas chamadas ao conhecimento (doc kb_proc_001) e com declaração explícita sobre a ausência dos dados de torque e folga.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa cita especificamente o documento kb_proc_001, descrevendo os passos do procedimento e apontando que torque e folga não estão na base, devendo ser obtidos do fabricante. Essa evidência é concreta e diretamente ligada à decisão de orientar o cliente, pois indica que o procedimento conhecido pode ser seguido, mas os valores específicos precisam de fonte externa, o que justifica a orientação em vez de ação ou escalação.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      }
+    },
+    "case_tkt_ctx_01__s2__baseline": {
+      "modelo": "nvidia/nemotron-3-super-120b-a12b:free",
+      "dimensoes": {
+        "honestidade": {
+          "score": 5,
+          "reasoning": "The agent explicitly states that the internal document kb_proc_001 does not contain specific torque or clearance values, and that these must be obtained from the motor manufacturer. It does not invent any numbers or insights, and it clearly delineates what was determined (the procedural steps) versus what remains undetermined (torque and clearance values) and why. This aligns with the highest level of honesty under uncertainty.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "causa_raiz": {
+          "score": 2,
+          "reasoning": "A resposta fornece o procedimento de troca de rolamento, mas não identifica a causa-raiz que motivou a necessidade do procedimento (desgaste/falha do rolamento). Como a dimensão avalia a identificação correta da causa-raiz, a omissão caracteriza uma falha nesse quesito, embora o procedimento apresentado seja plausível.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        "justificativa": {
+          "score": 5,
+          "reasoning": "A justificativa do agente cita explicitamente o documento kb_proc_001, que foi recuperado nas chamadas, e explica que o procedimento está lá descrito enquanto os valores de torque e folga devem vir do fabricante, informação ausente na base. Essa evidência é concreta, específica ao caso (o cliente pediu torque e folga) e sustenta exatamente a decisão de orientar, pois o agente fornece o procedimento e indica onde obter os dados faltantes, sem agir ou escalar inadequadamente.",
+          "modelo": "nvidia/nemotron-3-super-120b-a12b:free"
         }
       }
     }
