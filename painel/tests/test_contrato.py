@@ -17,11 +17,15 @@ def test_bundle_tem_as_fases_esperadas(bundle):
 
 
 def test_operacao_nao_importa_avaliacao(js_fonte):
-    """RN-01 estrutural: a visão de quem atende não pode ler o gabarito."""
-    for modulo in ("operacao.js", "batida-chamado.js"):
-        assert "avaliacao.js" not in imports_de(js_fonte(modulo)), (
-            f"{modulo} importou avaliacao.js — RN-01 quebrado"
-        )
+    """RN-01 estrutural: a visão de quem atende não pode ler o gabarito.
+
+    `operacao.js` foi absorvido pela batida ② na Task 9 (ver
+    `test_modulos_antigos_removidos`); a regra estrutural agora vive só em
+    `batida-chamado.js`, verificada aqui do mesmo jeito: por leitura de import.
+    """
+    assert "avaliacao.js" not in imports_de(js_fonte("batida-chamado.js")), (
+        "batida-chamado.js importou avaliacao.js — RN-01 quebrado"
+    )
 
 
 def _token(css: str, nome: str) -> float:
@@ -132,8 +136,15 @@ def test_juizes_nao_aparecem_em_nenhuma_batida(js_fonte):
     A separação é o que mantém a manchete defensável: 94,1% é medida contra gabarito
     humano; 3,65 de honestidade é um LLM opinando sobre outro. Misturar as duas
     produziria um número que não significa nada.
+
+    O `except FileNotFoundError: continue` existe para quando o plano ainda não
+    escreveu todas as batidas — mas se as quatro estiverem ausentes ao mesmo tempo,
+    o loop passa inteiro sem nunca chamar o assert de baixo, e o teste passa vazio
+    sem testar nada. `verificados` amarra isso: exige que ao menos uma batida real
+    tenha sido lida e checada.
     """
     import pytest
+    verificados = 0
     for batida in ("batida-veredito.js", "batida-chamado.js",
                    "batida-matriz.js", "batida-aovivo.js"):
         try:
@@ -141,6 +152,8 @@ def test_juizes_nao_aparecem_em_nenhuma_batida(js_fonte):
         except FileNotFoundError:
             continue  # a batida ainda não existe nesta altura do plano
         assert "juizes" not in fonte, f"{batida} exibe nota de juiz — não deve"
+        verificados += 1
+    assert verificados > 0, "nenhuma batida existe ainda — o teste não checou nada"
 
 
 def test_comparabilidade_entre_fases_e_declarada(bundle, js_fonte):
@@ -301,3 +314,30 @@ def test_selo_distingue_cenario_de_execucao(bundle, js_fonte):
         "a premissa do selo mudou: já não é um único cenário errado"
     )
     assert len(erradas) == 3, "o cenário errado já não falha nas três seeds"
+
+
+def test_selo_sintetico_e_permanente(js_fonte):
+    """ADR 0007: a nota da consulta livre nunca se mistura com as dos 17 cenários.
+
+    O selo é a fronteira visível dessa separação. Se ele sair da tela, um leitor
+    passa a somar duas medidas que não são a mesma coisa.
+    """
+    fonte = js_fonte("batida-aovivo.js")
+    assert "sintética" in fonte or "sintetica" in fonte, "selo de avaliação sintética ausente"
+    assert "0007" in fonte, "referência à ADR 0007 ausente"
+
+
+def test_modulos_antigos_removidos(js_fonte):
+    """operacao.js e avaliacao.js foram absorvidos pelas batidas."""
+    import pytest
+    for morto in ("operacao.js", "avaliacao.js"):
+        with pytest.raises(FileNotFoundError):
+            js_fonte(morto)
+
+
+def test_nenhuma_batida_importa_modulo_morto(js_fonte):
+    for modulo in ("painel.js", "batida-veredito.js", "batida-chamado.js",
+                   "batida-matriz.js", "batida-aovivo.js"):
+        fonte = js_fonte(modulo)
+        assert "operacao.js" not in fonte
+        assert "avaliacao.js" not in fonte

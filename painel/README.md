@@ -17,23 +17,30 @@ Precisa ser servido por HTTP — o navegador bloqueia `fetch` em `file://`. A ab
 exige `make up` (API industrial) e o extra do servidor:
 `uv pip install --python .venv/Scripts/python.exe -e "./agent[serve]"`.
 
-## Três abas, três leitores
+## Quatro batidas, uma narrativa
 
-**Operação** é o atendimento como quem responde o chamado o veria: a mensagem íntegra do
-cliente, quem pediu e o que essa pessoa podia fazer, a ficha do ativo, a timeline com cada
-transição do Supervisor e as chamadas que ela provocou (expansíveis até o response cru), a
-evidência que chegou ao Decisor, a resolução e o custo.
+O painel é um roteiro de demonstração, não um conjunto de abas por audiência. A ordem
+importa: cada batida responde a pergunta que a anterior provoca.
 
-**Avaliação** é o desempenho como quem mede o agente o veria: placar, matriz cenários ×
-seeds, diff entre trajetória esperada e percorrida, comparativo entre as fases,
-estabilidade, comitê de juízes e auditoria de ações e desperdício.
+**① Veredito** — funciona? A acurácia de decisão da pós-correção, e o ganho sobre o
+baseline como uma seta. Tudo vem de `bundle.agregados`.
 
-**Consulta** é a porta de entrada que faltava: um usuário da plataforma escolhe quem ele é,
-escolhe o ativo e descreve com as próprias palavras o que observou. O agente roda ao vivo —
-o mesmo `run_case` dos 17 cenários, sem nada especial no grafo — e a resposta volta com uma
-avaliação **sintética**, marcada como tal (ADR 0007).
+**② Um chamado** — por quê? Um atendimento ponta a ponta em faixas por papel. As tags
+mostram os fatos apurados; os endpoints ficam atrás de `N consultas ⌄`. Esta tela nunca
+exibe gabarito nem aprovação (RN-01), e a regra é estrutural: `batida-chamado.js` não
+importa nada de avaliação.
 
-A aba não cria usuários: lista os que já existem em `data/users.parquet`, porque é o
+**③ Os 17 × 3** — sempre? A matriz de cenários por seed. Clicar numa célula abre o diff
+entre a trajetória esperada e a percorrida.
+
+**④ Ao vivo** — de verdade? Executa o agente. A avaliação volta marcada como sintética
+(ADR 0007) e nunca entra nas métricas dos 17 cenários.
+
+Setas ← → do teclado avançam a narrativa. O botão do rodapé abre a gaveta com método,
+ressalvas, auditoria e arquitetura — é onde vive toda a prosa que antes disputava espaço
+com os números.
+
+A batida ④ não cria usuários: lista os que já existem em `data/users.parquet`, porque é o
 `user_id` que determina a permissão real na API. Se um operador pedir uma ação que não pode
 executar, o 403 aparece na trajetória — é o enforcement funcionando (ADR 0003), não falha.
 
