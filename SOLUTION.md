@@ -6,9 +6,9 @@ construí.
 
 > **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
 > modelo real, em duas fases, e cinco experimentos registrados em
-> [`docs/experimentos/`](./docs/experimentos/). Faltam a bateria de EXP-05 (a hipótese
-> central) e o comitê de juízes — ambos bloqueados por cota, ver
-> [Pendências](#9-pendências).
+> [`docs/experimentos/`](./docs/experimentos/). Falta a bateria de EXP-05 (a hipótese
+> central, 0/51) e o comitê de juízes está parcial (35/102, 2026-09-05) — ambos
+> retomáveis, bloqueados por cota diária, ver [Pendências](#9-pendências).
 
 ## 1. Problema e recorte
 
@@ -167,9 +167,10 @@ O que está verificado por teste, e não por execução:
 
 ## 8. Limitações
 
-- **A camada 2 nunca rodou.** 0 de 81 execuções elegíveis foram julgadas pelo comitê.
-  Nada aqui mede qualidade textual — honestidade, causa-raiz, justificativa. Toda
-  afirmação de resultado é sobre decisão, trajetória e custo.
+- **A camada 2 está parcial.** 35/102 execuções elegíveis julgadas pelo comitê em
+  2026-09-05 (cota diária gratuita do OpenRouter esgotada, retomável). Toda afirmação de
+  resultado das seções 6–7 é sobre decisão, trajetória e custo; qualidade textual —
+  honestidade, causa-raiz, justificativa — só tem cobertura parcial até aqui.
 - **Hipóteses formuladas após a coleta**, em EXP-01, 03 e 04. É HARKing, está declarado no
   topo de cada documento, e reduz a força da inferência: trate como evidência sugestiva,
   não confirmatória.
@@ -197,9 +198,11 @@ O que está verificado por teste, e não por execução:
 ## 9. Pendências
 
 1. **Rodar EXP-05** (`make exp05`) — braço de agente único, 51 execuções. Implementado e
-   testado; falta cota. É a hipótese central do projeto.
-2. **Rodar o comitê de juízes** (`make painel-julgar`) — 0 de 81 julgadas. Sem isso, a
-   camada 2 da pirâmide de avaliação existe em código mas não produziu nenhum dado.
+   testado; falta cota. É a hipótese central do projeto. Estado em 2026-09-05: 0/51.
+2. **Rodar o comitê de juízes** (`make painel-julgar`) — 35/102 julgadas em 2026-09-05
+   (cota diária do OpenRouter esgotada para todos os modelos `:free` da conta). Retomar em
+   lotes de 3–5 (`python painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
+   travaram sem erro nem progresso numa sessão de teste.
 3. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias.
 4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
 5. Gravar `fase` no trace (`agent/app/trace.py`) — hoje a fase é recuperada por junção de
