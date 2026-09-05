@@ -281,3 +281,23 @@ def test_campos_do_diff_existem_no_bundle(bundle):
     for campo in ("decisoes_aceitas", "queries_faltantes", "queries_extras",
                   "acoes_faltantes", "diff_trajetoria"):
         assert campo in av, f"campo {campo} ausente — a batida ③ contava com ele"
+
+
+def test_selo_distingue_cenario_de_execucao(bundle, js_fonte):
+    """Um cenário que erra nas três seeds é um erro sistemático, não três erros.
+
+    "3 erros reais" sugere três cenários falhando. É um só, três vezes — e essa é a
+    leitura mais forte: erro consistente é diagnosticável, erro numa seed só é ruído.
+    O selo tem de separar as duas contagens.
+    """
+    fonte = js_fonte("batida-matriz.js")
+    assert "cenariosComErro" in fonte, "o selo não conta cenários distintos"
+    assert "case_id" in fonte, "a contagem de cenários não desduplica por caso"
+
+    execucoes = [e for e in bundle["execucoes"] if e["fase"] == "pos-correcao"]
+    erradas = [e for e in execucoes if not e["avaliacao"]["decision_match"]
+               and e["avaliacao"]["executou_sem_erro"]]
+    assert len({e["case_id"] for e in erradas}) == 1, (
+        "a premissa do selo mudou: já não é um único cenário errado"
+    )
+    assert len(erradas) == 3, "o cenário errado já não falha nas três seeds"

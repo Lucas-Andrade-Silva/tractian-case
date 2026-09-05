@@ -35,16 +35,37 @@ function contagens(bundle, fase) {
     else if (tom === "atencao") artefato += 1;
     else erro += 1;
   }
-  return { passou, artefato, erro, total: execucoes.length };
+  // Cenários distintos, não células: um cenário que erra nas três seeds é um erro
+  // sistemático, não três erros. A distinção é favorável — erro consistente é
+  // diagnosticável; erro que aparece numa seed só é ruído.
+  const cenariosComErro = new Set(
+    execucoes.filter((e) => tomDaCelula(e) === "erro").map((e) => e.case_id)
+  ).size;
+  return { passou, artefato, erro, cenariosComErro, total: execucoes.length };
 }
 
-function celula(execucao, redesenha) {
-  if (!execucao) return el("td", {}, [el("span", { class: "celula vazia", text: VAZIO })]);
+function celula(execucao, redesenha, cenario, seed) {
+  if (!execucao) {
+    return el("td", {}, [
+      el("span", {
+        class: "celula vazia",
+        text: VAZIO,
+        "aria-label": `${cenario} · ${seed}: sem execução`,
+      }),
+    ]);
+  }
   const tom = tomDaCelula(execucao);
+  const LEITURA = {
+    sucesso: "passou",
+    neutro: "escalou, desfecho correto",
+    atencao: "decisão certa, aprovação negada",
+    erro: "decisão errada",
+  };
   return el("td", {}, [
     el("button", {
       class: `celula celula-${tom}`,
       "aria-current": String(execucao.id === ESTADO.celulaId),
+      "aria-label": `${cenario} · ${seed} · ${execucao.operacao.decisao || "sem decisão"} · ${LEITURA[tom]}`,
       text: execucao.operacao.decisao || "—",
       onclick: () => {
         ESTADO.celulaId = execucao.id;
@@ -160,7 +181,9 @@ export function batidaMatriz(redesenha) {
   const linhas = casos.map((caso) =>
     el("tr", {}, [
       el("td", { class: "mx-cen mono", text: caso.cenario || caso.case_id }),
-      ...SEEDS.map((seed) => celula(achaExecucao(caso.case_id, seed, fase), redesenha)),
+      ...SEEDS.map((seed) =>
+        celula(achaExecucao(caso.case_id, seed, fase), redesenha, caso.cenario || caso.case_id, seed)
+      ),
     ])
   );
 
@@ -171,7 +194,8 @@ export function batidaMatriz(redesenha) {
         selo(`${estaveis.length}/${mediveis.length} estáveis`, "sucesso"),
         selo(`${num(bundle.agregados[fase].falhas_execucao)} falhas de execução`, "sucesso"),
         selo(
-          `${c.erro} ${c.erro === 1 ? "erro real" : "erros reais"} · ${c.artefato} artefatos de gabarito`,
+          `${c.cenariosComErro} ${c.cenariosComErro === 1 ? "cenário errado" : "cenários errados"}` +
+            ` (${c.erro} de ${c.total} execuções) · ${c.artefato} artefatos de gabarito`,
           "atencao"
         ),
       ]),
