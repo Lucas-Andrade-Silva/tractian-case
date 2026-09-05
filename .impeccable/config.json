@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "painel/css/painel.css"
+        ],
+        "createdAt": "2026-09-04T22:38:27.156Z",
+        "reason": "blockquote.mensagem e a unica citacao literal do painel: elemento semantico correto, borda neutra --tenue-forte, convencao documentada na spec 2026-09-04-painel-quatro-batidas-design.md"
+      }
+    ]
+  }
+}

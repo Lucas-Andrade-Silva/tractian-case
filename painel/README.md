@@ -101,20 +101,22 @@ Duas garantias adicionais, ambas em código:
 
 ## A regra que organiza o código
 
-A aba Operação **nunca** exibe gabarito, decisão aceita ou status de aprovação. Não é
+A batida ② **nunca** exibe gabarito, decisão aceita ou status de aprovação. Não é
 preferência de layout: a Parte 2 só faz sentido se a visão de operação não for construída
 sobre o gabarito — senão o painel estaria mostrando um atendimento que já sabe a resposta.
+O gabarito só aparece na batida ③, que é a tela cuja função é ser o gabarito.
 
 A regra é estrutural, e por isso verificável:
 
 - o bundle separa `operacao` de `avaliacao` em seções irmãs por execução, e `operacao` não
   contém nenhum campo de gabarito;
-- [`js/operacao.js`](js/operacao.js) lê apenas `execucao.operacao` e não importa nada de
-  `js/avaliacao.js`.
+- [`js/batida-chamado.js`](js/batida-chamado.js) lê apenas `execucao.operacao` e não
+  importa nenhum módulo de avaliação.
 
 ```bash
-grep -n "avaliacao" painel/js/operacao.js        # só comentários
-grep -nE "expected|passou|decision_match" painel/js/operacao.js
+grep -nE "^import" painel/js/batida-chamado.js               # nenhum módulo de avaliação
+grep -nE "expected|passou|decision_match" painel/js/batida-chamado.js
+cd painel && python -m pytest tests/ -q -k rn01              # o teste que trava a regra
 ```
 
 É a mesma estratégia de `evaluation/runner/golden.py`, que concentra num único módulo a
@@ -260,10 +262,15 @@ arquivo exportado seja comparável célula a célula com o da bateria.
 | `dados/bundle.json` | gerado; versionado porque `.run/` é gitignored |
 | `js/dados.js` | carregamento, estado, filtros e os primitivos de formatação |
 | `js/componentes.js` | selos, métricas, timeline e blocos de dado cru |
-| `js/operacao.js` | telas da aba Operação — não importa de `avaliacao.js` |
-| `js/avaliacao.js` | telas da aba Avaliação |
+| `js/batidas.js` | as quatro batidas, navegação e rodapé |
+| `js/batida-veredito.js` | batida ① — o número e o ganho entre fases |
+| `js/batida-chamado.js` | batida ② — um chamado ponta a ponta; não importa avaliação |
+| `js/batida-matriz.js` | batida ③ — a matriz 17 × 3 e o diff lateral |
+| `js/batida-aovivo.js` | batida ④ — executa o agente e adapta o trace ao formato do bundle |
+| `js/faixas.js` | faixas por papel, compartilhadas pelas batidas ② e ④ |
+| `js/gaveta.js` | método, ressalvas, auditoria e arquitetura |
 | `js/export.js` | exportação em CSV |
-| `js/painel.js` | cabeçalho, abas e ciclo de redesenho |
+| `js/painel.js` | cabeçalho, despacho de batida e ciclo de redesenho |
 
 Sem dependências de front-end: HTML, CSS e ES modules. O bundle tem ~1,1 MB, e o build usa
 só a stdlib do Python.
