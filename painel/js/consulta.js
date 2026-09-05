@@ -84,7 +84,7 @@ export async function carregaCatalogo(redesenha) {
   redesenha();
 }
 
-async function carregaAtivos(companyId, redesenha) {
+export async function carregaAtivos(companyId, redesenha) {
   CONSULTA.ativos = [];
   if (!companyId) return redesenha();
   try {

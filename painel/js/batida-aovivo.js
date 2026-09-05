@@ -33,8 +33,9 @@ import { ESTADO, el, texto, num, duracao } from "./dados.js";
 import { selo, aviso, vazio } from "./componentes.js";
 import { faixasPorPapel } from "./faixas.js";
 import { rodape } from "./batidas.js";
+import { botaoGaveta } from "./gaveta.js";
 // `envia` é o nome real da função em consulta.js:97 — agora exportada.
-import { CONSULTA, carregaCatalogo, envia, blocoErroExecucao } from "./consulta.js";
+import { CONSULTA, carregaCatalogo, carregaAtivos, envia, blocoErroExecucao } from "./consulta.js";
 
 const PAPEIS_ESPERADOS = ["supervisor", "investigador", "decisor", "executor"];
 
@@ -107,7 +108,16 @@ function formulario(redesenha) {
       "select",
       {
         "aria-label": "Quem está perguntando",
-        onchange: (ev) => { form.user_id = ev.target.value; redesenha(); },
+        onchange: (ev) => {
+          const escolhido = CONSULTA.usuarios.find((u) => u.user_id === ev.target.value);
+          form.user_id = ev.target.value;
+          // `company_id` é obrigatório no ConsultaRequest e determina quais ativos
+          // existem — sem ele o POST falha e a lista de ativos nunca carrega.
+          form.company_id = escolhido ? escolhido.company_id : "";
+          form.asset_id = "";
+          carregaAtivos(form.company_id, redesenha);
+          redesenha();
+        },
       },
       [
         el("option", { value: "", text: "quem pergunta…" }),
@@ -129,7 +139,7 @@ function formulario(redesenha) {
       [
         el("option", { value: "", text: "qual ativo…" }),
         ...CONSULTA.ativos.map((a) =>
-          el("option", { value: a.asset_id, text: a.name, selected: form.asset_id === a.asset_id })
+          el("option", { value: a.id, text: a.name || a.id, selected: form.asset_id === a.id })
         ),
       ]
     ),
@@ -228,6 +238,7 @@ export function batidaAoVivo(redesenha) {
             "A questão de referência é escrita por um LLM, não por humano. As notas ordenam " +
             "consultas livres entre si e nunca entram nas métricas dos 17 cenários.",
         }),
+        botaoGaveta("ⓘ método e ressalvas", "metodo", redesenha),
       ]),
     ]),
   ]);

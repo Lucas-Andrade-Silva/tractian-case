@@ -91,7 +91,11 @@ function lateral(redesenha) {
   const faltantes = av.queries_faltantes || [];
   const extras = av.queries_extras || [];
   const acoesFaltantes = av.acoes_faltantes || [];
-  const diff = av.diff_trajetoria || [];
+  // `extra` já aparece no bloco "consultas extras" logo abaixo, e o CSS só define
+  // marcador `::before` para `.diff-atendida`/`.diff-faltante` — sem este filtro,
+  // uma lista rotulada "esperada" ficava dois terços cheia de passos não esperados,
+  // sem marcador algum.
+  const diff = (av.diff_trajetoria || []).filter((p) => p.situacao !== "extra");
 
   const partes = [
     el("h3", { class: "mono", text: `${execucao.cenario} · ${execucao.seed}` }),
