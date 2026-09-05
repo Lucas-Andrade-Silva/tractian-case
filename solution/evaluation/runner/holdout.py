@@ -9,7 +9,7 @@ do domínio e dividi-los cortaria cobertura, não só volume.
 Um cenário só entra no holdout depois de ser executado de fato contra a API local com
 `seed` fixo, confirmando que a resposta real sustenta a resolução esperada. Não é
 julgamento por leitura de schema: é confirmação reproduzível contra o sistema real, o
-mesmo processo que corrigiu CEN-05 e CEN-08 em `docs/test-scenarios.md`.
+mesmo processo que corrigiu CEN-05 e CEN-08 em `tractian/docs/test-scenarios.md`.
 
 Rode com:  python -m runner.holdout
 """

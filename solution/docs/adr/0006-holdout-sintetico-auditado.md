@@ -15,7 +15,7 @@ com cenários **sintéticos novos e adicionais**, reaproveitando ativos e dados 
 parquets (sem estender `data/*.parquet`). Cada cenário sintético só entra no holdout depois de
 **auditoria mecânica**: rodar de fato contra a API local com um `seed` fixo e confirmar que a
 resposta real sustenta a resolução esperada do cenário — o mesmo processo já documentado na seção
-"Auditoria dos cenários" de `docs/test-scenarios.md`, que corrigiu CEN-05 e CEN-08 dessa forma.
+"Auditoria dos cenários" de `tractian/docs/test-scenarios.md`, que corrigiu CEN-05 e CEN-08 dessa forma.
 
 Isso não compromete a legitimidade do teste: os 16 originais também são dados sintéticos e fictícios
 (não dados reais de clientes), então a diferença entre eles e o holdout não é "real vs. inventado" —

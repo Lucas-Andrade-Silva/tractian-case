@@ -1,4 +1,4 @@
-"""Carregamento do golden set — o ÚNICO módulo que lê `eval/`.
+"""Carregamento do golden set — o ÚNICO módulo que lê `tractian/eval/`.
 
 Concentrar essa leitura num só lugar é o que torna verificável a regra de separação do
 projeto: o agente nunca importa daqui, e qualquer vazamento do gabarito para o contexto
@@ -6,7 +6,7 @@ do agente apareceria como um import deste módulo dentro de `agent/`.
 
 ## Por que existe a tabela de resoluções aceitas
 
-`eval/expected-paths.json` traz a trajetória esperada, mas NÃO traz a resolução esperada
+`tractian/eval/expected-paths.json` traz a trajetória esperada, mas NÃO traz a resolução esperada
 (orientar/agir/escalar). Derivá-la da trajetória — "terminou em POST /escalate, logo
 escalar" — funciona para os cenários inequívocos e falha nos demais, porque vários
 cenários declaram explicitamente MAIS DE UMA resolução aceitável:
@@ -19,7 +19,7 @@ cenários declaram explicitamente MAIS DE UMA resolução aceitável:
 Nesses casos a trajetória do gabarito é só de consultas, e a derivação automática diria
 "orientar" — reprovando um agente que agiu ou escalou, exatamente o que o cenário
 autoriza. A tabela abaixo transcreve o campo "Resolução esperada" de cada cenário de
-`docs/test-scenarios.md`, que é a fonte declarada dessa informação.
+`tractian/docs/test-scenarios.md`, que é a fonte declarada dessa informação.
 """
 from __future__ import annotations
 
@@ -28,11 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-# `eval/` é material da Tractian e fica na raiz do repositório, não dentro de `solution/`:
-# daí o nível extra em relação a `SOLUTION_DIR`.
+# O material da Tractian vive em `tractian/`, irmã de `solution/`. Nomear a pasta do
+# parceiro no caminho é o que torna visível, na leitura, que aqui se cruza a fronteira.
 SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
-REPO_ROOT = SOLUTION_DIR.parent
-GOLDEN_PATH = REPO_ROOT / "eval" / "expected-paths.json"
+TRACTIAN_DIR = SOLUTION_DIR.parent / "tractian"
+GOLDEN_PATH = TRACTIAN_DIR / "eval" / "expected-paths.json"
 
 DecisionKind = Literal["orientar", "agir", "escalar"]
 
@@ -40,7 +40,7 @@ _ESCALATE_MARKER = "/escalate"
 _ACTION_MARKERS = ("/reprocess", "/request-specialist", "/request-retraining")
 
 # Resoluções aceitas por caso, transcritas de "Resolução esperada" em
-# docs/test-scenarios.md. Um conjunto com mais de um elemento significa que o cenário
+# tractian/docs/test-scenarios.md. Um conjunto com mais de um elemento significa que o cenário
 # admite mais de um desfecho correto — e a avaliação não pode punir a escolha entre eles.
 ACCEPTED_DECISIONS: dict[str, frozenset[str]] = {
     "case_tkt_inv_04": frozenset({"escalar"}),              # CEN-01 investigar → explicar + escalar

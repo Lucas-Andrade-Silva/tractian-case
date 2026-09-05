@@ -1,6 +1,6 @@
 """Trace estruturado local — fonte de verdade da Parte 2 (ADR 0004).
 
-Formato alinhado ao golden set (`eval/expected-paths.json`): cada passo tem um campo
+Formato alinhado ao golden set (`tractian/eval/expected-paths.json`): cada passo tem um campo
 `step` na forma `"GET /assets/asset_G501"`, idêntico ao usado no gabarito, para que a
 camada determinística da avaliação compare trajetórias sem tradução de formato.
 

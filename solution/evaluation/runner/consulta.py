@@ -38,9 +38,9 @@ from .judges import run_committee
 from .juiz_modelos import DIMENSOES, constroi_juizes, modelo_padrao, settings_juiz
 from .sintetico import GabaritoSintetico, assert_modelos_distintos, gera_gabarito
 
-# `data/` é material da Tractian, na raiz; `evaluation/` é meu, dentro de `solution/`.
+# `data/` é material da Tractian, em `tractian/`; `evaluation/` é meu, em `solution/`.
 SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
-REPO_ROOT = SOLUTION_DIR.parent
+TRACTIAN_DIR = SOLUTION_DIR.parent / "tractian"
 CONSULTAS_DIR = SOLUTION_DIR / "evaluation" / "results" / "consultas"
 
 # Sinaliza um 403 da API no passo, sem depender da mensagem exata em português.
@@ -156,7 +156,7 @@ def monta_caso(
 ) -> dict[str, Any]:
     """Constrói o dict de caso no schema que `run_case` já aceita.
 
-    `run_case` nunca lê `agent-input/cases.json` — recebe o dict pronto. Então uma
+    `run_case` nunca lê `tractian/agent-input/cases.json` — recebe o dict pronto. Então uma
     consulta nova não precisa (e não deve) ser escrita no arquivo dos 17 cenários.
     """
     identificador = _novo_id()
@@ -252,14 +252,14 @@ def _novo_id() -> str:
 
 # -- catálogo para a UI -----------------------------------------------------
 def catalogo_usuarios(settings: Settings | None = None) -> list[dict[str, Any]]:
-    """Usuários existentes, lidos de `data/users.parquet`.
+    """Usuários existentes, lidos de `tractian/data/users.parquet`.
 
     A UI não cria usuário: escolhe entre os que a plataforma já tem, porque é o
     `user_id` que determina as permissões efetivas na API (header `x-user-id`).
     """
     import pandas as pd
 
-    caminho = REPO_ROOT / "data" / "users.parquet"
+    caminho = TRACTIAN_DIR / "data" / "users.parquet"
     if not caminho.exists():
         return []
     quadro = pd.read_parquet(caminho)

@@ -10,7 +10,7 @@ Uso:
 O contexto de uso do agente continua sendo autônomo com escopo, acionado por caso — não
 é um chatbot. O que o modo `--serve` acrescenta é a porta de entrada que faltava: alguém
 de fora (um usuário da plataforma, pela aba Consulta do painel) descrevendo em texto
-livre o que observou, em vez de um caso pré-escrito em `agent-input/cases.json`.
+livre o que observou, em vez de um caso pré-escrito em `tractian/agent-input/cases.json`.
 
 O agente por trás é exatamente o mesmo: `executa_consulta` monta o dict de caso no
 schema de sempre e chama `run_case`. Nada no grafo, nas tools ou nos prompts muda em
@@ -18,7 +18,7 @@ função de a entrada ter vindo por HTTP — se mudasse, as medidas dos 17 cená
 valeriam para o que a aba Consulta executa.
 
 O servidor não cria usuários: `GET /catalogo` devolve os que já existem em
-`data/users.parquet`, e é o `user_id` escolhido que determina as permissões efetivas na
+`tractian/data/users.parquet`, e é o `user_id` escolhido que determina as permissões efetivas na
 API industrial, via header `x-user-id`. Escopo do projeto preservado.
 """
 from __future__ import annotations
@@ -204,7 +204,7 @@ def serve(host: str, port: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Agente de suporte industrial Tractian")
-    parser.add_argument("--list", action="store_true", help="Lista os casos de agent-input/cases.json")
+    parser.add_argument("--list", action="store_true", help="Lista os casos de tractian/agent-input/cases.json")
     parser.add_argument("--case", help="case_id ou ticket_id a executar")
     parser.add_argument("--seed", default=None, help="Seed da API (reprodutibilidade)")
     parser.add_argument("--serve", action="store_true", help="Sobe a API HTTP + painel")
