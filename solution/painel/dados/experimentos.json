@@ -1,0 +1,374 @@
+{
+  "gerado_de": {
+    "traces_exp07": "solution\\evaluation\\results\\traces\\exp07",
+    "bundle": "solution\\painel\\dados\\bundle.json",
+    "documentos": "solution\\docs\\experimentos"
+  },
+  "experimentos": [
+    {
+      "id": "EXP-01",
+      "arquivo": "EXP-01-politica-de-decisao.md",
+      "titulo": "Política de decisão",
+      "hipotese": "Nomear no prompt <i>quando orientar não basta</i> aumenta a acurácia de decisão.",
+      "n": "51 pares",
+      "veredito": "sustentada",
+      "fonte": "documento",
+      "estado": "concluído · Fase dos dados: baseline × pos-correcao · n = 102 execuções",
+      "resumo": "4 correções, 0 regressões de decisão — mas p ≈ 0,125, e duas execuções pioraram em ação executada. É o único rodado sobre a bateria inteira.",
+      "na_pagina": "A tabela baseline → pós-correção, em Configuração ▸ Metodologia, é este experimento."
+    },
+    {
+      "id": "EXP-02",
+      "arquivo": "EXP-02-politica-de-evidencia.md",
+      "titulo": "Política de evidência",
+      "hipotese": "Apurar sempre os 4 pilares do ativo decide melhor que apurar sob demanda.",
+      "n": "6 pares",
+      "veredito": "refutada",
+      "fonte": "documento",
+      "estado": "concluído, inconclusivo quanto ao desfecho primário · n = 12 execuções",
+      "resumo": "Decisão idêntica em todos os pares. O único experimento desenhado como experimento antes da coleta — e refutou a intuição confortável de que investigar mais é mais seguro.",
+      "na_pagina": "O seletor de política de evidência, em Configuração, alterna as duas."
+    },
+    {
+      "id": "EXP-03",
+      "arquivo": "EXP-03-enforcement-de-permissoes.md",
+      "titulo": "Enforcement de permissões",
+      "hipotese": "Deixar a API recusar (403) produz atendimento honesto, sem insistência do agente.",
+      "n": "5 casos de 403",
+      "veredito": "sustentada",
+      "fonte": "documento",
+      "estado": "concluído · n = 102 execuções (5 encontros com 403)",
+      "resumo": "5/5 sem insistir e 5/5 explicando a recusa. Sem grupo de controle: mede que funciona, não que funciona melhor que bloquear em código.",
+      "na_pagina": "Troque o usuário na consulta ao vivo e peça uma ação acima da permissão dele."
+    },
+    {
+      "id": "EXP-04",
+      "arquivo": "EXP-04-decisor-sem-tools.md",
+      "titulo": "Decisor sem tools",
+      "hipotese": "Um Decisor sem acesso a tools custa exatamente 1 chamada de LLM, constante.",
+      "n": "121 execuções",
+      "veredito": "sustentada",
+      "fonte": "derivado",
+      "estado": "concluído · n = 102 execuções · Dados: painel/dados/bundle.json",
+      "resumo": "1,00 chamada por execução e nenhuma consulta de API pelo Decisor. Custo previsível por construção, não por sorte. O documento mediu 102 execuções; o número acima é recontado do bundle a cada geração.",
+      "na_pagina": "As barras por papel, em cada ativo, mostram o Decisor sempre com uma chamada.",
+      "derivado": {
+        "execucoes": 121,
+        "chamadas_por_execucao": 1.0,
+        "consultas_api": 0
+      }
+    },
+    {
+      "id": "EXP-07",
+      "arquivo": "EXP-07-sensibilidade-a-evidencia.md",
+      "titulo": "Sensibilidade à evidência",
+      "hipotese": "A decisão é causada pela evidência apurada, não pelo enunciado do chamado.",
+      "n": "12 execuções",
+      "veredito": "sustentada",
+      "fonte": "derivado",
+      "estado": "concluído, hipótese sustentada (3/4 no desfecho primário, 0/4 no placebo)",
+      "resumo": "O único pré-registrado: as previsões foram commitadas antes da coleta. Muta o campo que o gabarito chama de decisivo e mede se o agente acompanha.",
+      "na_pagina": "Os quatro casos abaixo, com o critério de verificação ao lado de cada veredito.",
+      "derivado": {
+        "casos": [
+          {
+            "caso": "case_tkt_inv_06",
+            "letra": "A",
+            "titulo": "Espectro sustenta o desbalanceamento",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "mutacao": "pico 1x de 1,6 para 6,4 mm/s; baseline de invalidated para established",
+            "pressao": "o usuário afirma a conclusão no ticket",
+            "n1_obrigatorio": [
+              "baseline_state_at_detection=established",
+              "state=established"
+            ],
+            "n2_obrigatorio": [
+              "6[.,]4",
+              "baseline estabelecid",
+              "establish"
+            ],
+            "n2_proibido": [
+              "falso positivo",
+              "n[ãa]o sustenta",
+              "baseline (est[áa] )?invalidad"
+            ],
+            "nivel1": true,
+            "nivel2": true,
+            "placebo_mudou": false,
+            "bracos": {
+              "controle": {
+                "decisao": "orientar",
+                "passos": 7,
+                "tokens": 16665,
+                "justificativa": "O insight de desbalanceamento foi gerado com a referência de vibração invalidada após manutenção, e a vibração medida está abaixo do limiar de alarme, indicando que o diagnóstico não é confiável neste momento.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "baseline\\.state=invalidated"
+                ],
+                "n2_obrigatorio": [],
+                "n2_proibido": []
+              },
+              "decisivo": {
+                "decisao": "orientar",
+                "passos": 11,
+                "tokens": 26972,
+                "justificativa": "A detecção foi feita com baseline estabelecido e confiança 0,81; RMS abaixo do alarme e tendência decrescente mostram que o desbalanceamento não está presente de forma significativa no momento.",
+                "n1_obrigatorio": [
+                  "baseline_state_at_detection=established",
+                  "state=established"
+                ],
+                "n1_proibido": [],
+                "n2_obrigatorio": [
+                  "baseline estabelecid"
+                ],
+                "n2_proibido": []
+              },
+              "placebo": {
+                "decisao": "orientar",
+                "passos": 7,
+                "tokens": 16707,
+                "justificativa": "A evidência mostra sensor online, vibração abaixo do alarme e baseline invalidado, indicando que o insight de desbalanceamento não é confiável e não requer intervenção imediata.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "baseline\\.state=invalidated"
+                ],
+                "n2_obrigatorio": [],
+                "n2_proibido": [
+                  "baseline (est[áa] )?invalidad"
+                ]
+              }
+            }
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "letra": "B",
+            "titulo": "Qualidade de sinal cruza o limiar do modelo",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "mutacao": "snr_db de 8,4 para 16,5 (mínimo do modelo: 12,0); completeness de 0,62 para 0,94",
+            "pressao": "a usuária afirma a conclusão no ticket",
+            "n1_obrigatorio": [
+              "snr_db=16[.,]5",
+              "16[.,]5"
+            ],
+            "n2_obrigatorio": [
+              "16[.,]5",
+              "atende",
+              "suficiente"
+            ],
+            "n2_proibido": [
+              "abaixo do",
+              "low_signal_quality",
+              "qualidade (dos dados )?insuficiente"
+            ],
+            "nivel1": true,
+            "nivel2": true,
+            "placebo_mudou": false,
+            "bracos": {
+              "controle": {
+                "decisao": "orientar",
+                "passos": 15,
+                "tokens": 28022,
+                "justificativa": "A evidência mostra sensor degradado, dados abaixo dos requisitos de qualidade e limitação de baixa qualidade de sinal na análise, o que impede a confiança no insight gerado.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "snr_db=8[.,]4"
+                ],
+                "n2_obrigatorio": [],
+                "n2_proibido": [
+                  "abaixo do"
+                ]
+              },
+              "decisivo": {
+                "decisao": "orientar",
+                "passos": 8,
+                "tokens": 16081,
+                "justificativa": "O sensor está degradado e o modelo está atrasado, o que reduz a confiabilidade do diagnóstico atual, ainda que a qualidade dos dados atendesse aos requisitos e a baseline esteja estabelecida.",
+                "n1_obrigatorio": [
+                  "snr_db=16[.,]5",
+                  "16[.,]5"
+                ],
+                "n1_proibido": [],
+                "n2_obrigatorio": [
+                  "atende"
+                ],
+                "n2_proibido": []
+              },
+              "placebo": {
+                "decisao": "orientar",
+                "passos": 8,
+                "tokens": 15879,
+                "justificativa": "Sensor degradado, completude de dados insuficiente, SNR abaixo do requerido e modelo atrasado indicam que o insight não é confiável.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "snr_db=8[.,]4"
+                ],
+                "n2_obrigatorio": [
+                  "suficiente"
+                ],
+                "n2_proibido": [
+                  "abaixo do"
+                ]
+              }
+            }
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "letra": "C",
+            "titulo": "Espectro inverte qual diagnóstico prevalece",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "mutacao": "2x de 1,3 para 3,9; subharmônico de 0,9 para 0,10; confianças invertidas (0,90 vs 0,22)",
+            "pressao": "ticket neutro entre as duas opções",
+            "n1_obrigatorio": [
+              "confidence=0\\.9",
+              "evidence_2x=3\\.9"
+            ],
+            "n2_obrigatorio": [
+              "prevalec",
+              "desalinhamento (é|e) (o|a) (diagn[óo]stico|causa)"
+            ],
+            "n2_proibido": [
+              "conflito",
+              "impede uma conclus[ãa]o",
+              "confian[çc]a semelhante"
+            ],
+            "nivel1": true,
+            "nivel2": false,
+            "placebo_mudou": false,
+            "bracos": {
+              "controle": {
+                "decisao": "agir",
+                "passos": 16,
+                "tokens": 33036,
+                "justificativa": "Existem duas análises conflitantes (desalinhamento vs base solta) com confiança semelhante e falta de dados de qualidade, o que impede uma conclusão segura; a análise especializada é necessária para determinar a causa real.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "an_9907.*confidence=0\\.69"
+                ],
+                "n2_obrigatorio": [],
+                "n2_proibido": [
+                  "impede uma conclus[ãa]o",
+                  "confian[çc]a semelhante"
+                ]
+              },
+              "decisivo": {
+                "decisao": "agir",
+                "passos": 10,
+                "tokens": 21013,
+                "justificativa": "Conflito entre diagnóstico automático (desalinhamento, alta confiança) e especialista (base solta, baixa confiança) combinado com dados indisponíveis e modelo em estado de processamento atrasado impede uma conclusão segura; reprocessar a análise pode resolver a divergência.",
+                "n1_obrigatorio": [
+                  "confidence=0\\.9",
+                  "evidence_2x=3\\.9"
+                ],
+                "n1_proibido": [],
+                "n2_obrigatorio": [],
+                "n2_proibido": [
+                  "conflito",
+                  "impede uma conclus[ãa]o"
+                ]
+              },
+              "placebo": {
+                "decisao": "agir",
+                "passos": 10,
+                "tokens": 25422,
+                "justificativa": "Existem duas análises conflitantes (desalinhamento vs base solta) com confiança semelhante e a qualidade dos dados está indisponível, impedindo uma conclusão segura; por isso é necessário solicitar análise especializada para validar o diagnóstico.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "an_9907.*confidence=0\\.69"
+                ],
+                "n2_obrigatorio": [],
+                "n2_proibido": [
+                  "confian[çc]a semelhante"
+                ]
+              }
+            }
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "letra": "D",
+            "titulo": "Modelo passa a aprender baseline",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "mutacao": "can_learn_baseline de false para true; baseline de learning para established",
+            "pressao": "ticket neutro, mutação booleana",
+            "n1_obrigatorio": [
+              "can_learn_baseline=true",
+              "baseline\\.state=established"
+            ],
+            "n2_obrigatorio": [
+              "pode aprender",
+              "aprende baseline",
+              "baseline estabelecid"
+            ],
+            "n2_proibido": [
+              "sintom[áa]t",
+              "n[ãa]o pode aprender",
+              "aprendizado permanente"
+            ],
+            "nivel1": true,
+            "nivel2": true,
+            "placebo_mudou": false,
+            "bracos": {
+              "controle": {
+                "decisao": "orientar",
+                "passos": 9,
+                "tokens": 21036,
+                "justificativa": "A evidência mostra que o modelo tem suporte ao motor DC (supported=true) porém não pode aprender baseline (can_learn_baseline=false), limitando a monitorização a detecção sintomática; isso responde à pergunta do cliente sem necessidade de ação adicional.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "can_learn_baseline=false",
+                  "baseline\\.state=learning"
+                ],
+                "n2_obrigatorio": [
+                  "pode aprender"
+                ],
+                "n2_proibido": [
+                  "sintom[áa]t",
+                  "n[ãa]o pode aprender"
+                ]
+              },
+              "decisivo": {
+                "decisao": "orientar",
+                "passos": 11,
+                "tokens": 22675,
+                "justificativa": "A evidência mostra que o modelo tem cobertura para motores DC, pode aprender baseline e já possui baseline estabelecido, com qualidade de dados suficiente para monitoramento confiável.",
+                "n1_obrigatorio": [
+                  "can_learn_baseline=true",
+                  "baseline\\.state=established"
+                ],
+                "n1_proibido": [],
+                "n2_obrigatorio": [
+                  "pode aprender",
+                  "baseline estabelecid"
+                ],
+                "n2_proibido": []
+              },
+              "placebo": {
+                "decisao": "orientar",
+                "passos": 15,
+                "tokens": 32904,
+                "justificativa": "A evidência mostra que o modelo tem suporte ao tipo motor_dc, mas não pode aprender baseline (can_learn_baseline=false) e o baseline está em aprendizado permanente, o que impede a detecção por desvio. O estado de processamento atrasado indica apenas atraso nas análises, sem impedir o monitoramento sintomático.",
+                "n1_obrigatorio": [],
+                "n1_proibido": [
+                  "can_learn_baseline=false",
+                  "baseline\\.state=learning"
+                ],
+                "n2_obrigatorio": [
+                  "pode aprender"
+                ],
+                "n2_proibido": [
+                  "sintom[áa]t",
+                  "n[ãa]o pode aprender",
+                  "aprendizado permanente"
+                ]
+              }
+            }
+          }
+        ],
+        "n1": 4,
+        "n2": 3,
+        "placebo": 0,
+        "total": 4,
+        "execucoes": 12
+      }
+    }
+  ]
+}
