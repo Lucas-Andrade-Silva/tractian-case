@@ -289,7 +289,7 @@ function cardRms(a, seeds, i) {
       ${r.alarm != null ? `<span><i class="key dash" style="border-top-color:var(--crit)"></i>Alarme ${num(r.alarm)} mm/s</span>` : ""}
     </div>`;
     if (r.alarm == null) {
-      html += `<p class="note">Baseline em <b>${esc(ESTADO[r.state] || r.state)}</b>: sem <code>reference + tolerance</code>, a API não devolve <code>alarm_threshold</code> e o gráfico não desenha linha de alarme. A série sozinha não diz se está alta.</p>`;
+      html += `<p class="note">Baseline em <b>${esc(ESTADO[r.state] || r.state)}</b>: sem limiar derivado, o gráfico não desenha linha de alarme.</p>`;
     } else if (ultimo >= r.alarm) {
       html += `<p class="note">Última leitura <b>${num(ultimo)} mm/s</b> cruzou o limiar de <b>${num(r.alarm)}</b> &mdash; ${num(((ultimo / r.alarm) - 1) * 100, 0)}% acima.</p>`;
     }
@@ -602,10 +602,8 @@ function secaoAgente(a) {
   let html = `<div class="divider">A solução &mdash; agente de suporte${
     experimento ? ` <span class="fase-tag">fase ${esc(m.fase)}</span>` : ""}</div>`;
   if (experimento) {
-    html += `<p class="fase-aviso">Esta página está exibindo a bateria
-      <code>${esc(m.fase)}</code>, não a produção. Os deltas de custo comparam contra
-      <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.
-      Rode <code>make leitura-dados</code> sem variáveis para voltar ao padrão.</p>`;
+    html += `<p class="fase-aviso">Bateria <code>${esc(m.fase)}</code>, não a produção. Deltas contra
+      <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.</p>`;
   }
 
   if (!cenarios.length) {
@@ -633,18 +631,13 @@ function secaoAgente(a) {
     <div class="chips"><span class="chip ${degradou.length ? "warn" : ""}">${
       degradou.length ? `${degradou.length} de 4 recursos degradam` : "dado idêntico nas 3 seeds"}</span></div></div>
     <p class="cen-q">${degradou.length
-      ? `Neste ativo, a API entrega <b>${degradou.map((r) => NOME_REC[r]).join(", ")}</b> em modos
-         diferentes conforme a seed &mdash; o agente enfrentou dados distintos em cada execução.
-         Quando as três decisões coincidem, é estabilidade sob degradação, não repetição:
-         as execuções são independentes (custo e trajetória variam entre elas).`
-      : `Neste ativo os quatro recursos vêm no mesmo modo nas três seeds, então as três
-         execuções viram o mesmo dado. A repetição aqui mede variação do próprio modelo,
-         não robustez a dado faltante.`}</p>
-    <p class="note">Os <b>valores</b> de RMS nunca mudam por seed &mdash; vêm do histórico do ativo.
-      A seed decide a <b>disponibilidade</b>: completo, parcial, inconclusivo ou indisponível.
-      Por isso seeds que caem no mesmo modo devolvem a mesma série &mdash; e a página as junta
-      num card só, com as seeds no título, em vez de repetir o gráfico. Onde a leitura
-      difere, o card se separa e diz o que aquela seed entregou.</p>
+      ? `A API entrega <b>${degradou.map((r) => NOME_REC[r]).join(", ")}</b> em modos diferentes
+         conforme a seed: cada execução viu um dado distinto. Decisões iguais aqui são
+         estabilidade, não repetição.`
+      : `Os quatro recursos vêm no mesmo modo nas três seeds. A repetição mede variação do
+         modelo, não robustez a dado faltante.`}</p>
+    <p class="note">A seed muda a <b>disponibilidade</b>, nunca os valores. Seeds no mesmo
+      modo dividem um card só.</p>
   </section>`;
 
   /* Um ativo com quatro cenarios rendia oito cards abertos de uma vez, e a tela virava
@@ -735,9 +728,7 @@ function vereditoAoVivo(r) {
       <span>${esc(DIMENSAO[dim] || dim)}</span>
       <span class="juiz-n">${v.score}<small>/5</small></span>
     </div>`).join("")}
-    <p class="juiz-nota">Média ${num(media, 1)}/5 contra um gabarito que um LLM escreveu a
-      partir desta mensagem &mdash; não contra gabarito humano. Nunca entra nas métricas dos
-      ${AGENTE.cobertura?.casos_total ?? 17} casos (ADR 0007).</p>
+    <p class="note">Média ${num(media, 1)}/5 contra gabarito de LLM, não humano (ADR 0007).</p>
   </div>`;
 }
 
@@ -745,8 +736,7 @@ function cardConsulta(a) {
   return `<section class="card" id="consulta">
     <div class="card-hd"><h2>Perguntar ao agente sobre este ativo</h2>
     <div class="chips"><span class="chip">execução ao vivo</span></div></div>
-    <p class="cen-q">O mesmo grafo dos cenários da bateria, sobre a API real.
-      Medido nas execuções já registradas: <b>mediana de ~75 s</b>, e uma em cada dez passa de 3 minutos.</p>
+    <p class="cen-q">O mesmo grafo da bateria, sobre a API real. Mediana de ~75&nbsp;s.</p>
     <div class="ask">
       <input id="q" type="text" placeholder="O que você observou neste ativo?" aria-label="Pergunta sobre ${esc(a.name)}">
       <select id="quem" aria-label="Quem está perguntando"></select>
@@ -756,7 +746,7 @@ function cardConsulta(a) {
       <span>Julgar a resposta com o comitê <b>·</b> soma ~30 s e três chamadas de LLM</span></label>
     <div class="hints">${sugestoes(a).map((s) => `<button class="hint" type="button">${esc(s)}</button>`).join("")}</div>
     <div id="saida"></div>
-    <p class="synth">A resposta desta consulta é avaliada como <b>sintética</b> (ADR 0007) e nunca entra nas métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos da bateria &mdash; um caso tem gabarito escrito à mão, uma pergunta livre não.</p>
+    <p class="synth">Avaliação <b>sintética</b> (ADR 0007): fora das métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos.</p>
   </section>`;
 }
 
@@ -802,9 +792,7 @@ function desenhaRegistrados(a, lista) {
     <div class="card-hd"><h2>Cenários registrados neste ativo</h2>
       <div class="chips"><span class="chip">${lista.length} ${lista.length === 1 ? "registrado" : "registrados"}</span>
         <span class="chip warn"><span class="dot"></span>sintético</span></div></div>
-    <p class="cen-q">Consultas livres que alguém nomeou para ficarem visíveis aqui. Não têm
-      <code>expected_path</code> escrito à mão, então <b>não entram</b> nas métricas dos
-      ${AGENTE.cobertura?.casos_total ?? 17} casos da bateria (ADR 0007).</p>
+    <p class="cen-q">Consultas livres marcadas para ficar visíveis. Fora das métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos (ADR 0007).</p>
     ${lista.map((c) => cartaoRegistrado(c)).join("")}`;
 
   alvo.querySelectorAll("[data-desreg]").forEach((el) => {
@@ -895,10 +883,7 @@ function blocoVeredito() {
       <button class="btn ghost" data-vh="0">Não</button>
       <input id="vh-txt" type="text" maxlength="600" placeholder="Por quê? (opcional)" aria-label="Justificativa do veredito">
     </div>
-    <p class="note">É a única nota deste sistema que não vem de um LLM &mdash; e por isso a
-      única que poderia calibrar o comitê, que hoje ordena execuções sem estar aferido
-      contra anotação humana. <b>Não volta para o agente</b>: uma nota que realimenta o
-      sistema que ela mede deixa de medi-lo.</p>
+    <p class="note">Única nota que não vem de um LLM. Não volta para o agente.</p>
   </div>`;
 }
 
@@ -1393,13 +1378,10 @@ function corpoJuizModelo() {
     return `<p class="eng-esp">carregando os modelos disponíveis no OpenRouter…</p>`;
   }
   if (!JUIZ.chaveOk) {
-    return `<p>Sem <code>JUDGE_API_KEY</code> no <code>.env</code>: o comitê não roda, e a
-      escolha de modelo não teria efeito. A camada 1 (comparação com o gabarito) não é
-      afetada &mdash; ela não usa LLM.</p>`;
+    return `<p>Sem <code>JUDGE_API_KEY</code> no <code>.env</code>: o comitê não roda.</p>`;
   }
   if (!JUIZ.modelos.length) {
-    return `<p>O OpenRouter não devolveu modelos gratuitos com saída estruturada agora.
-      O comitê usa o padrão do <code>.env</code>.</p>`;
+    return `<p>Nenhum modelo gratuito disponível agora; vale o padrão do <code>.env</code>.</p>`;
   }
 
   const padrao = (JUIZ.dimensoes[0] || {}).padrao || "";
@@ -1407,20 +1389,16 @@ function corpoJuizModelo() {
     m.id === JUIZ.escolhido ? " selected" : ""}>${esc(m.id)}${
     m.descricao ? ` — ${esc(m.descricao)}` : ""}</option>`).join("");
 
-  return `<p>Quem julga a resposta do agente nas três dimensões do comitê. Só modelos
-      <code>:free</code> que declaram saída estruturada entram na lista &mdash; sem isso a
-      nota volta em prosa e o comitê quebra depois de já ter gasto a chamada.</p>
+  return `<p>Quem julga a resposta nas três dimensões. Só modelos <code>:free</code> com
+      saída estruturada.</p>
     <div class="eng-lin">
       <select class="juiz-sel" id="sel-juiz">
         <option value=""${JUIZ.escolhido ? "" : " selected"}>padrão do .env — ${esc(padrao)}</option>
         ${opcoes}
       </select>
     </div>
-    <p class="eng-esp">Vale para a aba <b>Holdout ao vivo</b>, quando o comitê está ligado.
-      Um modelo menor responde mais rápido e gasta menos cota, mas julga pior &mdash; e a
-      nota de juiz já serve para <i>ordenar</i> execuções, não para medir acerto. Trocar o
-      juiz entre execuções torna as notas incomparáveis: a procedência de cada uma fica
-      registrada junto da nota, no resultado.</p>`;
+    <p class="eng-esp">Modelo menor: mais rápido, julga pior. Trocar entre execuções torna
+      as notas incomparáveis.</p>`;
 }
 
 /* Busca o catalogo uma vez por sessao. A chamada ao OpenRouter leva alguns segundos e o
@@ -1465,13 +1443,9 @@ function corpoConfiguracao() {
 
     <div class="eng-s">
       <h3>Retorno humano</h3>
-      <p>Depois de cada consulta ao vivo, perguntar se a decisão do agente estava certa.
-        A resposta fica gravada com a consulta e <b>não volta para o agente</b> &mdash;
-        uma nota que realimenta o sistema que ela mede deixa de medi-lo.</p>
-      <p>Serve a quem está usando a página para avaliar, não a quem só quer a leitura do
-        ativo. Por isso é uma escolha, e vem desligada. É também o único rótulo não-LLM
-        deste sistema: sem ele, o comitê de juízes continua ordenando execuções sem estar
-        aferido contra ninguém.</p>
+      <p>Pergunta, depois de cada consulta, se a decisão estava certa. A resposta fica
+        gravada e <b>não volta para o agente</b>.</p>
+      <p>Único rótulo não-LLM do sistema. Vem desligado.</p>
       <div class="eng-lin">
         <button class="sw" id="sw-retorno" aria-pressed="${retorno}">${retorno ? "Pedindo veredito" : "Pedir veredito nas consultas"}</button>
       </div>
@@ -1479,8 +1453,7 @@ function corpoConfiguracao() {
 
     <div class="eng-s">
       <h3>Política de evidência</h3>
-      <p>O que o Investigador apura antes de encerrar. É variável de experimento: as duas
-        são defensáveis, e qual rende melhor recall por token é medição, não opinião.</p>
+      <p>O que o Investigador apura antes de encerrar.</p>
       <div class="pol">${["fixed", "conditional"].map((pol, i) => {
         // A fase que roda esta política. `baseline` e `pos-correcao` rodam as duas
         // `fixed`; o card deve levar à produção, não à versão anterior do agente.
@@ -1512,38 +1485,26 @@ function corpoConfiguracao() {
           ${rodape}
         </div>`;
       }).join("")}</div>
-      <p style="margin-top:9px"><b>Duas medições, sinais opostos de custo</b>. O EXP-02
-        (6 pares) viu <code>conditional</code> gastando 8% <i>menos</i>; o EXP-06 (18 pares,
-        as três famílias de caso) vê <b>13% mais</b> — e mais chamadas, mais GETs, em todas
-        as famílias, inclusive a conceitual, que era onde ela deveria economizar.</p>
-      <p>A repetição de chamadas sai de <b>zero</b> em <code>fixed</code> para 3,4%: sem a
-        lista fixa dos quatro pilares, o Investigador perde o critério de parada e reconsulta
-        para decidir que terminou.</p>
-      <p><b>A decisão não muda</b> — 18/18 nos dois braços, zero divergências par a par. É o
-        achado que se repete nos dois experimentos: a política afeta custo, não desfecho.
-        Detalhes e limitações no EXP-05 de <code>solution/docs/EXPERIMENTOS.md</code>.</p>
+      <p style="margin-top:9px"><b>Sinais opostos.</b> O EXP-02 (6 pares) viu
+        <code>conditional</code> 8% <i>mais barata</i>; o EXP-06 (18 pares) viu <b>13% mais
+        cara</b>, em todas as famílias.</p>
+      <p>A decisão não muda: 18/18 nos dois braços. A política afeta custo, não desfecho.</p>
     </div>
 
     <div class="eng-s">
       <h3>Metodologia</h3>
-      <p><b>Três camadas.</b> A camada 1 mede a trajetória contra o <code>expected_path</code>
-        escrito à mão; a camada 2 compara a decisão com as <code>decisoes_aceitas</code>;
-        a camada 3 mede estabilidade entre as três seeds da mesma execução.</p>
-      <p><b>Duas fases.</b> <code>baseline</code> e <code>pos-correcao</code> rodaram os mesmos
-        ${AGENTE.agregados?.execucoes ?? 51} pares caso × seed, com a mesma configuração de
-        modelos &mdash; o que mudou foram os prompts. A tabela abaixo compara a bateria
-        exibida (<code>${esc((AGENTE.meta || {}).fase || "pos-correcao")}</code>) contra
-        <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>, que é o par que
-        <code>montar_indice.py</code> escolheu para ela — troque a fase para ver outro par.</p>
+      <p><b>Três camadas.</b> Trajetória contra <code>expected_path</code>; decisão contra
+        <code>decisoes_aceitas</code>; estabilidade entre as três seeds.</p>
+      <p><b>Fases.</b> Mesmos ${AGENTE.agregados?.execucoes ?? 51} pares caso × seed, mesma
+        configuração de modelos; mudaram os prompts. Abaixo,
+        <code>${esc((AGENTE.meta || {}).fase || "pos-correcao")}</code> contra
+        <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.</p>
       ${blocoExperimento()}
-      <p style="margin-top:10px"><b>Comitê de juízes.</b> ${jm.julgadas ?? 0} de
-        ${jm.elegiveis ?? 0} execuções julgadas, todas da fase <code>baseline</code>, por
-        <code>${esc(jm.modelo || "—")}</code> no OpenRouter. O juiz roda sempre em provedor
-        diferente do gerador do gabarito, para que nenhum modelo julgue a si mesmo.
-        Não é calibrado contra anotação humana: ordena execuções, não mede acerto.</p>
-      <p><b>Fronteira sintética (ADR 0007).</b> Consultas livres nunca entram nas métricas
-        dos ${AGENTE.cobertura?.casos_total ?? 17} casos: um caso tem gabarito escrito à mão,
-        uma pergunta livre tem uma questão de referência que um LLM escreveu depois.</p>
+      <p style="margin-top:10px"><b>Comitê.</b> ${jm.julgadas ?? 0} de ${jm.elegiveis ?? 0}
+        execuções julgadas por <code>${esc(jm.modelo || "—")}</code>, todas da fase
+        <code>baseline</code>. Sem calibração humana.</p>
+      <p><b>Fronteira sintética (ADR 0007).</b> Consulta livre não entra nas métricas dos
+        ${AGENTE.cobertura?.casos_total ?? 17} casos: gabarito à mão de um lado, LLM do outro.</p>
     </div>`;
 }
 
@@ -1824,17 +1785,13 @@ function corpoExperimentos() {
 
   return `
     <div class="eng-s xp-topo">
-      <p>Navegue pelas amostras e confira cada veredito por conta própria: os placares são
-        recontados dos traces em disco, não escritos à mão.</p>
+      <p>Placares recontados dos traces em disco.</p>
     </div>
     <div class="eng-s"><div class="xp">${itens}</div></div>
     <div class="eng-s">
       <h3>O que nenhum deles prova</h3>
-      <p>Dados sintéticos, 17 casos de material fictício, um único conjunto de modelos a
-        <code>temperature=0</code>. As amostras são pequenas — o EXP-01 convive com
-        p&nbsp;≈&nbsp;0,125 e o EXP-06 tem quatro casos. São demonstrações de mecanismo,
-        não estimativas de taxa. Só o EXP-06 foi pré-registrado; os outros foram
-        reconstruídos sobre execuções que já existiam.</p>
+      <p>Dados sintéticos, amostras pequenas (o EXP-01 convive com p&nbsp;≈&nbsp;0,125).
+        Demonstram mecanismo, não estimam taxa. Só o EXP-06 foi pré-registrado.</p>
     </div>`;
 }
 
@@ -1941,9 +1898,7 @@ function holdJuizes(vereditos, modelos) {
     </div>
     <div class="hd-ver-b">
       ${notas}
-      <p class="hd-jz-av">Nota de juiz ordena execuções; não mede acerto. O comitê não é
-        calibrado contra anotação humana, e roda em provedor diferente do que gerou a
-        resposta &mdash; nenhum modelo julga a si mesmo.</p>
+      <p class="hd-jz-av">Ordena execuções; não mede acerto. Sem calibração humana.</p>
     </div>
   </div>`;
 }
@@ -2020,13 +1975,11 @@ function holdVeredito(v) {
       ${consultas ? `<p style="margin-bottom:5px"><b>Evidência que o cenário exige:</b></p>${consultas}` : ""}
       ${(v.consultas_extras || []).length
         ? `<p style="margin-top:9px; color:var(--ink-3)">Além do gabarito:
-           <code>${v.consultas_extras.map(esc).join("</code>, <code>")}</code> &mdash;
-           consulta a mais não reprova, mas custa tokens.</p>` : ""}
+           <code>${v.consultas_extras.map(esc).join("</code>, <code>")}</code></p>` : ""}
       ${holdAcoes(v)}
       ${escalou404
-        ? `<p style="margin-top:9px; color:var(--ink-3)">O <code>404</code> no escalonamento é
-           esperado: nenhum cenário do holdout existe em <code>cases.parquet</code>, então a API
-           recusa mesmo com a permissão correta. É limitação do ambiente, não decisão errada.</p>`
+        ? `<p style="margin-top:9px; color:var(--ink-3)">O <code>404</code> é do ambiente:
+           nenhum cenário do holdout existe em <code>cases.parquet</code>.</p>`
         : ""}
       <div class="hd-mets">
         <div class="hd-met"><b>${((v.recall_evidencia ?? 0) * 100).toFixed(0)}%</b>recall de evidência</div>
@@ -2055,17 +2008,8 @@ function holdCorpo() {
   }).join("");
 
   return `<div class="eng-s">
-    <h3>Como esta aba funciona</h3>
-    <p>Os oito cenários do <b>holdout</b> nunca entraram no ajuste do agente &mdash; foram
-      escritos depois e reservados para o teste final. Escolha um: o agente recebe a mensagem
-      do cliente exatamente como receberia em produção, e cada consulta que ele faz à API
-      industrial aparece abaixo <b>enquanto acontece</b>.</p>
-    <p>O gabarito fica escondido até ele terminar. Só depois da resposta final é que a
-      trajetória esperada e a resolução aceita aparecem, para comparação. O agente não sabe
-      que está sendo observado &mdash; roda com os mesmos prompts e o mesmo grafo da bateria.</p>
-  </div>
-  <div class="eng-s">
-    <h3>Cenários</h3>
+    <p class="hd-intro">Oito cenários reservados para o teste final &mdash; o agente nunca os
+      viu. Cada consulta à API aparece enquanto acontece; o gabarito, só no fim.</p>
     <div class="hd-grid">
       <div class="hd-cen">${cards}</div>
       <div class="hd-pal" id="hd-pal">${holdPainel()}</div>
@@ -2077,10 +2021,7 @@ function holdCorpo() {
    cenario escolhido com o botao de executar. Selecionar e executar sao dois gestos
    separados de proposito — o segundo gasta uma chamada de LLM, e a cota e finita. */
 function holdPainel() {
-  if (!HOLD.atual) {
-    return `<div class="hd-vazio">
-      Escolha um cenário à esquerda para ver o que o agente vai receber.</div>`;
-  }
+  if (!HOLD.atual) return `<div class="hd-vazio">Escolha um cenário</div>`;
   const c = HOLD.cenarios.find((x) => x.id === HOLD.atual);
   if (!c) return `<div class="hd-vazio">cenário não encontrado</div>`;
   const feito = HOLD.feitos[c.id];
@@ -2099,14 +2040,8 @@ function holdPainel() {
         <span>avaliar também com o comitê de juízes${
           HOLD.julgar && JUIZ.escolhido ? ` <code class="hd-chk-m">${esc(JUIZ.escolhido)}</code>` : ""}</span></label>
     </div>
-    <p class="hd-prev-n">É isto que o agente recebe &mdash; nada além. A execução é real:
-      ele consulta a API industrial de verdade e gasta cota do provedor. O gabarito
-      aparece só quando ele terminar.${
-        feito ? " Este cenário já rodou nesta sessão; rodar de novo sobrescreve o resultado." : ""}</p>
-    <p class="hd-prev-n">O <b>comitê de juízes</b> é a camada 2: três modelos avaliam a
-      resposta em honestidade, causa raiz e justificativa &mdash; o que a comparação com o
-      gabarito não alcança. Custa três chamadas a mais, num provedor diferente do que gerou
-      a resposta, e leva alguns segundos depois do veredito.</p>
+    <p class="hd-prev-n">Execução real: consulta a API e gasta cota.${
+        feito ? " Rodar de novo sobrescreve o resultado." : ""}</p>
   </div>`;
 }
 
@@ -2246,8 +2181,7 @@ function holdRoda(caseId) {
       document.querySelector(".hd-bar")?.remove();
       /* O comitê é opcional: falhar nele não invalida a camada 1, que já está na tela. */
       log.insertAdjacentHTML("beforeend", `<div class="hd-jz-erro">
-        Não foi possível julgar: ${esc(ev.mensagem || "")}.<br>
-        A comparação com o gabarito acima não é afetada — ela não depende de LLM.</div>`);
+        Não foi possível julgar: ${esc(ev.mensagem || "")}</div>`);
       log.scrollTop = log.scrollHeight;
       encerra();
       return;
@@ -2332,8 +2266,7 @@ function ligarHoldout() {
   };
 
   ligaDica(abrir, `<span class="dica-t">holdout ao vivo</span>
-    <p>Oito cenários que o agente nunca viu, resolvidos na sua frente: cada consulta à API
-    aparece enquanto acontece, e o gabarito só é revelado no fim.</p>`);
+    <p>Oito cenários que o agente nunca viu, resolvidos na sua frente.</p>`);
   abrir.addEventListener("click", abre);
   document.getElementById("hold-x").addEventListener("click", fecha);
   cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
@@ -2410,8 +2343,7 @@ function ligarExperimentos() {
   };
 
   ligaDica(abrir, `<span class="dica-t">experimentos</span>
-    <p>Cinco hipóteses, cada uma com as execuções reais que a testaram — dá para navegar
-    pelas amostras e conferir o veredito. Os números vêm dos traces em disco.</p>`);
+    <p>Cinco hipóteses com as execuções que as testaram.</p>`);
   abrir.addEventListener("click", abre);
   document.getElementById("exp-x").addEventListener("click", fecha);
   cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
@@ -2478,8 +2410,7 @@ function ligarConfiguracao() {
   };
 
   ligaDica(abrir, `<span class="dica-t">configuração</span>
-    <p>Tema e paleta, a política de evidência que a bateria usou, e a metodologia das três
-    camadas com os números das duas fases.</p>`);
+    <p>Tema, política de evidência e metodologia.</p>`);
   ligarDicas(abrir.parentElement);
   abrir.addEventListener("click", abre);
   document.getElementById("eng-x").addEventListener("click", fecha);
@@ -2521,9 +2452,7 @@ function atualizaProcedencia(origem) {
     `Resultados do agente: bateria <code>${esc(m.fase || "pos-correcao")}</code>, ` +
     `${nesta} execuções${falhas ? ` (${falhas} interrompidas por cota do provedor)` : ""}` +
     `${m.gerado_em ? `, indexadas em ${esc(String(m.gerado_em).slice(0, 16).replace("T", " "))}` : ""}.<br>` +
-    `Cada seed é uma condição de dado diferente: a API decide o modo de resposta por ` +
-    `<code>hash(seed | recurso | categoria)</code>, então o mesmo ativo pode vir completo numa ` +
-    `seed e indisponível noutra. É essa variação que o agente enfrentou.`;
+    `A seed decide o modo de resposta por <code>hash(seed | recurso | categoria)</code>.`;
 }
 
 /* ---------------- esqueleto de carregamento ----------------

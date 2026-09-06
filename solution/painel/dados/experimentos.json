@@ -13,7 +13,7 @@
       "n": "51 pares",
       "veredito": "sustentada",
       "fonte": "documento",
-      "estado": "concluído · Fase dos dados: baseline × pos-correcao · n = 102 execuções",
+      "estado": "Concluído · baseline × pos-correcao · 51 pares · 2026-09-04",
       "resumo": "4 correções, 0 regressões de decisão — mas p ≈ 0,125, e duas execuções pioraram em ação executada. É o único rodado sobre a bateria inteira.",
       "na_pagina": "A tabela baseline → pós-correção, em Configuração ▸ Metodologia, é este experimento.",
       "explorador": {
@@ -1226,7 +1226,7 @@
       "n": "19 pares",
       "veredito": "refutada",
       "fonte": "documento",
-      "estado": "concluído, inconclusivo quanto ao desfecho primário · n = 12 execuções",
+      "estado": "Concluído, inconclusivo no desfecho primário · 6 pares · 2026-09-04",
       "resumo": "Decisão idêntica em todos os pares, nas duas medições. O EXP-02 mediu 6 pares e o EXP-05 repetiu a comparação na bateria completa; a amostra acima é a do EXP-05, recontada do bundle. `conditional` não economizou: gastou mais tokens sem mudar um só desfecho.",
       "na_pagina": "O seletor de política de evidência, em Configuração, alterna as duas.",
       "explorador": {
@@ -1688,7 +1688,7 @@
       "n": "7 casos de 403",
       "veredito": "sustentada",
       "fonte": "documento",
-      "estado": "concluído · n = 102 execuções (5 encontros com 403)",
+      "estado": "Concluído · 102 execuções (5 encontros com 403) · 2026-09-04",
       "resumo": "5/5 sem insistir e 5/5 explicando a recusa. Sem grupo de controle: mede que funciona, não que funciona melhor que bloquear em código.",
       "na_pagina": "Troque o usuário na consulta ao vivo e peça uma ação acima da permissão dele.",
       "explorador": {
@@ -1873,7 +1873,7 @@
       "n": "172 execuções",
       "veredito": "sustentada",
       "fonte": "derivado",
-      "estado": "concluído · n = 102 execuções · Dados: painel/dados/bundle.json",
+      "estado": "Concluído · 102 execuções · 2026-09-04",
       "resumo": "1,00 chamada por execução e nenhuma consulta de API pelo Decisor. Custo previsível por construção, não por sorte. O documento mediu 102 execuções; o número acima é recontado do bundle a cada geração.",
       "na_pagina": "As barras por papel, em cada ativo, mostram o Decisor sempre com uma chamada.",
       "derivado": {
@@ -4250,7 +4250,7 @@
       "n": "12 execuções",
       "veredito": "sustentada",
       "fonte": "derivado",
-      "estado": "concluído, hipótese sustentada (3/4 no desfecho primário, 0/4 no placebo)",
+      "estado": "Concluído, hipótese sustentada (3/4 no primário, 0/4 no placebo) · 12 execuções · Pré-registrado em 2026-09-05 · Rodado em 2026-09-06",
       "resumo": "O único pré-registrado: as previsões foram commitadas antes da coleta. Muta o campo que o gabarito chama de decisivo e mede se o agente acompanha.",
       "na_pagina": "Os quatro casos abaixo, com o critério de verificação ao lado de cada veredito.",
       "derivado": {
@@ -4562,7 +4562,7 @@
       "n": "51 pares",
       "veredito": "refutada",
       "fonte": "derivado",
-      "estado": "concluído, hipótese refutada na parte que importa · n = 51 pares",
+      "estado": "Concluído, hipótese refutada na parte que importa · pos-correcao × fixed-atual · 51 pares · Rodado e registrado em 2026-09-06",
       "resumo": "A economia veio (-15.5% em tokens), a acurácia não: 3 regressões e 0 correções, 48/51 → 45/51. As regressões caem todas em `orientar` — o atrator que o EXP-01 corrigiu — e com recall de evidência 1,00: não faltou dado, a decisão mudou. É a configuração que está em produção.",
       "na_pagina": "É a fase que a página exibe por padrão; o delta de custo aparece em cada ativo.",
       "derivado": {
