@@ -59,7 +59,9 @@ def le_csv() -> list[dict[str, str]]:
         return list(csv.DictReader(fh, delimiter=";"))
 
 
-def faltantes(fase: str, incluir_falhas: bool = True) -> list[tuple[str, str, str]]:
+def faltantes(
+    fase: str, incluir_falhas: bool = True, *, por_seed: bool = False
+) -> list[tuple[str, str, str]]:
     """Combinações (case_id, ticket_id, seed) que ainda não têm resultado nesta fase.
 
     Uma execução que quebrou por cota conta como pendente, não como preenchida: ela ocupa a
@@ -75,12 +77,18 @@ def faltantes(fase: str, incluir_falhas: bool = True) -> list[tuple[str, str, st
     # O universo de casos vem do CSV inteiro: são os cenários que a bateria cobre.
     casos = {l["case_id"]: l["ticket"] for l in linhas}
 
-    return [
+    pendentes = [
         (case_id, ticket, seed)
         for case_id, ticket in sorted(casos.items())
         for seed in SEEDS
         if (case_id, seed) not in presentes
     ]
+    if por_seed:
+        # Uma seed inteira antes da proxima: numa bateria que pode parar por cota no meio,
+        # isso deixa um recorte COMPLETO dos 17 cenarios em vez de um pedaco de cada seed.
+        # Um recorte completo ja compara com as outras fases; um pedaco de cada, nao.
+        pendentes.sort(key=lambda item: (SEEDS.index(item[2]), item[0]))
+    return pendentes
 
 
 def main() -> int:
@@ -90,6 +98,12 @@ def main() -> int:
     # conhecer de antemao — a fase vem do CSV e vai gravada no proprio trace.
     parser.add_argument("--fase", default="pos-correcao")
     parser.add_argument("--listar", action="store_true", help="Só lista o que falta")
+    parser.add_argument(
+        "--ordem",
+        choices=("caso", "seed"),
+        default="caso",
+        help="'seed' roda uma seed inteira (os 17 cenários) antes de passar à próxima",
+    )
     parser.add_argument(
         "--politica",
         help="EVIDENCE_POLICY da reposição (padrão: a do .env, ou o nome da fase quando "
@@ -104,7 +118,7 @@ def main() -> int:
     parser.add_argument("--tentativas", type=int, default=2, help="Novas tentativas após 429")
     args = parser.parse_args()
 
-    pendentes = faltantes(args.fase)
+    pendentes = faltantes(args.fase, por_seed=args.ordem == "seed")
     if not pendentes:
         print(f"Fase '{args.fase}' já está completa: 17 cenários × 3 seeds.")
         return 0

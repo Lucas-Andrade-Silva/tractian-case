@@ -1,4 +1,4 @@
-"""Configuração do agente, lida do ambiente (agent/.env).
+"""Configuração do agente, lida do ambiente (.env na raiz do repositório).
 
 O provedor de LLM é resolvido em `llm.py`; aqui só guardamos os valores brutos para
 que nada mais no código precise ler `os.environ` diretamente.
@@ -16,9 +16,12 @@ AGENT_DIR = Path(__file__).resolve().parent.parent
 # material do parceiro (`agent-input/`, `eval/`, `data/`). Uma constante só para as duas
 # voltaria a confundir os donos assim que uma delas mudar de lugar.
 SOLUTION_DIR = AGENT_DIR.parent
-TRACTIAN_DIR = SOLUTION_DIR.parent / "tractian"
+REPO_DIR = SOLUTION_DIR.parent
+TRACTIAN_DIR = REPO_DIR / "tractian"
 
-load_dotenv(AGENT_DIR / ".env")
+# O .env fica na raiz, e não em agent/: agente, painel e evaluation leem as mesmas
+# chaves, e um arquivo por subprojeto significaria manter a mesma chave em três lugares.
+load_dotenv(REPO_DIR / ".env")
 
 # Papéis que podem ter modelo próprio, via MODEL_<PAPEL> no .env.
 ROLES = ("supervisor", "investigador", "contextualizador", "decisor", "executor")

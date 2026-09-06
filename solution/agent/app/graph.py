@@ -16,6 +16,8 @@ o orçamento, o papel é chamado SEM tools, o que o obriga a produzir texto e en
 """
 from __future__ import annotations
 
+import re
+
 from typing import Any, Callable
 
 from langchain_core.messages import (
@@ -41,17 +43,28 @@ from .state import CaseState, Decision, Route
 from .trace import Trace
 
 
+# Bloco de raciocínio que alguns modelos emitem no PRÓPRIO conteúdo, em vez de num campo
+# separado. Precisa sair antes de o texto virar `finding`: medido no TKT-EXE-13, um bloco
+# de ~1.000 tokens de rascunho ("Here's a thinking process... Let's refine to match the
+# format") entrou no resumo do Investigador e foi reenviado ao Decisor, custando +35% no
+# caso. O `(?s)` faz o `.` casar quebra de linha; o fechamento e opcional porque o corte
+# por `max_tokens` interrompe o bloco no meio — e e justamente ai que o vazamento ocorre.
+_BLOCO_RACIOCINIO = re.compile(r"(?s)<(think|thinking|reasoning)>.*?(</\1>|$)")
+
+
 def _text(message: AnyMessage) -> str:
-    """Extrai texto de uma mensagem, tolerando provedores que devolvem blocos."""
+    """Texto util da mensagem, sem o rascunho de raciocinio e tolerando blocos."""
     content = getattr(message, "content", "")
     if isinstance(content, str):
-        return content.strip()
+        return _BLOCO_RACIOCINIO.sub("", content).strip()
     parts = [
         block.get("text", "")
         for block in content
+        # `reasoning`/`thinking` sao blocos de rascunho quando o provedor os separa
+        # por tipo; so `text` e resposta.
         if isinstance(block, dict) and block.get("type") == "text"
     ]
-    return "\n".join(p for p in parts if p).strip()
+    return _BLOCO_RACIOCINIO.sub("", "\n".join(p for p in parts if p)).strip()
 
 
 def _tool_results(scratch: list[AnyMessage]) -> list[AnyMessage]:
@@ -164,6 +177,11 @@ def build_graph(
         getter = getattr(models, "for_role", None)
         return getter(role) if getter else models
 
+    def llm_para_transcrever(role: str):
+        """Cliente sem raciocinio, para o retry que so precisa redigir o resumo."""
+        getter = getattr(models, "for_transcription", None)
+        return getter(role) if getter else llm_for(role)
+
     # -- Supervisor -------------------------------------------------------
     def supervisor(state: CaseState) -> dict[str, Any]:
         client.current_agent = "supervisor"
@@ -259,9 +277,11 @@ def build_graph(
             # consultada e está no scratch: o que falta é só redigi-la. Pede-se de novo,
             # sem tools e sem o scratch — o transcrito é o que estourou o orçamento, e
             # reenviá-lo faria a segunda tentativa ser cortada igual. As respostas das
-            # tools que importam já passaram pelo modelo na volta anterior.
+            # tools que importam já passaram pelo modelo na volta anterior. E o retry vai
+            # SEM raciocínio: com ele ligado, a segunda tentativa gasta o mesmo orçamento
+            # pensando e é cortada também — medido no TKT-EXE-13.
             if not summary and _foi_truncado(response):
-                retry = role_llm.invoke(
+                retry = llm_para_transcrever(role).invoke(
                     [
                         SystemMessage(prompt_fn(case)),
                         HumanMessage(_findings_block(state.get("findings", []))),

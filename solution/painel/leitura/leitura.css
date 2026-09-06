@@ -48,7 +48,11 @@
    O azul e o acento da marca (barra de navegacao e botoes primarios do produto);
    o plano vai a branco/cinza-frio. A geometria nao muda: so as cores. */
 :root[data-brand="tractian"]{
-  --plane:#eef2f7; --surface:#ffffff; --surface-2:#f5f8fc;
+  /* --surface era #ffffff. Branco puro num painel lido por turnos longos vira o unico
+     ponto sem temperatura da tela: os cards saltam do plano por brilho em vez de por
+     regua, e o contraste com --plane fica maior do que a hierarquia pede. #fcfdfe
+     mantem os cards como a camada mais clara, na mesma familia fria do resto. */
+  --plane:#eef2f7; --surface:#fcfdfe; --surface-2:#f5f8fc;
   --ink:#0d1b2a; --ink-2:#41546b; --ink-3:#617082; /* AA sobre as tres superficies claras */
   --rule:#dde5ee; --rule-2:#c2cedd; --hair:rgba(13,27,42,.10);
   --accent:#1461b8;
@@ -266,6 +270,26 @@ details.data summary:hover{color:var(--ink-2)}
 /* cabecalho do cenario */
 .cen-hd{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
 .cen-hd h3{margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em}
+
+/* Cada cenario e um acordeao: o cabecalho e o botao, o resto nasce fechado.
+   O `.cen-tg` e um <button>, entao precisa desfazer o estilo de botao do agente
+   do usuario para continuar identico ao cabecalho que era uma <div>. */
+.cens{display:flex; flex-direction:column; gap:16px}
+.cen-tg{
+  width:100%; text-align:left; background:none; border:0; padding:0; margin:0;
+  color:inherit; font:inherit; cursor:pointer;
+}
+.cen-tg:hover h3{color:var(--accent)}
+.cen-tg:focus-visible{outline:2px solid var(--accent); outline-offset:4px; border-radius:2px}
+.cen-caret{
+  width:8px; height:8px; margin-left:2px; border-right:1.5px solid var(--ink-3);
+  border-bottom:1.5px solid var(--ink-3); transform:rotate(45deg) translate(-2px,-2px);
+  transition:transform .15s ease;
+}
+.cen-tg[aria-expanded="true"] .cen-caret{transform:rotate(225deg) translate(-1px,-1px)}
+/* A trajetoria era um card proprio; dentro do corpo ela e so uma secao separada
+   por um fio, para o encapsulado nao virar card dentro de card. */
+.cen-traj{margin-top:16px; padding-top:14px; border-top:1px solid var(--rule-2)}
 .cen-q{font-size:12.5px; color:var(--ink-2); margin:3px 0 0; max-width:68ch}
 blockquote.msg{
   margin:12px 0 0; padding:9px 13px; border-left:2px solid var(--rule-2);
@@ -286,7 +310,7 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .sd-why{font-size:11.5px; color:var(--ink-2); margin-top:6px; line-height:1.55}
 
 /* ---- marca ---- */
-.marca{display:block; color:var(--accent)}
+.marca{display:block; width:auto}
 .marca-wrap{display:flex; align-items:center; gap:10px; margin-bottom:9px}
 .marca-div{width:1px; height:15px; background:var(--rule-2)}
 
@@ -544,13 +568,6 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 }
 .xp-t{font-size:13.5px; font-weight:600; color:var(--ink); margin:0}
 .xp-n{margin-left:auto; font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
-.xp-h{margin:5px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.55}
-.xp-r{margin:6px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55}
-/* como reproduzir na propria pagina: o unico texto que pede acao do leitor */
-.xp-go{
-  margin:8px 0 0; padding:7px 10px; border-left:2px solid var(--accent);
-  background:var(--surface-2); font-size:11.5px; color:var(--ink-2); line-height:1.5;
-}
 /* veredito: reusa o vocabulario de cor dos chips, sem inventar estado novo */
 .xp-v{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:600}
 .xp-v.ok{color:var(--good)}
@@ -564,12 +581,6 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .xp-sc dd{margin:2px 0 0; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink)}
 .xp-sc dd small{font-size:11px; font-weight:400; color:var(--ink-3)}
 .xp-sc .fail dd{color:var(--crit)}
-/* os quatro casos mutados, um por linha */
-.xp-c{display:flex; flex-direction:column; margin-top:9px; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-.xp-cl{padding:10px 12px; border-top:1px solid var(--rule); background:var(--surface)}
-.xp-cl:first-child{border-top:0}
-.xp-cl.fail{background:color-mix(in srgb, var(--crit) 5%, var(--surface))}
-.xp-ch{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
 .xp-cn{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600; color:var(--ink-3)}
 .xp-ct{font-size:12.5px; font-weight:600; color:var(--ink)}
 .xp-cm{margin:4px 0 0; font-size:11.5px; color:var(--ink-2); line-height:1.5}
@@ -584,11 +595,152 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .xp-lv.ok{color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--rule-2))}
 .xp-lv.no{color:var(--crit); border-color:color-mix(in srgb, var(--crit) 40%, var(--rule-2))}
 
+
+/* ---------------- exploradores ----------------
+   Cada experimento traz a amostra que o produziu. As regras abaixo compoem o que ja
+   existe (.xp-sc para o placar, .xp-lv para os marcadores) e acrescentam so a caixa de
+   amostra, a navegacao e o par lado a lado. */
+
+/* a pergunta que abre o experimento: substitui os tres paragrafos de resumo */
+.xp-q{margin:5px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.55}
+.xp-q b{color:var(--ink); font-weight:600}
+
+/* navegacao entre amostras */
+.xp-nav{display:flex; align-items:center; gap:8px; margin:9px 0 0}
+.xp-nb{
+  width:26px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--rule-2); border-radius:2px; background:var(--surface);
+  color:var(--ink-2); font-size:12px; cursor:pointer; padding:0;
+}
+.xp-nb:hover:not(:disabled){background:var(--surface-2); border-color:var(--ink-3); color:var(--ink)}
+.xp-nb:disabled{opacity:.35; cursor:default}
+.xp-nb:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.xp-np{font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.xp-np b{color:var(--ink); font-weight:600}
+
+/* a amostra: uma execucao real, com o cabecalho que diz de onde ela veio */
+.xp-am{
+  margin:7px 0 0; padding:11px 12px; border:1px solid var(--rule); border-radius:3px;
+  background:var(--surface);
+}
+.xp-am.fail{background:color-mix(in srgb, var(--crit) 5%, var(--surface))}
+.xp-amh{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.xp-amc{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--ink)}
+.xp-ams{font-size:10.5px; color:var(--ink-3)}
+/* o efeito medido no par, no vocabulario de cor que a pagina ja usa */
+.xp-ame{
+  margin-left:auto; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  font-weight:600; color:var(--ink-3);
+}
+.xp-ame.corrigiu{color:var(--good)}
+.xp-ame.regrediu, .xp-ame.divergiu{color:var(--crit)}
+.xp-amt{margin:6px 0 0; font-size:11.5px; color:var(--ink-2); line-height:1.5; font-style:italic}
+.xp-amt i{font-style:normal; color:var(--ink-3)}
+
+/* dois (ou tres) bracos lado a lado: e a comparacao que carrega o argumento */
+.xp-par{display:grid; grid-template-columns:1fr 1fr; gap:1px; margin:9px 0 0;
+  background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-par.tres{grid-template-columns:repeat(3,1fr)}
+.xp-br{padding:9px 10px; background:var(--surface-2)}
+.xp-brt{font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.xp-brn{display:block; letter-spacing:0; text-transform:none; font-weight:400; font-size:10px; margin-top:1px}
+.xp-brd{margin:4px 0 0; font-size:13px; font-weight:600; color:var(--ink)}
+.xp-brd.ok{color:var(--good)}
+.xp-brd.no{color:var(--crit)}
+.xp-brm{display:block; font-size:10px; font-weight:500; letter-spacing:.03em; margin-top:1px}
+.xp-brc{margin:3px 0 0; font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.xp-brj{margin:6px 0 0; font-size:11px; color:var(--ink-2); line-height:1.5}
+.xp-brj b{color:var(--ink)}
+
+/* EXP-03: as tres linhas do encontro com a recusa */
+.xp-403{margin:9px 0 0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-4l{display:grid; grid-template-columns:104px 1fr; gap:10px; padding:6px 10px;
+  border-top:1px solid var(--rule); background:var(--surface-2); font-size:11.5px; color:var(--ink-2)}
+.xp-4l:first-child{border-top:0}
+.xp-4k{font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.xp-4l code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink)}
+.xp-4l i{font-style:normal; color:var(--ink-3)}
+.xp-4n{color:var(--crit); font-variant-numeric:tabular-nums}
+.xp-4g{color:var(--good); font-weight:500}
+.xp-4r{color:var(--crit); font-weight:600}
+
+/* EXP-04: a tabela em que um contraexemplo apareceria na primeira linha */
+.xp-fil{display:flex; gap:5px; margin:9px 0 0; flex-wrap:wrap}
+.xp-fb{
+  padding:3px 9px; border:1px solid var(--rule-2); border-radius:2px; background:var(--surface);
+  color:var(--ink-2); font:inherit; font-size:10.5px; cursor:pointer;
+}
+.xp-fb:hover{border-color:var(--ink-3); color:var(--ink)}
+.xp-fb.on{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600}
+.xp-fb:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.xp-tb{margin:7px 0 0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-tr{display:grid; grid-template-columns:1fr 84px 84px 92px; gap:8px; padding:5px 10px;
+  border-top:1px solid var(--rule); background:var(--surface); font-size:11px;
+  font-variant-numeric:tabular-nums; align-items:baseline}
+.xp-tr:first-child{border-top:0}
+.xp-th{background:var(--surface-2); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.xp-tr code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink)}
+.xp-tr i{font-style:normal; color:var(--ink-3)}
+.xp-tm{color:var(--ink-3)}
+.xp-nota{margin:6px 0 0; font-size:10.5px; color:var(--ink-3); line-height:1.5}
+
+/* metodo e limitacoes: fechado por padrao, porque a amostra e o argumento */
+.xp-mais{
+  margin:9px 0 0; padding:0; border:0; background:none; color:var(--ink-3);
+  font:inherit; font-size:11px; cursor:pointer; letter-spacing:.02em;
+}
+.xp-mais:hover{color:var(--ink)}
+.xp-mais:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.xp-det{margin:6px 0 0; padding:9px 11px; border-left:2px solid var(--rule-2); background:var(--surface-2)}
+.xp-det p{margin:0 0 6px; font-size:11.5px; color:var(--ink-2); line-height:1.55}
+.xp-det p:last-child{margin-bottom:0}
+.xp-det b{color:var(--ink)}
+.xp-fonte{font-size:10.5px !important; color:var(--ink-3) !important}
+.xp-fonte code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px}
+.xp-topo p{font-size:12px}
+
 @media (max-width:560px){
   .xp-sc{flex-direction:column}
   .xp-sc>div{border-left:0; border-top:1px solid var(--rule)}
   .xp-sc>div:first-child{border-top:0}
   .xp-cb{margin-left:0; margin-top:6px}
+  /* os bracos empilham: lado a lado em 320px nao e comparacao, e tres colunas de 100px */
+  .xp-par, .xp-par.tres{grid-template-columns:1fr}
+  .xp-4l{grid-template-columns:1fr; gap:2px}
+  .xp-tr{grid-template-columns:1fr 54px 54px 54px; gap:6px}
 }
+
+/* ---------------- esqueleto de carregamento ----------------
+   O boot busca ~900 KB em quatro arquivos e so entao pinta: ate ai a area util fica
+   vazia, e vazio e indistinguivel de quebrado. O esqueleto ocupa a geometria real que
+   vai chegar — altura de .item na lista, altura de .card no painel — para que a
+   troca nao empurre nada quando os dados entram.
+
+   Sem gradiente varrendo: a pulsacao e da propria superficie, entre --surface-2 e
+   --plane, que sao as duas camadas que a pagina ja usa. */
+.sk{background:var(--surface-2); border-radius:2px; animation:sk 1.4s ease-in-out infinite}
+@keyframes sk{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* lista: mesma caixa do .item (34px de faixa + 7px de padding em cima e embaixo) */
+.sk-item{
+  display:grid; grid-template-columns:3px 1fr auto; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--hair); border-radius:3px;
+  padding:7px 9px 7px 0; margin-bottom:3px;
+}
+.sk-item .sk-st{width:3px; height:34px; border-radius:0}
+.sk-item .sk-n{height:9px; width:62%; margin-bottom:5px}
+.sk-item .sk-s{height:7px; width:38%}
+.sk-item .sk-v{height:9px; width:44px; justify-self:end}
+
+/* painel: um card de identificacao e dois de leitura, as alturas que de fato chegam */
+.sk-card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; margin-bottom:16px}
+.sk-hd{height:10px; width:120px; margin-bottom:14px}
+.sk-t{height:17px; width:46%; margin-bottom:7px}
+.sk-l{height:9px; margin-bottom:6px}
+.sk-plot{height:150px; border-radius:3px; margin-top:12px}
+
+/* O leitor de tela nao deve anunciar barra por barra: o bloco inteiro e um aviso so. */
+.sk-wrap{position:relative}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}

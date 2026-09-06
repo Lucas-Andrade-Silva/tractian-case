@@ -40,7 +40,7 @@ def build_llm(settings: Settings, *, api_key: str | None = None, **overrides: An
 
     if not provider:
         raise LlmNotConfigured(
-            "LLM_PROVIDER não definido. Copie agent/.env.example para agent/.env e "
+            "LLM_PROVIDER não definido. Copie .env.example para .env e "
             f"escolha um provedor ({', '.join(_SUPPORTED)}) + LLM_MODEL."
         )
     if not model:
@@ -240,6 +240,37 @@ class RoleModels:
                 if len(chaves) > 1
                 else build_llm(self._settings, model=model, **extras)
             )
+        return self._cache[chave]
+
+    def for_transcription(self, role: str) -> BaseChatModel:
+        """Cliente do papel com o raciocinio DESLIGADO, para tarefas de transcricao.
+
+        Usado na segunda tentativa depois de um corte por `max_tokens`: ali a evidencia ja
+        esta na mensagem e o trabalho e so redigi-la. Com o raciocinio ligado, o retry
+        gasta o mesmo orcamento pensando e e cortado igual — foi o que aconteceu no
+        TKT-EXE-13, onde o rascunho vazou para dentro do `finding`.
+
+        `none` e o unico valor que os dois modelos qwen aceitam em comum (o 3.6 recusa
+        `low` com HTTP 400). Provedor que nao conhece o parametro cai no `except` e
+        recebe o cliente normal — comportamento de antes, sem quebrar a execucao.
+        """
+        model = self._settings.model_for(role)
+        chave = (model, self._settings.max_tokens_for(role), "__transcricao__")
+        if chave not in self._cache:
+            extras: dict[str, Any] = {"reasoning_effort": "none"}
+            if teto := self._settings.max_tokens_for(role):
+                extras["max_tokens"] = teto
+            chaves = self._settings.chaves_llm
+            try:
+                self._cache[chave] = (
+                    _ChatComRodizio(
+                        settings_=self._settings, modelo=model, extras=extras, chaves=chaves
+                    )
+                    if len(chaves) > 1
+                    else build_llm(self._settings, model=model, **extras)
+                )
+            except TypeError:
+                self._cache[chave] = self.for_role(role)
         return self._cache[chave]
 
     def describe(self) -> dict[str, str]:

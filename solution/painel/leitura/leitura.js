@@ -647,10 +647,16 @@ function secaoAgente(a) {
       difere, o card se separa e diz o que aquela seed entregou.</p>
   </section>`;
 
-  for (const cen of cenarios) {
+  /* Um ativo com quatro cenarios rendia oito cards abertos de uma vez, e a tela virava
+     um rolo onde nada se acha. Cada cenario agora nasce fechado atras do proprio
+     cabecalho — que continua sendo o mesmo cabecalho de antes, so que clicavel — e
+     abrir um fecha o que estava aberto: um cenario por vez, sempre. */
+  html += `<div class="cens">`;
+  cenarios.forEach((cen, i) => {
     const ref = cen.por_seed.complete || Object.values(cen.por_seed)[0];
-    html += `<section class="card">
-      <div class="cen-hd">
+    const id = `cen-${a.id}-${i}`;
+    html += `<section class="card cen" data-cen="${id}">
+      <button class="cen-hd cen-tg" type="button" aria-expanded="false" aria-controls="${id}">
         <div>
           <h3>${esc(cen.cenario)} &middot; ${esc(cen.ticket)}</h3>
           ${cen.questao ? `<p class="cen-q">${esc(cen.questao)}</p>` : ""}
@@ -658,25 +664,26 @@ function secaoAgente(a) {
         <div class="chips">
           <span class="chip">esperado: ${cen.aceitas.map((d) => esc(DECISAO[d] || d)).join(" ou ") || "—"}</span>
           ${cen.ambiguo ? `<span class="chip warn"><span class="dot"></span>ambíguo</span>` : ""}
+          <span class="cen-caret" aria-hidden="true"></span>
         </div>
+      </button>
+      <div class="cen-body" id="${id}" hidden>
+        ${ref?.mensagem ? `<blockquote class="msg">${esc(ref.mensagem)}<cite>${esc(quemPediu(ref.solicitante))}</cite></blockquote>` : ""}
+        ${colunasSeeds(cen)}
+        ${barraConcordancia(cen)}
+        ${ref ? `<div class="cen-traj">
+          <div class="card-hd"><h2>Trajetória &middot; ${esc(cen.cenario)}</h2>
+          <div class="chips"><span class="chip">seed complete</span>
+          <span class="chip">${ref.avaliacao.gets_feitos ?? "—"} consultas feitas</span>
+          <span class="chip ${veredito(ref).cls}"><span class="dot"></span>${esc(veredito(ref).rotulo)}</span></div></div>
+          ${trajetoria(cen, ref)}
+          ${papeis(ref)}
+          ${ref.resposta ? `<div class="answer">${textoRico(ref.resposta)}</div>` : ""}
+        </div>` : ""}
       </div>
-      ${ref?.mensagem ? `<blockquote class="msg">${esc(ref.mensagem)}<cite>${esc(quemPediu(ref.solicitante))}</cite></blockquote>` : ""}
-      ${colunasSeeds(cen)}
-      ${barraConcordancia(cen)}
     </section>`;
-
-    if (ref) {
-      html += `<section class="card">
-        <div class="card-hd"><h2>Trajetória &middot; ${esc(cen.cenario)}</h2>
-        <div class="chips"><span class="chip">seed complete</span>
-        <span class="chip">${ref.avaliacao.gets_feitos ?? "—"} consultas feitas</span>
-        <span class="chip ${veredito(ref).cls}"><span class="dot"></span>${esc(veredito(ref).rotulo)}</span></div></div>
-        ${trajetoria(cen, ref)}
-        ${papeis(ref)}
-        ${ref.resposta ? `<div class="answer">${textoRico(ref.resposta)}</div>` : ""}
-      </section>`;
-    }
-  }
+  });
+  html += `</div>`;
   return html + cardConsulta(a);
 }
 
@@ -1239,6 +1246,23 @@ function desenhar() {
   if (go) go.addEventListener("click", () => consultar(a));
   const q = document.getElementById("q");
   if (q) q.addEventListener("keydown", (e) => { if (e.key === "Enter") consultar(a); });
+  /* Acordeao dos cenarios: um aberto por vez. Os graficos das seeds sao desenhados
+     em SVG que ja esta no DOM mesmo escondido, e o tooltip mede o
+     getBoundingClientRect() so no hover — abrir nao exige redesenhar nada. */
+  panel.querySelectorAll(".cen-tg").forEach((tg) => {
+    tg.addEventListener("click", () => {
+      const corpo = document.getElementById(tg.getAttribute("aria-controls"));
+      const abrindo = tg.getAttribute("aria-expanded") !== "true";
+      panel.querySelectorAll(".cen-tg[aria-expanded=\"true\"]").forEach((o) => {
+        o.setAttribute("aria-expanded", "false");
+        const c = document.getElementById(o.getAttribute("aria-controls"));
+        if (c) c.hidden = true;
+      });
+      tg.setAttribute("aria-expanded", String(abrindo));
+      if (corpo) corpo.hidden = !abrindo;
+    });
+  });
+
   panel.querySelectorAll(".hint").forEach((h) => {
     h.addEventListener("click", () => {
       document.getElementById("q").value = h.textContent;
@@ -1328,15 +1352,25 @@ function blocoExperimento() {
 async function trocaFase(nome, aoTerminar) {
   const entrada = FASES.fases.find((f) => f.nome === nome);
   if (!entrada || nome === AGENTE.meta?.fase) return;
+  /* O indice de uma fase tem ~330 KB. Sem esqueleto, a tela fica congelada na fase
+     anterior durante a troca: quem clicou ve os numeros velhos e nao sabe se o clique
+     pegou. Aqui o painel se esvazia primeiro — o vazio e o sinal de que trocou. */
+  esqueleto();
   try {
     AGENTE = await fetch(`../dados/${entrada.arquivo}`).then((r) => r.json());
     guarda.escrever("fase", nome);
+    fimDoEsqueleto();
     atualizaProcedencia();
     lista();
     desenhar();
     aoTerminar?.();
   } catch (e) {
     console.error("não foi possível carregar a fase", nome, e);
+    /* A fase pedida nao veio, mas `AGENTE` ainda tem a anterior intacta: redesenhar
+       devolve a tela que estava no ar, em vez de deixar o esqueleto pulsando. */
+    fimDoEsqueleto();
+    lista();
+    desenhar();
   }
 }
 
@@ -1456,39 +1490,214 @@ function marcaNivel(passou, rotulo) {
   return `<span class="xp-lv ${passou ? "ok" : "no"}">${passou ? "✔" : "✘"} ${rotulo}</span>`;
 }
 
-/* Os quatro casos do EXP-07, cada um com o critério que o julgou. Mostrar o veredito sem o
-   critério ao lado obrigaria o leitor a acreditar; com ele, dá para discordar. */
-function casosExp07(d) {
-  return `<div class="xp-c">${d.casos.map((c) => {
-    const falhou = !c.nivel2;
-    const dec = c.bracos?.decisivo || {};
-    return `<div class="xp-cl${falhou ? " fail" : ""}">
-      <div class="xp-ch">
-        <span class="xp-cn">${esc(c.letra)}</span>
-        <span class="xp-ct">${esc(c.titulo)}</span>
-        <span class="xp-cb">
-          ${marcaNivel(c.nivel1, "leu")}
-          ${marcaNivel(c.nivel2, "usou")}
-          ${marcaNivel(!c.placebo_mudou, "placebo")}
-        </span>
-      </div>
-      <p class="xp-cm"><b>Mutação:</b> ${esc(c.mutacao)} &middot; <i>${esc(c.pressao)}</i></p>
-      <p class="xp-cm" style="color:var(--ink-3)">Decisor, braço mutado:
-        &ldquo;${esc((dec.justificativa || "").slice(0, 210))}${(dec.justificativa || "").length > 210 ? "…" : ""}&rdquo;</p>
-    </div>`;
-  }).join("")}</div>`;
+/* Estado dos exploradores: qual amostra cada experimento mostra, e se o bloco de método
+   está aberto. Vive fora do DOM porque a aba é redesenhada inteira a cada interação —
+   guardar a posição no HTML significaria perdê-la a cada clique. */
+const XP_ABERTO = {};   // id do experimento -> índice da amostra em foco
+const XP_METODO = {};   // id do experimento -> método/limitações expandidos
+const XP_FILTRO = {};   // EXP-04 -> fase selecionada
+
+const corta = (s, n) => {
+  const t = String(s || "");
+  return esc(t.length > n ? `${t.slice(0, n)}…` : t);
+};
+
+/* Um experimento não é um parágrafo com um número no fim: é uma afirmação e as execuções
+   que a produziram. Cada explorador desenha o placar recontado do JSON e deixa abrir as
+   amostras uma a uma. Nenhum número é escrito aqui — todos vêm de dados/experimentos.json,
+   derivado dos traces em disco. */
+
+/* Placar: as caixas de número no topo do explorador. `fail` pinta de vermelho o que
+   contraria a hipótese — é como o EXP-07 mostra sozinho que 1 dos 4 casos falhou. */
+function placar(itens) {
+  return `<dl class="xp-sc">${itens.map((i) => `
+    <div class="${i.fail ? "fail" : ""}"><dt>${esc(i.k)}</dt>
+      <dd>${esc(i.v)}${i.de ? `<small> / ${esc(i.de)}</small>` : ""}</dd></div>`).join("")}</dl>`;
 }
 
-function blocoExp07(d) {
-  const falhou = d.n2 < d.total;
-  return `
-    <dl class="xp-sc">
-      <div><dt>Investigador leu o campo</dt><dd>${d.n1}<small> / ${d.total}</small></dd></div>
-      <div class="${falhou ? "fail" : ""}"><dt>Decisor usou como critério</dt><dd>${d.n2}<small> / ${d.total}</small></dd></div>
-      <div><dt>Placebo mudou a conclusão</dt><dd>${d.placebo}<small> / ${d.total}</small></dd></div>
-    </dl>
-    ${casosExp07(d)}`;
+/* Navegação das amostras. O contador diz onde o leitor está em quantos: um "próximo" sem
+   denominador esconderia o tamanho da amostra, que aqui é metade do argumento. */
+function navegador(id, i, total, rotulo) {
+  return `<div class="xp-nav">
+    <button class="xp-nb" data-xp-ir="${id}:${i - 1}" ${i <= 0 ? "disabled" : ""}
+      aria-label="Amostra anterior">←</button>
+    <span class="xp-np">${esc(rotulo)} <b>${i + 1}</b> de ${total}</span>
+    <button class="xp-nb" data-xp-ir="${id}:${i + 1}" ${i >= total - 1 ? "disabled" : ""}
+      aria-label="Próxima amostra">→</button>
+  </div>`;
 }
+
+/* Duas execuções lado a lado — o formato dos EXP-01 e EXP-02, que são pareados. Entre eles
+   muda só o rótulo das colunas e se o custo importa para a hipótese. */
+function parLadoALado(a, b, rot, mostraCusto) {
+  const cel = (x, r) => `
+    <div class="xp-br">
+      <div class="xp-brt">${esc(r)}</div>
+      <div class="xp-brd ${x.acertou ? "ok" : "no"}">${esc(x.decisao || "—")}
+        <span class="xp-brm">${x.acertou ? "✔ esperada" : "✘ diferente"}</span></div>
+      ${mostraCusto ? `<div class="xp-brc">${(x.tokens || 0).toLocaleString("pt-BR")} tokens ·
+        ${x.chamadas ?? "—"} chamadas</div>` : ""}
+      <p class="xp-brj">${corta(x.justificativa, 300)}</p>
+    </div>`;
+  return `<div class="xp-par">${cel(a, rot[0])}${cel(b, rot[1])}</div>`;
+}
+
+function exploradorPar(e, id, rot, mostraCusto) {
+  const d = e.explorador;
+  if (!d || !d.linhas?.length) return "";
+  const i = Math.min(XP_ABERTO[id] ?? 0, d.linhas.length - 1);
+  const ln = d.linhas[i];
+  const itens = id === "EXP-01"
+    ? [{ k: "pares", v: d.total },
+       { k: "decisão corrigida", v: d.corrigiu },
+       { k: "regressões", v: d.regrediu, fail: d.regrediu > 0 }]
+    : [{ k: "pares", v: d.total },
+       { k: "decisões divergentes", v: d.divergiu, fail: d.divergiu > 0 },
+       { k: "custo em tokens", v: `${d.delta_tokens > 0 ? "+" : ""}${String(d.delta_tokens).replace(".", ",")}%` }];
+  return `
+    ${placar(itens)}
+    ${navegador(id, i, d.linhas.length, "par")}
+    <div class="xp-am">
+      <div class="xp-amh">
+        <code class="xp-amc">${esc(ln.caso)}</code>
+        <span class="xp-ams">seed ${esc(ln.seed)}</span>
+        <span class="xp-ame ${esc(ln.efeito)}">${esc(ln.efeito)}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(ln.ticket, 200)}&rdquo;</p>
+      ${parLadoALado(ln.a, ln.b, rot, mostraCusto)}
+    </div>`;
+}
+
+/* EXP-03: os encontros com 403. As duas afirmações do experimento — não insistiu, explicou
+   — aparecem como contagem medida ao lado da execução que dá para conferir. */
+function exploradorExp03(e) {
+  const d = e.explorador;
+  if (!d || !d.casos?.length) return "";
+  const i = Math.min(XP_ABERTO["EXP-03"] ?? 0, d.casos.length - 1);
+  const c = d.casos[i];
+  return `
+    ${placar([
+      { k: "recusas 403", v: d.total },
+      { k: "sem insistir", v: d.sem_insistir, de: d.total, fail: d.sem_insistir < d.total },
+      { k: "explicaram ao usuário", v: d.explicaram, de: d.total, fail: d.explicaram < d.total },
+    ])}
+    ${navegador("EXP-03", i, d.casos.length, "recusa")}
+    <div class="xp-am">
+      <div class="xp-amh">
+        <code class="xp-amc">${esc(c.caso)}</code>
+        <span class="xp-ams">seed ${esc(c.seed)} · ${esc(c.fase)}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(c.ticket, 170)}&rdquo;</p>
+      <div class="xp-403">
+        <div class="xp-4l"><span class="xp-4k">quem pediu</span>
+          <span>${esc(c.usuario)} · <i>${esc(c.papel)}</i> · ${esc((c.permissoes || []).join(", "))}</span></div>
+        <div class="xp-4l"><span class="xp-4k">a API recusou</span>
+          <span><code>${esc(c.rota)}</code> <b class="xp-4n">403</b>
+            exige <code>${esc(c.exigida)}</code></span></div>
+        <div class="xp-4l"><span class="xp-4k">tentou de novo</span>
+          <span class="${c.tentou_de_novo ? "xp-4r" : "xp-4g"}">${c.tentou_de_novo === 0
+            ? "não — nenhuma repetição da rota recusada"
+            : `sim, ${c.tentou_de_novo}×`}</span></div>
+      </div>
+      <p class="xp-brj"><b>Resposta ao usuário:</b> ${corta(c.resposta, 420)}</p>
+    </div>`;
+}
+
+/* EXP-04: a hipótese é uma constante, então o explorador é a lista ordenada pelo pior caso.
+   Se alguma execução tivesse 2 chamadas, ela seria a primeira linha — a ordenação é o
+   teste, não a decoração. */
+function exploradorExp04(e) {
+  const d = e.explorador;
+  if (!d || !d.linhas?.length) return "";
+  const fases = ["todas", ...new Set(d.linhas.map((l) => l.fase))];
+  const f = XP_FILTRO["EXP-04"] || "todas";
+  const linhas = f === "todas" ? d.linhas : d.linhas.filter((l) => l.fase === f);
+  const max = linhas.reduce((m, l) => Math.max(m, l.decisor), 0);
+  const api = linhas.reduce((s, l) => s + l.api_decisor, 0);
+  const mostradas = Math.min(6, linhas.length);
+  return `
+    ${placar([
+      { k: "execuções", v: linhas.length },
+      { k: "máx. de chamadas do Decisor", v: max, fail: max !== 1 },
+      { k: "consultas de API do Decisor", v: api, fail: api > 0 },
+    ])}
+    <div class="xp-fil">${fases.map((x) => `<button class="xp-fb${x === f ? " on" : ""}"
+      data-xp-f="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    <div class="xp-tb">
+      <div class="xp-tr xp-th">
+        <span>execução</span><span>Decisor · LLM</span>
+        <span>Decisor · API</span><span>LLM na execução</span>
+      </div>
+      ${linhas.slice(0, 6).map((l) => `<div class="xp-tr">
+        <span><code>${esc(l.caso)}</code> <i>${esc(l.seed)}</i></span>
+        <span class="${l.decisor === 1 ? "xp-4g" : "xp-4r"}">${l.decisor}</span>
+        <span class="${l.api_decisor === 0 ? "xp-4g" : "xp-4r"}">${l.api_decisor}</span>
+        <span class="xp-tm">${l.total_llm}</span>
+      </div>`).join("")}
+    </div>
+    <p class="xp-nota">Ordenado pela maior contagem do Decisor: um contraexemplo apareceria
+      na primeira linha. Mostrando ${mostradas} de ${linhas.length}.</p>`;
+}
+
+/* EXP-07: três braços da mesma execução. O placebo é a coluna que faz o experimento valer —
+   sem ela, "mudou junto com a mutação" não se separa de "muda com qualquer coisa". */
+function exploradorExp07(e) {
+  const d = e.derivado;
+  if (!d || !d.casos?.length) return "";
+  const i = Math.min(XP_ABERTO["EXP-07"] ?? 0, d.casos.length - 1);
+  const c = d.casos[i];
+  const braco = (k, rot, nota) => {
+    const b = c.bracos?.[k] || {};
+    return `<div class="xp-br">
+      <div class="xp-brt">${esc(rot)}<span class="xp-brn">${esc(nota)}</span></div>
+      <div class="xp-brd">${esc(b.decisao || "—")}</div>
+      <p class="xp-brj">${corta(b.justificativa, 260)}</p>
+    </div>`;
+  };
+  return `
+    ${placar([
+      { k: "Investigador leu o campo", v: d.n1, de: d.total },
+      { k: "Decisor usou como critério", v: d.n2, de: d.total, fail: d.n2 < d.total },
+      { k: "Placebo mudou a conclusão", v: d.placebo, de: d.total, fail: d.placebo > 0 },
+    ])}
+    ${navegador("EXP-07", i, d.casos.length, "caso")}
+    <div class="xp-am${!c.nivel2 ? " fail" : ""}">
+      <div class="xp-amh">
+        <span class="xp-cn">${esc(c.letra)}</span>
+        <span class="xp-ct">${esc(c.titulo)}</span>
+        <span class="xp-cb">${marcaNivel(c.nivel1, "leu")}${marcaNivel(c.nivel2, "usou")}${marcaNivel(!c.placebo_mudou, "placebo")}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(c.ticket, 170)}&rdquo; <i>— ${esc(c.pressao)}</i></p>
+      <p class="xp-cm"><b>O que foi mutado:</b> ${esc(c.mutacao)}</p>
+      <div class="xp-par tres">
+        ${braco("controle", "controle", "sem mutação")}
+        ${braco("decisivo", "mutado", "campo decisivo alterado")}
+        ${braco("placebo", "placebo", "campo irrelevante alterado")}
+      </div>
+    </div>`;
+}
+
+function explorador(e) {
+  if (e.id === "EXP-01") return exploradorPar(e, "EXP-01", ["baseline", "pós-correção"], false);
+  if (e.id === "EXP-02") return exploradorPar(e, "EXP-02", ["fixed · 4 pilares", "conditional · sob demanda"], true);
+  if (e.id === "EXP-03") return exploradorExp03(e);
+  if (e.id === "EXP-04") return exploradorExp04(e);
+  if (e.id === "EXP-07") return exploradorExp07(e);
+  return "";
+}
+
+/* A pergunta que o experimento responde, e a resposta em uma linha. Substitui o parágrafo
+   de resumo: quem quer o método clica em "como isso foi medido". O texto é editorial e não
+   carrega número — os números estão no placar, que vem do JSON. */
+const PERGUNTA = {
+  "EXP-01": ["Dizer ao Decisor <i>quando orientar não basta</i> melhora a decisão?", "Sim."],
+  "EXP-02": ["Apurar sempre os 4 pilares decide melhor que apurar sob demanda?",
+             "Não — muda o custo, não o desfecho."],
+  "EXP-03": ["Deixar a API recusar com 403 basta para o agente parar e ser honesto?", "Sim."],
+  "EXP-04": ["Um Decisor sem tools custa sempre 1 chamada de LLM?", "Sim, em toda a bateria."],
+  "EXP-07": ["A decisão vem da evidência apurada ou do que o chamado afirma?",
+             "Da evidência — com uma falha em quatro."],
+};
 
 function corpoExperimentos() {
   if (!EXPERIMENTOS) {
@@ -1499,49 +1708,43 @@ function corpoExperimentos() {
 
   const itens = EXPERIMENTOS.experimentos.map((e) => {
     const [cls, rotulo] = VEREDITO[e.veredito] || VEREDITO.parcial;
-    const d = e.derivado;
-    const derivado = e.fonte === "derivado";
+    const [pergunta, resposta] = PERGUNTA[e.id] || [e.hipotese, ""];
+    const aberto = XP_METODO[e.id];
     return `<div class="xp-i">
       <div class="xp-hd">
         <span class="xp-id">${esc(e.id)}</span>
         <h3 class="xp-t">${esc(e.titulo)}</h3>
         <span class="xp-n"><span class="xp-v ${cls}">${rotulo}</span> &middot; n = ${esc(e.n)}</span>
       </div>
-      <p class="xp-h">${e.hipotese}</p>
-      ${e.id === "EXP-04" && d ? `<p class="xp-r"><b>${d.chamadas_por_execucao}</b>
-        chamadas de LLM por execução em ${d.execucoes} execuções, e
-        <b>${d.consultas_api}</b> consultas de API pelo Decisor.</p>` : ""}
-      <p class="xp-r">${esc(e.resumo)}</p>
-      <p class="xp-go"><b>Nesta página:</b> ${esc(e.na_pagina)}</p>
-      ${/* O detalhe do EXP-07 vem depois da prosa: o texto anuncia "os quatro casos
-            abaixo", e com o bloco antes a referência apontaria para trás. */ ""}
-      ${e.id === "EXP-07" && d ? blocoExp07(d) : ""}
-      <p class="xp-r" style="font-size:11px; color:var(--ink-3)">
-        Documento: <code>solution/docs/experimentos/${esc(e.arquivo)}</code> &middot;
-        ${derivado ? "números derivados dos traces em disco" : "veredito transcrito do documento"}
-      </p>
+      <p class="xp-q">${pergunta} <b>${esc(resposta)}</b></p>
+      ${explorador(e)}
+      <button class="xp-mais" data-xp-m="${esc(e.id)}" aria-expanded="${aberto ? "true" : "false"}">
+        ${aberto ? "▾" : "▸"} como isso foi medido</button>
+      ${aberto ? `<div class="xp-det">
+        <p><b>Hipótese registrada.</b> ${e.hipotese}</p>
+        <p><b>Resultado.</b> ${esc(e.resumo)}</p>
+        <p><b>Nesta página.</b> ${esc(e.na_pagina)}</p>
+        <p class="xp-fonte">${esc(e.estado)}<br>
+          Documento: <code>solution/docs/experimentos/${esc(e.arquivo)}</code> ·
+          ${e.fonte === "derivado" ? "números derivados dos traces em disco"
+            : "veredito do documento; a amostra acima é recontada do bundle"}</p>
+      </div>` : ""}
     </div>`;
   }).join("");
 
   return `
-    <div class="eng-s">
-      <h3>Como ler</h3>
-      <p>Cada experimento declara <b>hipótese → método → veredito → limitações</b>. Um
-        experimento refutado vale tanto quanto um sustentado: o EXP-02 derrubou a intuição
-        de que investigar mais é sempre mais seguro, e está aqui do mesmo jeito.</p>
-      <p><b>Só o EXP-07 foi pré-registrado.</b> As previsões foram escritas e commitadas
-        antes da coleta, e a análise foi feita contra elas sem reabrir a previsão. Os outros
-        quatro foram reconstruídos sobre execuções que já existiam, o que é mais fraco e
-        está dito em cada documento.</p>
+    <div class="eng-s xp-topo">
+      <p>Navegue pelas amostras e confira cada veredito por conta própria: os placares são
+        recontados dos traces em disco, não escritos à mão.</p>
     </div>
     <div class="eng-s"><div class="xp">${itens}</div></div>
     <div class="eng-s">
       <h3>O que nenhum deles prova</h3>
-      <p>Dados sintéticos, 17 casos de material fictício. Um único conjunto de modelos, a
-        <code>temperature=0</code>: efeitos que dependam da capacidade do modelo não se
-        separam da arquitetura. E as amostras são pequenas — o EXP-01 convive com
-        p&nbsp;≈&nbsp;0,125, e o EXP-07 tem quatro casos. São demonstrações de mecanismo,
-        não estimativas de taxa.</p>
+      <p>Dados sintéticos, 17 casos de material fictício, um único conjunto de modelos a
+        <code>temperature=0</code>. As amostras são pequenas — o EXP-01 convive com
+        p&nbsp;≈&nbsp;0,125 e o EXP-07 tem quatro casos. São demonstrações de mecanismo,
+        não estimativas de taxa. Só o EXP-07 foi pré-registrado; os outros foram
+        reconstruídos sobre execuções que já existiam.</p>
     </div>`;
 }
 
@@ -1551,21 +1754,70 @@ function ligarExperimentos() {
   const abrir = document.getElementById("sw-exp");
 
   let antes = null;
-  const abre = () => {
-    antes = document.activeElement;
+  /* Redesenha a aba inteira preservando o scroll: os exploradores ficam no meio de um
+     modal longo, e repintar do zero jogaria o leitor para o topo a cada seta clicada. */
+  const redesenha = () => {
+    const y = cx.scrollTop;
     corpo.innerHTML = corpoExperimentos();
     ligarDicas(corpo);
+    cx.scrollTop = y;
+  };
+  const abre = () => {
+    antes = document.activeElement;
+    redesenha();
     cx.setAttribute("open", "");
     document.getElementById("exp-x").focus();
   };
+
+  /* Um só ouvinte para todos os exploradores: navegar amostras, filtrar por fase e abrir
+     o método. Delegação porque o corpo é substituído a cada clique — ouvintes presos aos
+     botões morreriam junto com eles. */
+  corpo.addEventListener("click", (ev) => {
+    const alvo = ev.target.closest("[data-xp-ir],[data-xp-m],[data-xp-f]");
+    if (!alvo) return;
+    const ir = alvo.dataset.xpIr;
+    // Qual seta foi clicada, para devolver o foco à seta equivalente depois do redesenho:
+    // o `data-xp-ir` do botão muda de valor junto com o índice, então buscá-lo de volta
+    // pelo valor antigo não acharia nada.
+    let alvoId = null, direcao = 0;
+    if (ir) {
+      const [id, i] = ir.split(":");
+      direcao = Number(i) > (XP_ABERTO[id] ?? 0) ? 1 : -1;
+      alvoId = id;
+      XP_ABERTO[id] = Number(i);
+    } else if (alvo.dataset.xpM) {
+      const id = alvo.dataset.xpM;
+      XP_METODO[id] = !XP_METODO[id];
+    } else {
+      XP_FILTRO["EXP-04"] = alvo.dataset.xpF;
+    }
+    redesenha();
+    // O foco volta para o mesmo botão: sem isso, quem navega por teclado é devolvido ao
+    // topo do modal a cada passo da amostra.
+    let volta = null;
+    if (alvoId) {
+      const i = XP_ABERTO[alvoId];
+      volta = corpo.querySelector(`[data-xp-ir="${alvoId}:${i + direcao}"]`);
+    } else if (alvo.dataset.xpM) {
+      volta = corpo.querySelector(`[data-xp-m="${alvo.dataset.xpM}"]`);
+    } else {
+      volta = corpo.querySelector(`[data-xp-f="${alvo.dataset.xpF}"]`);
+    }
+    // Na ponta da lista a seta clicada fica desabilitada; o foco vai para a oposta, que é
+    // o único movimento ainda possível.
+    if (volta?.disabled && alvoId) {
+      volta = corpo.querySelector(`[data-xp-ir="${alvoId}:${XP_ABERTO[alvoId] - direcao}"]`);
+    }
+    if (volta && !volta.disabled) volta.focus();
+  });
   const fecha = () => {
     cx.removeAttribute("open");
     if (antes) antes.focus();
   };
 
   ligaDica(abrir, `<span class="dica-t">experimentos</span>
-    <p>As cinco hipóteses testadas, com o veredito de cada uma e como reproduzi-la nesta
-    página. Os números vêm dos traces em disco, não do texto dos documentos.</p>`);
+    <p>Cinco hipóteses, cada uma com as execuções reais que a testaram — dá para navegar
+    pelas amostras e conferir o veredito. Os números vêm dos traces em disco.</p>`);
   abrir.addEventListener("click", abre);
   document.getElementById("exp-x").addEventListener("click", fecha);
   cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
@@ -1673,6 +1925,58 @@ function atualizaProcedencia(origem) {
     `seed e indisponível noutra. É essa variação que o agente enfrentou.`;
 }
 
+/* ---------------- esqueleto de carregamento ----------------
+ * Enquanto os quatro arquivos de dados nao chegam, a lista e o painel ficam vazios. Um
+ * vazio de dois segundos nao se distingue de uma pagina quebrada, e a alternativa comum
+ * — um spinner centralizado — nao diz nada sobre o que vem. Estas formas tem a altura
+ * do que de fato vai chegar, entao nada salta de lugar na troca.
+ *
+ * `aria-busy` no container e um unico `aria-label`: quem usa leitor de tela ouve
+ * "carregando", nao dezoito retangulos.
+ */
+function esqueleto() {
+  /* A marca e montada em JS para nao deixar o cabecalho com um divisor solto ao lado
+     de um espaco vazio antes do primeiro paint. Nao depende de fetch nenhum, entao pode
+     ser pintada junto com o esqueleto em vez de esperar os dados. */
+  const marca = document.getElementById("marca");
+  if (marca && !marca.firstChild) marca.innerHTML = marcaTractian(15);
+
+  const itens = document.getElementById("items");
+  const panel = document.getElementById("panel");
+  if (itens) {
+    itens.setAttribute("aria-busy", "true");
+    itens.setAttribute("aria-label", "Carregando a lista de ativos");
+    itens.innerHTML = Array.from({ length: 8 }, () =>
+      `<div class="sk-item"><div class="sk sk-st"></div>
+        <div><div class="sk sk-n"></div><div class="sk sk-s"></div></div>
+        <div class="sk sk-v"></div></div>`).join("");
+  }
+  if (panel) {
+    panel.setAttribute("aria-busy", "true");
+    panel.setAttribute("aria-label", "Carregando a leitura do ativo");
+    panel.innerHTML =
+      `<div class="sk-card"><div class="sk sk-hd"></div><div class="sk sk-t"></div>
+        <div class="sk sk-l" style="width:72%"></div></div>` +
+      `<div class="sk-card"><div class="sk sk-hd"></div><div class="sk sk-plot"></div></div>` +
+      `<div class="sk-card"><div class="sk sk-hd"></div>
+        <div class="sk sk-l" style="width:88%"></div>
+        <div class="sk sk-l" style="width:64%"></div>
+        <div class="sk sk-l" style="width:79%"></div></div>`;
+  }
+}
+
+/* Os dados chegaram (ou falharam): `lista()` e `desenhar()` trocam o innerHTML, mas
+   `aria-busy` fica para tras se ninguem o tirar — e um container marcado como ocupado
+   para sempre e pior que nenhum. */
+function fimDoEsqueleto() {
+  ["items", "panel"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.removeAttribute("aria-busy");
+    el.removeAttribute("aria-label");
+  });
+}
+
 async function carregar() {
   const [ativos, agente, fases, experimentos] = await Promise.all([
     fetch("../dados/ativos.json").then((r) => r.json()),
@@ -1710,13 +2014,29 @@ async function carregar() {
   ligarConfiguracao();
   ligarExperimentos();
   atual = DATA.slice().sort((x, y) => ORDEM[situacao(x).key] - ORDEM[situacao(y).key])[0].id;
+  fimDoEsqueleto();
   lista();
   desenhar();
 }
 
 // Antes de qualquer fetch: senao a pagina pisca no tema errado enquanto os dados chegam.
 aplicaTema();
-carregar();
+// Antes do await, nao depois: pintado no mesmo quadro em que a pagina aparece.
+esqueleto();
+/* `ativos.json` e o unico fetch sem `.catch`: sem ele nao ha o que desenhar. Se cair, o
+   esqueleto pulsaria indefinidamente prometendo dados que nao vem — entao o lugar de
+   dizer isso e aqui, com o caminho que falhou e o alvo do Makefile que o gera. */
+carregar().catch((e) => {
+  console.error("falha ao carregar os dados do painel", e);
+  fimDoEsqueleto();
+  const itens = document.getElementById("items");
+  if (itens) itens.innerHTML = "";
+  document.getElementById("panel").innerHTML =
+    `<div class="empty"><b>Os dados do painel não carregaram</b>
+      Falta <code class="mono">solution/painel/dados/ativos.json</code>, ou o servidor não
+      está servindo a pasta. Gere os dados com <code class="mono">make leitura-dados</code>
+      e recarregue. Detalhe técnico no console: <code class="mono">${esc(String(e.message || e))}</code>.</div>`;
+});
 /* O tooltip se posiciona a partir de getBoundingClientRect() no momento do hover, entao
    redimensionar a janela nao exige religar nada — reanexar aqui so empilharia listeners. */
 // Rolar com uma dica aberta a deixaria orfa: ela e `position:fixed`, o alvo nao.

@@ -116,7 +116,7 @@ Requisitos: Python ≥ 3.10, [`uv`](https://docs.astral.sh/uv/).
 make setup                 # material da Tractian: venv da API + dados
 make my-setup              # minha solução: .venv na raiz com solution/agent + evaluation
 
-cp solution/agent/.env.example solution/agent/.env   # LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
+cp .env.example .env   # LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
 uv pip install --python .venv/Scripts/python.exe -e "./solution/agent[groq]"
 
 make up                                        # API industrial em :8000

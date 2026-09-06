@@ -27,7 +27,7 @@ As fases válidas são lidas do próprio bundle (`fases_de`), não de uma lista 
 bateria nova (`RUN_PHASE=conditional make eval-politica`) passa a ser julgável sem editar
 este arquivo. Antes, `--fase conditional` era recusado pelo argparse.
 
-O modelo vem de `JUDGE_MODEL` no `agent/.env` e pode ser trocado com `--modelo`. A chave é
+O modelo vem de `JUDGE_MODEL` no `.env` e pode ser trocado com `--modelo`. A chave é
 `JUDGE_API_KEY` (ou `LLM_API_KEY`) — nunca é escrita em arquivo do repositório nem chega ao
 navegador: o painel lê o resultado já gravado.
 
@@ -213,19 +213,19 @@ def main() -> int:
             print(f"Outra fase: --fase <nome>, ou --fase {TODAS} para não filtrar.")
         return 0
 
-    # Carrega o agent/.env antes de ler as variáveis: é lá que a chave mora, e sem isto
+    # Carrega o .env da raiz antes de ler as variáveis: é lá que a chave mora, e sem isto
     # só funcionaria com a chave exportada no ambiente.
-    from app.config import AGENT_DIR  # noqa: PLC0415 - import tardio, como o resto
+    from app.config import REPO_DIR  # noqa: PLC0415 - import tardio, como o resto
 
     from dotenv import load_dotenv
 
-    load_dotenv(AGENT_DIR / ".env")
+    load_dotenv(REPO_DIR / ".env")
 
     modelo = args.modelo or os.getenv("JUDGE_MODEL") or PADRAO
     chave = os.getenv("JUDGE_API_KEY") or os.getenv("LLM_API_KEY")
     if not chave:
         raise SystemExit(
-            "Sem chave: defina JUDGE_API_KEY (ou LLM_API_KEY) em agent/.env.\n"
+            "Sem chave: defina JUDGE_API_KEY (ou LLM_API_KEY) em .env.\n"
             "Crie uma gratuita em https://openrouter.ai/keys"
         )
 
@@ -237,7 +237,7 @@ def main() -> int:
         raise SystemExit(
             "A chave configurada não é do OpenRouter (chaves de lá começam com `sk-or-`).\n"
             f"Encontrei uma que começa com `{chave[:4]}` — provavelmente a do agente.\n\n"
-            "Defina JUDGE_API_KEY em agent/.env com uma chave do OpenRouter:\n"
+            "Defina JUDGE_API_KEY em .env com uma chave do OpenRouter:\n"
             "  https://openrouter.ai/keys\n\n"
             "O juiz roda por OpenRouter de propósito: julgar a saída do agente com o mesmo\n"
             "provedor e família de modelo introduz viés de auto-preferência (ADR 0005)."

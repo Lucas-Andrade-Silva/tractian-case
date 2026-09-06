@@ -100,3 +100,107 @@ def test_exp04_conta_zero_consultas_de_api_pelo_decisor(dados):
     e = next(x for x in dados["experimentos"] if x["id"] == "EXP-04")
     assert e["derivado"]["consultas_api"] == 0
     assert e["derivado"]["chamadas_por_execucao"] == 1.0
+
+
+# --------------------------------------------------------------------------------------
+# Exploradores — a amostra que a aba deixa o leitor abrir
+# --------------------------------------------------------------------------------------
+# A aba deixou de afirmar o veredito em prosa e passou a mostrar as execuções que o
+# produziram. Isso move o risco: agora o placar e a amostra podem discordar entre si, e a
+# contradição fica visível numa página que uma banca vai ler. Os testes abaixo travam a
+# coerência dos dois.
+
+
+@pytest.fixture(scope="module")
+def bundle():
+    caminho = PAINEL / "dados" / "bundle.json"
+    if not caminho.exists():
+        pytest.skip("dados/bundle.json não gerado (rode `make painel-dados`)")
+    return json.loads(caminho.read_text(encoding="utf-8"))
+
+
+def _exp(dados, id_):
+    return next(x for x in dados["experimentos"] if x["id"] == id_)
+
+
+def test_todo_explorador_tem_amostra(dados):
+    """Um explorador vazio deixaria o experimento sem nenhuma evidência na tela."""
+    for e in dados["experimentos"]:
+        x = e.get("explorador")
+        if not x:
+            continue
+        assert x.get("linhas") or x.get("casos"), f"{e['id']}: explorador sem amostra"
+
+
+def test_o_n_do_cabecalho_bate_com_o_placar(dados):
+    """O cabeçalho diz `n = 19 pares` e o placar diz `19`. Os dois saem do mesmo número;
+    este teste impede que voltem a ser digitados em lugares diferentes."""
+    for id_, chave in [("EXP-01", "total"), ("EXP-02", "total"), ("EXP-03", "total")]:
+        e = _exp(dados, id_)
+        n = int(e["n"].split()[0])
+        assert n == e["explorador"][chave], f"{id_}: cabeçalho {n} ≠ placar"
+
+
+def test_exp01_o_placar_bate_com_as_linhas(dados):
+    """O placar é recontado das próprias linhas que a página mostra. Se ele passar a ser
+    escrito à mão, a soma das linhas deixa de fechar e isto falha."""
+    d = _exp(dados, "EXP-01")["explorador"]
+    assert d["corrigiu"] == sum(l["efeito"] == "corrigiu" for l in d["linhas"])
+    assert d["regrediu"] == sum(l["efeito"] == "regrediu" for l in d["linhas"])
+    assert d["total"] == len(d["linhas"])
+    # O achado do experimento: corrigiu sem regredir. Uma regressão nova precisa de olhos.
+    assert d["regrediu"] == 0, "apareceu regressão: o veredito do EXP-01 precisa ser revisto"
+    assert d["corrigiu"] > 0
+
+
+def test_exp02_nenhuma_decisao_divergiu_entre_as_politicas(dados):
+    """É o achado mais estável dos EXP-02 e EXP-06: a política de evidência muda o custo,
+    não o desfecho. Uma divergência derruba o 'refutada' que a página exibe."""
+    d = _exp(dados, "EXP-02")["explorador"]
+    assert d["divergiu"] == 0
+    assert d["divergiu"] == sum(l["efeito"] == "divergiu" for l in d["linhas"])
+    # E o custo continua subindo em `conditional`, que é o que sobrou do efeito.
+    assert d["tokens_b"] > d["tokens_a"]
+
+
+def test_exp03_toda_recusa_foi_403_e_ninguem_insistiu(dados):
+    """As duas afirmações da aba são medidas, não transcritas — e ambas são 5/5."""
+    d = _exp(dados, "EXP-03")["explorador"]
+    assert d["sem_insistir"] == d["total"], "o agente repetiu uma rota recusada"
+    assert d["explicaram"] == d["total"], "uma resposta não mencionou a recusa"
+    for c in d["casos"]:
+        assert c["tentou_de_novo"] == 0, c["caso"]
+        assert c["exigida"], f"{c['caso']}: 403 sem a permissão exigida no corpo"
+
+
+def test_exp04_nenhuma_execucao_foge_da_constante(dados):
+    """A hipótese é uma constante, então basta um contraexemplo para derrubá-la. O
+    explorador ordena pelo pior caso justamente para que ele não se esconda."""
+    d = _exp(dados, "EXP-04")["explorador"]
+    for l in d["linhas"]:
+        assert l["decisor"] == 1, f"{l['caso']}/{l['seed']}: {l['decisor']} chamadas"
+        assert l["api_decisor"] == 0, f"{l['caso']}/{l['seed']}: tocou a API"
+
+
+def test_a_primeira_amostra_carrega_o_efeito_medido(dados):
+    """A primeira amostra é a que decide se o leitor navega ou desiste. Nos pareados ela
+    tem de ser um par com efeito, e no EXP-07 tem de ser o caso que falhou — enterrar a
+    falha atrás de dois ✔ é o tipo de ordenação que embeleza resultado."""
+    assert _exp(dados, "EXP-01")["explorador"]["linhas"][0]["efeito"] == "corrigiu"
+    assert _exp(dados, "EXP-07")["derivado"]["casos"][0]["nivel2"] is False
+
+
+def test_os_exploradores_sao_recontados_do_bundle(dados, bundle):
+    """Recalcula do zero contra o bundle e compara com o publicado — o mesmo contrato que
+    já vale para o EXP-07, agora para os quatro exploradores derivados do bundle."""
+    from montar_experimentos import exp01, exp02, exp03
+
+    for id_, fn, chaves in [
+        ("EXP-01", exp01, ("total", "corrigiu", "regrediu")),
+        ("EXP-02", exp02, ("total", "divergiu", "delta_tokens")),
+        ("EXP-03", exp03, ("total", "sem_insistir", "explicaram")),
+    ]:
+        atual, publicado = fn(bundle), _exp(dados, id_)["explorador"]
+        for k in chaves:
+            assert atual[k] == publicado[k], (
+                f"{id_}.{k}: experimentos.json desatualizado — rode `make experimentos`")

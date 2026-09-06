@@ -4,7 +4,7 @@
 # Uso típico:
 #   make setup           # 1x: cria venv e instala deps (api + agente)
 #   make data            # 1x: gera tractian/{data,agent-input,eval}
-#   make agent-env       # 1x: cria solution/agent/.env a partir do example (edite a key)
+#   make agent-env       # 1x: cria o .env da raiz a partir do example (edite a key)
 #   make up              # sobe API industrial (:8000) + agente/UI (:8001) em background
 #   make stop            # para os dois
 #   make logs            # vê logs dos dois
@@ -52,8 +52,8 @@ data: ## Gera data/*.parquet, agent-input/, eval/
 	@cd $(TRAC)/api && $(PY) -m package_material
 	@echo "✓ dados gerados (data/, agent-input/, eval/)"
 
-agent-env: ## Cria agent/.env a partir do .env.example (edite a API key depois)
-	@if [ ! -f $(SOL)/agent/.env ]; then cp $(SOL)/agent/.env.example $(SOL)/agent/.env && echo "✓ solution/agent/.env criado — edite OPENAI_API_KEY/BASE_URL/MODEL"; else echo "✓ solution/agent/.env já existe (não sobrescrito)"; fi
+agent-env: ## Cria o .env da raiz a partir do .env.example (edite a API key depois)
+	@if [ ! -f $(ROOT)/.env ]; then cp $(ROOT)/.env.example $(ROOT)/.env && echo "✓ .env criado — edite OPENAI_API_KEY/BASE_URL/MODEL"; else echo "✓ .env já existe (não sobrescrito)"; fi
 
 # ---------------------------------------------------------------------------
 # Rodar (background)
