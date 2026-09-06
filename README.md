@@ -27,9 +27,10 @@ E um segundo sistema, independente, mede se essa decisão estava correta.
 pode fazer é a permissão do usuário da sessão — imposta pela própria API com um `403`, não por
 uma lista de bloqueios em código.
 
-**Estado atual:** 102 execuções com modelo real, em duas fases, 4 experimentos registrados.
-Estabilidade entre seeds em 17/17 casos. O comitê de juízes está parcial (35/102) — ver as
-[limitações](solution/SOLUTION.md#8-limitações), que estão declaradas e não maquiadas.
+**Estado atual:** 204 execuções com modelo real, em quatro fases, 7 experimentos registrados.
+O comitê de juízes está parcial (35/204). A fase em produção decide 45/51 — pior que os 48/51
+da anterior, com 15,5% menos tokens; o EXP-07 mede essa troca e a reversão está em aberto. As
+[limitações](solution/SOLUTION.md#8-limitações) estão declaradas, não maquiadas.
 
 ---
 
@@ -135,7 +136,7 @@ inteli-tractian-project/
     ├── SOLUTION.md              documentação técnica e resultados
     ├── docs/
     │   ├── ARCHITECTURE.md      as decisões e o porquê de cada uma
-    │   └── experimentos/        EXP-01 a EXP-07
+    │   └── EXPERIMENTOS.md      os 7 experimentos, hipótese a limitações
     ├── agent/                   Parte 1 — o agente (LangGraph)
     ├── evaluation/              Parte 2 — avaliação em 3 camadas
     └── painel/                  Parte 3 — painel de leitura dos traces
@@ -153,7 +154,7 @@ Makefile, como `SOL` e `TRAC`. São quatro os pontos que a cruzam.
 | entender o desafio proposto | [`tractian/STUDENT-GUIDE.md`](tractian/STUDENT-GUIDE.md) |
 | entender as decisões de arquitetura | [`solution/docs/ARCHITECTURE.md`](solution/docs/ARCHITECTURE.md) |
 | ver resultados e limitações | [`solution/SOLUTION.md`](solution/SOLUTION.md) |
-| ver os experimentos | [`solution/docs/experimentos/`](solution/docs/experimentos/) |
+| ver os experimentos | [`solution/docs/EXPERIMENTOS.md`](solution/docs/EXPERIMENTOS.md) |
 
 ---
 
@@ -176,7 +177,7 @@ livre, a camada determinística compararia o caminho tomado contra uma lista vaz
 engana. A saída foi pular a camada explicitamente e gravar `null` com o motivo, em vez de
 adaptá-la para produzir algo apresentável.
 
-**Escrever a hipótese depois dos dados enfraquece a conclusão.** Três dos quatro experimentos
+**Escrever a hipótese depois dos dados enfraquece a conclusão.** Cinco dos sete experimentos
 foram formulados sobre execuções que já existiam. Isso tem nome — HARKing — e o caminho honesto
 foi declarar no topo de cada documento em vez de apresentar como se tivesse sido planejado. Foi o
 aprendizado mais desconfortável: a diferença entre um resultado que sugere e um que demonstra

@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .api_client import ApiClient
 from .config import Settings, load_settings
@@ -41,12 +41,18 @@ def run_case(
     settings: Settings | None = None,
     save_to: Path | None = None,
     mutacao: "Bundle | None" = None,
+    trace_hook: "Callable[[str, Trace], None] | None" = None,
 ) -> Trace:
     """Roda o agente sobre um caso e devolve o trace da execução.
 
     Falhas de execução (LLM indisponível, erro inesperado) não são silenciadas: ficam
     registradas no próprio trace, para que a avaliação distinga "o agente decidiu mal"
     de "a execução quebrou".
+
+    `trace_hook` recebe `("trace", trace)` assim que o trace existe, ANTES de o grafo
+    começar. É o que permite a alguém de fora acompanhar a execução enquanto ela
+    acontece — o trace acumula passos, roteamento e achados em tempo real. Nada aqui
+    muda por causa dele: quem não passa o hook roda exatamente como antes.
     """
     settings = settings or load_settings()
 
@@ -65,6 +71,8 @@ def run_case(
         evidence_policy=settings.evidence_policy,
         mutacao=mutacao.para_trace() if mutacao else None,
     )
+    if trace_hook is not None:
+        trace_hook("trace", trace)
 
     with ApiClient(
         base_url=settings.api_base_url,

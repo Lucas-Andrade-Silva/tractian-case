@@ -167,10 +167,10 @@ todo — o default é que estava errado.
 Agora o padrão é a fase de produção, e julgar outra é escolha explícita
 (`--fase baseline`, ou `FASE=baseline make painel-julgar`). As fases aceitas vêm de
 `fases_de` sobre o próprio bundle, não de uma tupla no código: antes, `--fase conditional`
-era recusado pelo argparse e a bateria do EXP-06 não tinha como ser julgada, mesmo já
+era recusado pelo argparse e a bateria do EXP-05 não tinha como ser julgada, mesmo já
 aparecendo no painel. `tests/test_julgar_fase.py` trava as duas coisas.
 
-Vale a decisão de escopo junto: a fase `conditional` **não precisa** de juiz. O EXP-06 é
+Vale a decisão de escopo junto: a fase `conditional` **não precisa** de juiz. O EXP-05 é
 sobre custo e repetição, medidos por contador, e reporta 18/18 decisões idênticas — pagar
 comitê ali é medir uma dimensão que o experimento não usa.
 

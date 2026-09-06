@@ -24,6 +24,7 @@ API industrial, via header `x-user-id`. Escopo do projeto preservado.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -123,6 +124,11 @@ def build_app():
         remove_registro,
         resumo_consulta,
     )
+    from runner.holdout_ao_vivo import (  # noqa: E402
+        cenarios_disponiveis,
+        executa_ao_vivo,
+    )
+    from runner.juiz_modelos import DIMENSOES  # noqa: E402
     from runner.sintetico import ModelosIndistintos, gerador_settings  # noqa: E402
     from runner.juiz_modelos import (  # noqa: E402
         ChaveDeJuizAusente,
@@ -204,6 +210,59 @@ def build_app():
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/holdout/cenarios", tags=["Holdout ao vivo"])
+    def holdout_cenarios():
+        """Os 8 cenários do holdout — só o que o agente veria.
+
+        Sem `expected_path`, sem `accepted_decisions`, sem `root_question`: o gabarito
+        só sai no evento final da execução. Servir tudo aqui deixaria a resposta certa a
+        um F12 de distância, e a aba perderia o sentido.
+        """
+        return {"cenarios": cenarios_disponiveis()}
+
+    @app.get("/holdout/executar/{case_id}", tags=["Holdout ao vivo"])
+    def holdout_executar(
+        case_id: str,
+        seed: str | None = None,
+        julgar: bool = False,
+        modelo_juiz: str | None = None,
+    ):
+        """Roda um cenário do holdout transmitindo cada passo (SSE).
+
+        GET, e não POST, porque `EventSource` — a API do navegador para SSE — só faz
+        GET. A execução altera estado na plataforma industrial quando o cenário pede uma
+        ação, então não é um GET puro no sentido REST; é o preço de usar `EventSource`
+        em vez de reimplementar streaming sobre `fetch`.
+        """
+        from fastapi.responses import StreamingResponse  # noqa: PLC0415
+
+        def fluxo():
+            try:
+                # Um modelo só para as três dimensões: a interface oferece uma escolha,
+                # não três. Quem quiser um por dimensão fixa `JUDGE_MODEL_<DIMENSAO>` no
+                # `.env`, que continua tendo precedência quando nada vem por aqui.
+                escolhidos = (
+                    {dim: modelo_juiz for dim in DIMENSOES} if modelo_juiz else None
+                )
+                for evento in executa_ao_vivo(
+                    case_id, seed=seed, julgar=julgar, modelos_juizes=escolhidos
+                ):
+                    yield f"data: {json.dumps(evento, ensure_ascii=False)}\n\n"
+            except Exception as exc:  # noqa: BLE001 - o erro precisa chegar à página
+                erro = {"tipo": "erro", "mensagem": f"{type(exc).__name__}: {exc}"}
+                yield f"data: {json.dumps(erro, ensure_ascii=False)}\n\n"
+
+        return StreamingResponse(
+            fluxo(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                # Sem isto, um proxy reverso com buffer segura os eventos e entrega
+                # todos no fim — que é exatamente o que esta aba existe para não fazer.
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.get("/consultas", tags=["Consulta"])
     def consultas(

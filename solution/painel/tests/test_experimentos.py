@@ -6,7 +6,7 @@ banca vai ler é pior que uma página fora do ar.
 
 O que estes testes travam:
 
-1. Os números do EXP-07 na página batem com os traces em disco. Se alguém mexer nos
+1. Os números do EXP-06 na página batem com os traces em disco. Se alguém mexer nos
    critérios e o placar mudar sem que os traces mudem, isto falha.
 2. Nenhum experimento é apresentado como derivado sem ter dado derivado junto.
 3. Todo experimento aponta para um documento que existe.
@@ -35,15 +35,34 @@ def dados():
 @pytest.fixture(scope="module")
 def exp07(dados):
     for e in dados["experimentos"]:
-        if e["id"] == "EXP-07":
+        if e["id"] == "EXP-06":
             return e
-    pytest.fail("EXP-07 ausente do experimentos.json")
+    pytest.fail("EXP-06 ausente do experimentos.json")
 
 
-def test_todo_experimento_aponta_para_um_documento_existente(dados):
-    docs = SOLUTION / "docs" / "experimentos"
+def test_todo_experimento_aponta_para_uma_secao_existente(dados):
+    """Os seis experimentos moram num documento só, cada um sob um cabeçalho `# EXP-NN`.
+
+    O `arquivo` de cada entrada é `EXPERIMENTOS.md#ancora`, e checar só o arquivo deixaria
+    passar uma âncora quebrada — que é o modo de falha real depois da consolidação: o
+    documento existe, o link leva ao topo e o leitor não encontra a seção.
+    """
+    import re
+
+    doc = SOLUTION / "docs" / "EXPERIMENTOS.md"
+    assert doc.exists(), "docs/EXPERIMENTOS.md não existe"
+
+    ancoras = set()
+    for linha in doc.read_text(encoding="utf-8").splitlines():
+        if m := re.match(r"^#{1,6}\s+(.*)", linha):
+            t = re.sub(r"[`*_\[\]()]", "", m.group(1).strip().lower())
+            t = re.sub(r"[^\w\s-]", "", t, flags=re.UNICODE)
+            ancoras.add(re.sub(r"\s+", "-", t.strip()))
+
     for e in dados["experimentos"]:
-        assert (docs / e["arquivo"]).exists(), f"{e['id']}: documento {e['arquivo']} não existe"
+        arquivo, _, frag = e["arquivo"].partition("#")
+        assert arquivo == "EXPERIMENTOS.md", f"{e['id']}: aponta para {arquivo}"
+        assert frag in ancoras, f"{e['id']}: âncora #{frag} não existe em EXPERIMENTOS.md"
 
 
 def test_experimento_derivado_traz_o_dado_derivado(dados):
@@ -70,7 +89,7 @@ def test_exp07_tem_os_quatro_casos_com_os_tres_bracos(exp07):
 
 def test_exp07_o_placar_bate_com_os_traces_em_disco(exp07):
     """Recalcula do zero e compara. É o teste que impede a página de divergir do dado."""
-    from montar_experimentos import exp07 as recalcula
+    from montar_experimentos import exp07_sensibilidade as recalcula
 
     atual = recalcula()
     publicado = exp07["derivado"]
@@ -117,6 +136,43 @@ def bundle():
     if not caminho.exists():
         pytest.skip("dados/bundle.json não gerado (rode `make painel-dados`)")
     return json.loads(caminho.read_text(encoding="utf-8"))
+
+
+def test_exp07_prompt_o_placar_bate_com_o_bundle(dados):
+    """Recalcula o pareado pos-correcao x fixed-atual e compara com o publicado.
+
+    O EXP-07 é o único experimento cujo veredito é uma troca — custo por acurácia — então
+    os dois lados têm de bater: se `regrediu` ou `delta_tokens` divergirem do bundle, a
+    página conta uma história diferente do dado.
+    """
+    from montar_experimentos import BUNDLE, exp07 as recalcula
+
+    bundle = json.loads(BUNDLE.read_text(encoding="utf-8"))
+    atual = recalcula(bundle)
+    pub = _exp(dados, "EXP-07")["derivado"]
+    for chave in ("total", "corrigiu", "regrediu", "acertos_a", "acertos_b", "delta_tokens"):
+        assert atual[chave] == pub[chave], (
+            f"{chave} divergiu — rode `make experimentos`"
+        )
+
+
+def test_exp07_prompt_regrediu_e_nao_corrigiu(dados):
+    """O achado do EXP-07: 3 regressões, 0 correções, e a economia de custo real.
+
+    Trava a direção do resultado, não só a consistência. Se uma bateria futura corrigir
+    alguma decisão, este teste falha e o documento precisa ser reescrito — que é
+    exatamente o que deve acontecer.
+    """
+    d = _exp(dados, "EXP-07")["derivado"]
+    assert d["corrigiu"] == 0, "houve correção: EXP-07 §7.4.2 precisa ser refeito"
+    assert d["regrediu"] > 0, "não houve regressão: EXP-07 perdeu seu objeto"
+    assert d["acertos_b"] < d["acertos_a"], "a acurácia não caiu — reveja o veredito"
+    assert d["delta_tokens"] < 0, "a economia não aconteceu — reveja a hipótese"
+
+
+def test_a_primeira_amostra_do_exp07_e_uma_regressao(dados):
+    """No EXP-07 a regressão é o achado; abrir num par idêntico esconderia o resultado."""
+    assert _exp(dados, "EXP-07")["explorador"]["linhas"][0]["efeito"] == "regrediu"
 
 
 def _exp(dados, id_):
@@ -184,15 +240,15 @@ def test_exp04_nenhuma_execucao_foge_da_constante(dados):
 
 def test_a_primeira_amostra_carrega_o_efeito_medido(dados):
     """A primeira amostra é a que decide se o leitor navega ou desiste. Nos pareados ela
-    tem de ser um par com efeito, e no EXP-07 tem de ser o caso que falhou — enterrar a
+    tem de ser um par com efeito, e no EXP-06 tem de ser o caso que falhou — enterrar a
     falha atrás de dois ✔ é o tipo de ordenação que embeleza resultado."""
     assert _exp(dados, "EXP-01")["explorador"]["linhas"][0]["efeito"] == "corrigiu"
-    assert _exp(dados, "EXP-07")["derivado"]["casos"][0]["nivel2"] is False
+    assert _exp(dados, "EXP-06")["derivado"]["casos"][0]["nivel2"] is False
 
 
 def test_os_exploradores_sao_recontados_do_bundle(dados, bundle):
     """Recalcula do zero contra o bundle e compara com o publicado — o mesmo contrato que
-    já vale para o EXP-07, agora para os quatro exploradores derivados do bundle."""
+    já vale para o EXP-06, agora para os quatro exploradores derivados do bundle."""
     from montar_experimentos import exp01, exp02, exp03
 
     for id_, fn, chaves in [

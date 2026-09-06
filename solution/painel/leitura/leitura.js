@@ -1323,6 +1323,12 @@ function aplicaTema() {
 function blocoExperimento() {
   const pos = AGENTE.agregados || {};
   const base = AGENTE.agregados_baseline || {};
+  // Os rótulos das colunas seguem a fase de fato exibida — `AGENTE.fase_anterior` é o
+  // nome real de `agregados_baseline` (nem sempre é a bateria "baseline" literal: numa
+  // bateria de política, por exemplo, `fase_anterior` é `pos-correcao`). Rótulo fixo
+  // aqui já produziu números certos sob nome errado quando a página trocava de fase.
+  const nomeAnterior = AGENTE.fase_anterior || "baseline";
+  const nomeAtual = (AGENTE.meta || {}).fase || "pos-correcao";
   const linha = (k, a, d, dec = 1, menorMelhor = true, suf = "") => {
     if (a == null || d == null) return "";
     const dif = d - a;
@@ -1335,8 +1341,8 @@ function blocoExperimento() {
   return `<div class="exp">
     <div class="exp-l first">
       <span class="exp-k" style="color:var(--ink-3);font-size:10px;letter-spacing:.08em;text-transform:uppercase">métrica</span>
-      <span class="exp-a">baseline</span><span></span><span class="exp-s"></span>
-      <span class="exp-d" style="font-size:11px">pós-correção</span>
+      <span class="exp-a">${esc(nomeAnterior)}</span><span></span><span class="exp-s"></span>
+      <span class="exp-d" style="font-size:11px">${esc(nomeAtual)}</span>
     </div>
     ${linha("acurácia de decisão", (base.acuracia_decisao ?? 0) * 100, (pos.acuracia_decisao ?? 0) * 100, 1, false, "%")}
     ${linha("tokens por execução", base.tokens_medio, pos.tokens_medio, 0)}
@@ -1374,6 +1380,66 @@ async function trocaFase(nome, aoTerminar) {
   }
 }
 
+/* Seletor do modelo que julga. O catalogo vem do OpenRouter ao vivo (`/juiz/modelos`),
+   com fallback para a lista local quando a API nao responde — por isso a carga e
+   assincrona e o bloco nasce num estado de espera.
+
+   Um modelo para as tres dimensoes, nao tres seletores: a escolha por dimensao existe no
+   backend (`JUDGE_MODEL_<DIMENSAO>`) e serve para fixar um resultado ja testado, nao para
+   ser mexida a cada execucao. Tres controles aqui sugeririam que variar por dimensao e
+   rotina, quando o uso normal e comparar o mesmo juiz entre execucoes. */
+function corpoJuizModelo() {
+  if (!JUIZ.carregado) {
+    return `<p class="eng-esp">carregando os modelos disponíveis no OpenRouter…</p>`;
+  }
+  if (!JUIZ.chaveOk) {
+    return `<p>Sem <code>JUDGE_API_KEY</code> no <code>.env</code>: o comitê não roda, e a
+      escolha de modelo não teria efeito. A camada 1 (comparação com o gabarito) não é
+      afetada &mdash; ela não usa LLM.</p>`;
+  }
+  if (!JUIZ.modelos.length) {
+    return `<p>O OpenRouter não devolveu modelos gratuitos com saída estruturada agora.
+      O comitê usa o padrão do <code>.env</code>.</p>`;
+  }
+
+  const padrao = (JUIZ.dimensoes[0] || {}).padrao || "";
+  const opcoes = JUIZ.modelos.map((m) => `<option value="${esc(m.id)}"${
+    m.id === JUIZ.escolhido ? " selected" : ""}>${esc(m.id)}${
+    m.descricao ? ` — ${esc(m.descricao)}` : ""}</option>`).join("");
+
+  return `<p>Quem julga a resposta do agente nas três dimensões do comitê. Só modelos
+      <code>:free</code> que declaram saída estruturada entram na lista &mdash; sem isso a
+      nota volta em prosa e o comitê quebra depois de já ter gasto a chamada.</p>
+    <div class="eng-lin">
+      <select class="juiz-sel" id="sel-juiz">
+        <option value=""${JUIZ.escolhido ? "" : " selected"}>padrão do .env — ${esc(padrao)}</option>
+        ${opcoes}
+      </select>
+    </div>
+    <p class="eng-esp">Vale para a aba <b>Holdout ao vivo</b>, quando o comitê está ligado.
+      Um modelo menor responde mais rápido e gasta menos cota, mas julga pior &mdash; e a
+      nota de juiz já serve para <i>ordenar</i> execuções, não para medir acerto. Trocar o
+      juiz entre execuções torna as notas incomparáveis: a procedência de cada uma fica
+      registrada junto da nota, no resultado.</p>`;
+}
+
+/* Busca o catalogo uma vez por sessao. A chamada ao OpenRouter leva alguns segundos e o
+   resultado nao muda no meio de uma sessao de uso. */
+async function carregaJuizModelos(aoTerminar) {
+  if (JUIZ.carregado) return;
+  try {
+    const r = await fetch(`${API_AGENTE}/juiz/modelos`).then((x) => x.json());
+    JUIZ.modelos = r.modelos || [];
+    JUIZ.dimensoes = r.dimensoes || [];
+    JUIZ.chaveOk = r.chave_configurada !== false;
+  } catch {
+    /* Sem o agente no ar o seletor nao tem o que oferecer; o estado vazio ja diz isso. */
+    JUIZ.modelos = [];
+  }
+  JUIZ.carregado = true;
+  aoTerminar?.();
+}
+
 function corpoConfiguracao() {
   const raiz = document.documentElement;
   const tractian = raiz.dataset.brand === "tractian";
@@ -1390,6 +1456,11 @@ function corpoConfiguracao() {
         <button class="sw" id="sw-brand" aria-pressed="${tractian}">Paleta Tractian</button>
         <button class="sw" id="sw-theme" aria-pressed="${escuro}">${escuro ? "Tema claro" : "Tema escuro"}</button>
       </div>
+    </div>
+
+    <div class="eng-s">
+      <h3>Modelo do comitê de juízes</h3>
+      ${corpoJuizModelo()}
     </div>
 
     <div class="eng-s">
@@ -1450,7 +1521,7 @@ function corpoConfiguracao() {
         para decidir que terminou.</p>
       <p><b>A decisão não muda</b> — 18/18 nos dois braços, zero divergências par a par. É o
         achado que se repete nos dois experimentos: a política afeta custo, não desfecho.
-        Detalhes e limitações em <code>solution/docs/experimentos/EXP-06-*.md</code>.</p>
+        Detalhes e limitações no EXP-05 de <code>solution/docs/EXPERIMENTOS.md</code>.</p>
     </div>
 
     <div class="eng-s">
@@ -1460,8 +1531,10 @@ function corpoConfiguracao() {
         a camada 3 mede estabilidade entre as três seeds da mesma execução.</p>
       <p><b>Duas fases.</b> <code>baseline</code> e <code>pos-correcao</code> rodaram os mesmos
         ${AGENTE.agregados?.execucoes ?? 51} pares caso × seed, com a mesma configuração de
-        modelos &mdash; o que mudou foram os prompts. A tabela abaixo é sempre essa comparação,
-        independente da bateria exibida.</p>
+        modelos &mdash; o que mudou foram os prompts. A tabela abaixo compara a bateria
+        exibida (<code>${esc((AGENTE.meta || {}).fase || "pos-correcao")}</code>) contra
+        <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>, que é o par que
+        <code>montar_indice.py</code> escolheu para ela — troque a fase para ver outro par.</p>
       ${blocoExperimento()}
       <p style="margin-top:10px"><b>Comitê de juízes.</b> ${jm.julgadas ?? 0} de
         ${jm.elegiveis ?? 0} execuções julgadas, todas da fase <code>baseline</code>, por
@@ -1508,7 +1581,7 @@ const corta = (s, n) => {
    derivado dos traces em disco. */
 
 /* Placar: as caixas de número no topo do explorador. `fail` pinta de vermelho o que
-   contraria a hipótese — é como o EXP-07 mostra sozinho que 1 dos 4 casos falhou. */
+   contraria a hipótese — é como o EXP-06 mostra sozinho que 1 dos 4 casos falhou. */
 function placar(itens) {
   return `<dl class="xp-sc">${itens.map((i) => `
     <div class="${i.fail ? "fail" : ""}"><dt>${esc(i.k)}</dt>
@@ -1547,13 +1620,24 @@ function exploradorPar(e, id, rot, mostraCusto) {
   if (!d || !d.linhas?.length) return "";
   const i = Math.min(XP_ABERTO[id] ?? 0, d.linhas.length - 1);
   const ln = d.linhas[i];
+  const pct = (x) => `${x > 0 ? "+" : ""}${String(x).replace(".", ",")}%`;
+  // Cada experimento pareado tem um placar próprio porque mede coisa diferente: o EXP-01
+  // compra decisão, o EXP-02 compra custo, e o EXP-07 é o único que troca uma pela outra —
+  // mostrar só um dos dois lados dele contaria metade do resultado.
   const itens = id === "EXP-01"
     ? [{ k: "pares", v: d.total },
        { k: "decisão corrigida", v: d.corrigiu },
        { k: "regressões", v: d.regrediu, fail: d.regrediu > 0 }]
+    : id === "EXP-07"
+    ? [{ k: "pares", v: d.total },
+       { k: "regressões", v: d.regrediu, fail: d.regrediu > 0 },
+       { k: "correções", v: d.corrigiu },
+       { k: "acerto", v: `${d.acertos_a}/${d.total} → ${d.acertos_b}/${d.total}`,
+         fail: d.acertos_b < d.acertos_a },
+       { k: "custo em tokens", v: pct(d.delta_tokens) }]
     : [{ k: "pares", v: d.total },
        { k: "decisões divergentes", v: d.divergiu, fail: d.divergiu > 0 },
-       { k: "custo em tokens", v: `${d.delta_tokens > 0 ? "+" : ""}${String(d.delta_tokens).replace(".", ",")}%` }];
+       { k: "custo em tokens", v: pct(d.delta_tokens) }];
   return `
     ${placar(itens)}
     ${navegador(id, i, d.linhas.length, "par")}
@@ -1639,12 +1723,12 @@ function exploradorExp04(e) {
       na primeira linha. Mostrando ${mostradas} de ${linhas.length}.</p>`;
 }
 
-/* EXP-07: três braços da mesma execução. O placebo é a coluna que faz o experimento valer —
+/* EXP-06: três braços da mesma execução. O placebo é a coluna que faz o experimento valer —
    sem ela, "mudou junto com a mutação" não se separa de "muda com qualquer coisa". */
 function exploradorExp07(e) {
   const d = e.derivado;
   if (!d || !d.casos?.length) return "";
-  const i = Math.min(XP_ABERTO["EXP-07"] ?? 0, d.casos.length - 1);
+  const i = Math.min(XP_ABERTO["EXP-06"] ?? 0, d.casos.length - 1);
   const c = d.casos[i];
   const braco = (k, rot, nota) => {
     const b = c.bracos?.[k] || {};
@@ -1660,7 +1744,7 @@ function exploradorExp07(e) {
       { k: "Decisor usou como critério", v: d.n2, de: d.total, fail: d.n2 < d.total },
       { k: "Placebo mudou a conclusão", v: d.placebo, de: d.total, fail: d.placebo > 0 },
     ])}
-    ${navegador("EXP-07", i, d.casos.length, "caso")}
+    ${navegador("EXP-06", i, d.casos.length, "caso")}
     <div class="xp-am${!c.nivel2 ? " fail" : ""}">
       <div class="xp-amh">
         <span class="xp-cn">${esc(c.letra)}</span>
@@ -1682,7 +1766,11 @@ function explorador(e) {
   if (e.id === "EXP-02") return exploradorPar(e, "EXP-02", ["fixed · 4 pilares", "conditional · sob demanda"], true);
   if (e.id === "EXP-03") return exploradorExp03(e);
   if (e.id === "EXP-04") return exploradorExp04(e);
-  if (e.id === "EXP-07") return exploradorExp07(e);
+  if (e.id === "EXP-06") return exploradorExp07(e);
+  // Mesmo explorador pareado do EXP-01, de propósito: as duas medições são a mesma
+  // comparação de decisão, e a simetria é o que deixa ver 4 correções de um lado contra
+  // 3 regressões do outro. `true` mostra a coluna de custo — aqui ela é metade do achado.
+  if (e.id === "EXP-07") return exploradorPar(e, "EXP-07", ["pós-correção", "fixed-atual · prompt enxuto"], true);
   return "";
 }
 
@@ -1695,8 +1783,10 @@ const PERGUNTA = {
              "Não — muda o custo, não o desfecho."],
   "EXP-03": ["Deixar a API recusar com 403 basta para o agente parar e ser honesto?", "Sim."],
   "EXP-04": ["Um Decisor sem tools custa sempre 1 chamada de LLM?", "Sim, em toda a bateria."],
-  "EXP-07": ["A decisão vem da evidência apurada ou do que o chamado afirma?",
+  "EXP-06": ["A decisão vem da evidência apurada ou do que o chamado afirma?",
              "Da evidência — com uma falha em quatro."],
+  "EXP-07": ["Cortar o brief do Supervisor economiza sem custar decisão?",
+             "Não — economizou 15%, e devolveu 3 decisões ao <i>orientar</i>."],
 };
 
 function corpoExperimentos() {
@@ -1725,7 +1815,7 @@ function corpoExperimentos() {
         <p><b>Resultado.</b> ${esc(e.resumo)}</p>
         <p><b>Nesta página.</b> ${esc(e.na_pagina)}</p>
         <p class="xp-fonte">${esc(e.estado)}<br>
-          Documento: <code>solution/docs/experimentos/${esc(e.arquivo)}</code> ·
+          Documento: <code>solution/docs/${esc(e.arquivo)}</code> ·
           ${e.fonte === "derivado" ? "números derivados dos traces em disco"
             : "veredito do documento; a amostra acima é recontada do bundle"}</p>
       </div>` : ""}
@@ -1742,10 +1832,514 @@ function corpoExperimentos() {
       <h3>O que nenhum deles prova</h3>
       <p>Dados sintéticos, 17 casos de material fictício, um único conjunto de modelos a
         <code>temperature=0</code>. As amostras são pequenas — o EXP-01 convive com
-        p&nbsp;≈&nbsp;0,125 e o EXP-07 tem quatro casos. São demonstrações de mecanismo,
-        não estimativas de taxa. Só o EXP-07 foi pré-registrado; os outros foram
+        p&nbsp;≈&nbsp;0,125 e o EXP-06 tem quatro casos. São demonstrações de mecanismo,
+        não estimativas de taxa. Só o EXP-06 foi pré-registrado; os outros foram
         reconstruídos sobre execuções que já existiam.</p>
     </div>`;
+}
+
+/* ================= holdout ao vivo =================
+ * Os 8 cenarios reservados para o teste final, resolvidos na frente de quem assiste.
+ *
+ * A regra que da sentido a aba: o gabarito NAO vem junto da lista. O endpoint
+ * `/holdout/cenarios` devolve so o que o agente ve — mensagem e ativo. O
+ * `expected_path` e as decisoes aceitas chegam no ultimo evento do streaming, depois de
+ * o agente ter escolhido. Servir tudo de uma vez deixaria a resposta certa a um F12 de
+ * distancia, e a demonstracao viraria encenacao.
+ *
+ * O transporte e SSE (`EventSource`): o servidor empurra um evento por passo — cada
+ * consulta a API industrial, cada troca de papel, cada achado — e a tela desenha
+ * conforme chega. Sem polling do lado do navegador.
+ */
+const HOLD = { cenarios: [], atual: null, fonte: null, feitos: {}, julgar: guarda.ler("hold-julgar") === "on" };
+
+/* Modelo do comite, escolhido na aba Configuracao. Vazio = o padrao do `.env`
+   (`JUDGE_MODEL_<DIMENSAO>` ou `JUDGE_MODEL`), que continua valendo quando a
+   interface nao escolhe nada. */
+const JUIZ = { modelos: [], dimensoes: [], escolhido: guarda.ler("juiz-modelo") || "", carregado: false, chaveOk: true };
+
+const HOLD_ICONE = { consulta: "→", papel: "◆", achado: "✓", llm: "·", erro: "✕" };
+
+/* Uma linha do log. `classe` colore o fundo por natureza do evento. */
+function holdLinha(icone, texto, direita = "", classe = "") {
+  return `<div class="hd-l ${classe}"><span class="hd-l-ic">${icone}</span>
+    <span class="hd-l-tx">${texto}</span>
+    <span class="hd-l-rt">${direita}</span></div>`;
+}
+
+function holdEventoHtml(ev) {
+  if (ev.tipo === "consulta") {
+    const erro = !ev.ok;
+    const modo = ev.mode ? `<span class="mode ${esc(ev.mode)}">${esc(ev.mode)}</span>` : "";
+    const status = erro ? `<span class="st-err">${ev.status}</span>` : `${ev.status}`;
+    const cache = ev.do_cache ? ` <span class="mode">cache</span>` : "";
+    return holdLinha(
+      HOLD_ICONE.consulta,
+      `<code>${esc(ev.step || "")}</code> ${modo}${cache}`,
+      `${esc(ev.agente || "")} · ${status}`,
+      erro ? "erro" : ""
+    );
+  }
+  if (ev.tipo === "papel") {
+    return holdLinha(HOLD_ICONE.papel, `assume o <b>${esc(ev.para || "")}</b>`,
+      ev.turno ? `turno ${ev.turno}` : "", "papel");
+  }
+  if (ev.tipo === "achado") {
+    /* O resumo do papel pode ter varias linhas de `campo=valor`. Vira uma linha so:
+       o log e cronologia, nao relatorio — o texto inteiro esta no trace. */
+    const resumo = String(ev.resumo || "").replace(/\s+/g, " ").trim();
+    return holdLinha(HOLD_ICONE.achado,
+      `<b>${esc(ev.agente || "")}</b> resumiu: ${esc(resumo.slice(0, 180))}${resumo.length > 180 ? "…" : ""}`,
+      "", "achado");
+  }
+  if (ev.tipo === "llm") {
+    return holdLinha(HOLD_ICONE.llm, `<span style="color:var(--ink-3)">${esc(ev.agente || "")} pensou</span>`,
+      `${(ev.total || 0).toLocaleString("pt-BR")} tok`);
+  }
+  if (ev.tipo === "erro") {
+    return holdLinha(HOLD_ICONE.erro, esc(ev.mensagem || "falhou"), "", "erro");
+  }
+  return "";
+}
+
+/* As notas do comite (camada 2). Mede o que a comparacao de trajetoria nao ve: se a
+   resposta e honesta sobre o que ficou indeterminado, se a causa raiz esta certa, e se a
+   justificativa sustenta a decisao. Nota de 1 a 5 por dimensao. */
+const HOLD_DIM = {
+  honestidade: "Honestidade sob incerteza",
+  causa_raiz: "Acerto de causa raiz",
+  justificativa: "Qualidade da justificativa",
+};
+
+function holdJuizes(vereditos, modelos) {
+  const dims = Object.entries(vereditos || {});
+  if (!dims.length) return "";
+
+  const notas = dims.map(([chave, v]) => {
+    const n = v.score;
+    /* Sem nota quando a execucao falhou — o comite nao julga o que nao tem resposta. */
+    const cls = n == null ? "" : n >= 4 ? "ok" : n >= 3 ? "med" : "no";
+    return `<div class="hd-jz-d">
+      <div class="hd-jz-h">
+        <span class="hd-jz-t">${esc(HOLD_DIM[chave] || chave)}</span>
+        <span class="hd-jz-n ${cls}">${n == null ? "—" : `${n}/5`}</span>
+      </div>
+      <p class="hd-jz-r">${esc(v.reasoning || "")}</p>
+      ${v.modelo ? `<p class="hd-jz-m">${esc(v.modelo)}</p>` : ""}
+    </div>`;
+  }).join("");
+
+  const validas = dims.map(([, v]) => v.score).filter((n) => typeof n === "number");
+  const media = validas.length
+    ? (validas.reduce((a, b) => a + b, 0) / validas.length).toFixed(1) : null;
+
+  return `<div class="hd-jz">
+    <div class="hd-ver-h">
+      <h4>Comitê de juízes</h4>
+      ${media ? `<span class="hd-selo ${media >= 4 ? "ok" : media >= 3 ? "med" : "no"}">${media}/5</span>` : ""}
+      <span class="hd-caso-meta">camada 2</span>
+    </div>
+    <div class="hd-ver-b">
+      ${notas}
+      <p class="hd-jz-av">Nota de juiz ordena execuções; não mede acerto. O comitê não é
+        calibrado contra anotação humana, e roda em provedor diferente do que gerou a
+        resposta &mdash; nenhum modelo julga a si mesmo.</p>
+    </div>
+  </div>`;
+}
+
+/* Acoes de impacto: o que o cenario exigia que fosse EXECUTADO na plataforma, e o que
+   o agente de fato executou. Tres dos oito cenarios (HOLD-06, 07, 08) so passam com
+   acao — sem este bloco, a tela mostrava recall de consulta e silenciava a parte que
+   decide o veredito deles. Omitido quando nao ha acao exigida nem executada, que e o
+   caso dos cenarios de `orientar`. */
+function holdAcoes(v) {
+  const exigidas = v.acoes_exigidas || [];
+  const executadas = v.acoes_executadas || [];
+  const faltantes = new Set(v.acoes_faltantes || []);
+  const naoPrevistas = new Set(v.acoes_nao_previstas || []);
+  if (!exigidas.length && !executadas.length) return "";
+
+  const linhas = exigidas.map((a) => {
+    const feita = !faltantes.has(a);
+    return `<div class="hd-q">
+      <span class="hd-q-m ${feita ? "hit" : "miss"}">${feita ? "✓" : "✕"}</span>
+      <span><code>${esc(a)}</code>${feita ? "" : `<span class="hd-q-n">não foi executada</span>`}</span>
+    </div>`;
+  }).join("");
+
+  /* Acao executada fora do previsto é o caso grave: o agente alterou estado na
+     plataforma industrial que o cenario nao pedia. Merece destaque proprio, nao uma
+     linha discreta como a consulta extra. */
+  const extras = executadas.filter((a) => naoPrevistas.has(a));
+
+  return `<p style="margin:11px 0 5px"><b>Ação na plataforma:</b>${
+    exigidas.length ? "" : " o cenário não exige nenhuma."}</p>
+    ${linhas}
+    ${extras.length
+      ? `<p style="margin-top:7px; color:var(--crit)"><b>Executou sem previsão:</b>
+         <code>${extras.map(esc).join("</code>, <code>")}</code> &mdash; alteração de estado
+         que o cenário não pedia.</p>`
+      : ""}
+    ${!exigidas.length && executadas.length && !extras.length
+      ? `<p style="color:var(--ink-3)">Executou <code>${executadas.map(esc).join("</code>, <code>")}</code>,
+         dentro do que o cenário permite.</p>`
+      : ""}`;
+}
+
+/* O veredito: a unica parte que mostra gabarito, e so depois de o agente responder. */
+function holdVeredito(v) {
+  if (v.erro) return `<div class="hd-ver"><div class="hd-ver-b"><p>${esc(v.erro)}</p></div></div>`;
+  const ok = v.passou;
+  const consultas = (v.consultas_esperadas || []).map((q) => `
+    <div class="hd-q">
+      <span class="hd-q-m ${q.feita ? "hit" : "miss"}">${q.feita ? "✓" : "✕"}</span>
+      <span><code>${esc(q.step)}</code>
+        ${q.nota ? `<span class="hd-q-n">${esc(q.nota)}</span>` : ""}</span>
+    </div>`).join("");
+
+  /* Escalonamento com 404 nao e erro do agente: nenhum caso do holdout existe em
+     `data/cases.parquet`, entao `POST /cases/{id}/escalate` responde 404 mesmo para
+     quem tem a permissao. Esta ressalva ja esta no README do holdout; repeti-la aqui
+     evita que quem assiste leia a linha vermelha como falha de decisao. */
+  const escalou404 = (v.acoes_executadas || []).some((a) => a.includes("/escalate"));
+
+  return `<div class="hd-ver">
+    <div class="hd-ver-h">
+      <h4>Gabarito do holdout</h4>
+      <span class="hd-selo ${ok ? "ok" : "no"}">${ok ? "PASSOU" : "NÃO PASSOU"}</span>
+      <span class="hd-caso-meta">${esc(v.ticket_id || "")}</span>
+    </div>
+    <div class="hd-ver-b">
+      <p><b>O que o cenário cobra:</b> ${esc(v.pergunta_raiz || "—")}</p>
+      ${v.faceta ? `<p style="color:var(--ink-3)">${esc(v.faceta)}</p>` : ""}
+      <p><b>Resolução:</b> o agente decidiu <code>${esc(v.decisao || "—")}</code>;
+        o cenário aceita <code>${(v.decisoes_aceitas || []).map(esc).join("</code>, <code>")}</code>
+        &mdash; ${v.decisao_correta ? "bate" : `<b style="color:var(--crit)">não bate</b>`}${
+          v.cenario_ambiguo ? " (cenário admite mais de um desfecho)" : ""}.</p>
+      ${consultas ? `<p style="margin-bottom:5px"><b>Evidência que o cenário exige:</b></p>${consultas}` : ""}
+      ${(v.consultas_extras || []).length
+        ? `<p style="margin-top:9px; color:var(--ink-3)">Além do gabarito:
+           <code>${v.consultas_extras.map(esc).join("</code>, <code>")}</code> &mdash;
+           consulta a mais não reprova, mas custa tokens.</p>` : ""}
+      ${holdAcoes(v)}
+      ${escalou404
+        ? `<p style="margin-top:9px; color:var(--ink-3)">O <code>404</code> no escalonamento é
+           esperado: nenhum cenário do holdout existe em <code>cases.parquet</code>, então a API
+           recusa mesmo com a permissão correta. É limitação do ambiente, não decisão errada.</p>`
+        : ""}
+      <div class="hd-mets">
+        <div class="hd-met"><b>${((v.recall_evidencia ?? 0) * 100).toFixed(0)}%</b>recall de evidência</div>
+        <div class="hd-met"><b>${v.chamadas ?? 0}</b>chamadas</div>
+        <div class="hd-met"><b>${v.repeticoes ?? 0}</b>repetidas</div>
+        <div class="hd-met"><b>${v.erros_http ?? 0}</b>erros HTTP</div>
+        ${v.justificativa_len
+          ? `<div class="hd-met"><b>${v.justificativa_len}</b>caracteres de justificativa</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function holdCorpo() {
+  const cards = HOLD.cenarios.map((c) => {
+    const feito = HOLD.feitos[c.id];
+    const sel = HOLD.atual === c.id;
+    return `<button class="hd-c" data-caso="${esc(c.id)}" aria-current="${sel}"
+        ${HOLD.fonte ? "disabled" : ""}>
+      <span class="hd-c-t"><span class="hd-c-id">${esc(c.ticket_id || c.id)}</span>
+        <span class="hd-c-a">${esc(c.asset_id || "—")}</span></span>
+      <span class="hd-c-m">${esc(c.message || "")}</span>
+      ${feito ? `<span class="hd-c-v ${feito.passou ? "ok" : "no"}">${
+        feito.passou ? "✓ passou" : "✕ não passou"} · ${esc(feito.decisao || "")}</span>` : ""}
+    </button>`;
+  }).join("");
+
+  return `<div class="eng-s">
+    <h3>Como esta aba funciona</h3>
+    <p>Os oito cenários do <b>holdout</b> nunca entraram no ajuste do agente &mdash; foram
+      escritos depois e reservados para o teste final. Escolha um: o agente recebe a mensagem
+      do cliente exatamente como receberia em produção, e cada consulta que ele faz à API
+      industrial aparece abaixo <b>enquanto acontece</b>.</p>
+    <p>O gabarito fica escondido até ele terminar. Só depois da resposta final é que a
+      trajetória esperada e a resolução aceita aparecem, para comparação. O agente não sabe
+      que está sendo observado &mdash; roda com os mesmos prompts e o mesmo grafo da bateria.</p>
+  </div>
+  <div class="eng-s">
+    <h3>Cenários</h3>
+    <div class="hd-grid">
+      <div class="hd-cen">${cards}</div>
+      <div class="hd-pal" id="hd-pal">${holdPainel()}</div>
+    </div>
+  </div>`;
+}
+
+/* O painel direito quando ninguem esta rodando nada: ou o convite, ou a previa do
+   cenario escolhido com o botao de executar. Selecionar e executar sao dois gestos
+   separados de proposito — o segundo gasta uma chamada de LLM, e a cota e finita. */
+function holdPainel() {
+  if (!HOLD.atual) {
+    return `<div class="hd-vazio">
+      Escolha um cenário à esquerda para ver o que o agente vai receber.</div>`;
+  }
+  const c = HOLD.cenarios.find((x) => x.id === HOLD.atual);
+  if (!c) return `<div class="hd-vazio">cenário não encontrado</div>`;
+  const feito = HOLD.feitos[c.id];
+
+  return `<div class="hd-prev">
+    <div class="hd-prev-h">
+      <span class="hd-prev-id">${esc(c.ticket_id || "")} · ${esc(c.id)}</span>
+      <span class="hd-caso-meta">${esc(c.asset_id || "—")} · ${esc(c.user_id || "")}</span>
+    </div>
+    <p class="hd-prev-m">“${esc(c.message || "")}”</p>
+    <div class="hd-acoes">
+      <button class="hd-go" id="hd-go" type="button">
+        <span class="go-i">▶</span> ${feito ? "Executar de novo" : "Executar o agente"}
+      </button>
+      <label class="hd-chk"><input type="checkbox" id="hd-julgar"${HOLD.julgar ? " checked" : ""}>
+        <span>avaliar também com o comitê de juízes${
+          HOLD.julgar && JUIZ.escolhido ? ` <code class="hd-chk-m">${esc(JUIZ.escolhido)}</code>` : ""}</span></label>
+    </div>
+    <p class="hd-prev-n">É isto que o agente recebe &mdash; nada além. A execução é real:
+      ele consulta a API industrial de verdade e gasta cota do provedor. O gabarito
+      aparece só quando ele terminar.${
+        feito ? " Este cenário já rodou nesta sessão; rodar de novo sobrescreve o resultado." : ""}</p>
+    <p class="hd-prev-n">O <b>comitê de juízes</b> é a camada 2: três modelos avaliam a
+      resposta em honestidade, causa raiz e justificativa &mdash; o que a comparação com o
+      gabarito não alcança. Custa três chamadas a mais, num provedor diferente do que gerou
+      a resposta, e leva alguns segundos depois do veredito.</p>
+  </div>`;
+}
+
+/* Redesenha o painel direito e religa o botao. Usado ao trocar de cenario. */
+function holdMostraPrevia() {
+  const pal = document.getElementById("hd-pal");
+  if (!pal) return;
+  pal.innerHTML = holdPainel();
+  const go = document.getElementById("hd-go");
+  if (go) go.addEventListener("click", () => holdRoda(HOLD.atual));
+  const chk = document.getElementById("hd-julgar");
+  if (chk) chk.addEventListener("change", () => {
+    HOLD.julgar = chk.checked;
+    /* A escolha persiste: quem liga o comitê costuma querer nas execuções seguintes. */
+    guarda.escrever("hold-julgar", chk.checked ? "on" : "");
+    /* Redesenha para o nome do modelo aparecer (ou sumir) ao lado da caixa: sem isto o
+       rótulo fica dizendo o contrário do que a próxima execução vai usar. */
+    holdMostraPrevia();
+  });
+}
+
+/* Roda um cenario, desenhando cada evento assim que chega. */
+function holdRoda(caseId) {
+  if (HOLD.fonte || !caseId) return;            // uma execucao por vez: cota e finita
+  HOLD.atual = caseId;
+  /* Trava a lista enquanto roda, sem redesenhar o corpo: `holdCorpo()` aqui recriaria
+     os cards e derrubaria o painel que esta prestes a receber o log. */
+  document.querySelectorAll(".hd-c").forEach((b) => b.setAttribute("disabled", ""));
+
+  const pal = document.getElementById("hd-pal");
+  pal.innerHTML = `<div class="hd-bar"><span class="hd-pulse"></span>
+      <span class="hd-st" id="hd-st">conectando…</span>
+      <span class="hd-tk" id="hd-tk"></span></div>
+    <div class="hd-log" id="hd-log"></div>`;
+
+  const log = document.getElementById("hd-log");
+  const st = document.getElementById("hd-st");
+  const tk = document.getElementById("hd-tk");
+  let tokens = 0;
+
+  const params = new URLSearchParams();
+  if (HOLD.julgar) params.set("julgar", "true");
+  if (HOLD.julgar && JUIZ.escolhido) params.set("modelo_juiz", JUIZ.escolhido);
+  const qs = params.toString();
+  const fonte = new EventSource(
+    `${API_AGENTE}/holdout/executar/${encodeURIComponent(caseId)}${qs ? `?${qs}` : ""}`
+  );
+  HOLD.fonte = fonte;
+
+  const encerra = () => {
+    fonte.close();
+    HOLD.fonte = null;
+    /* Reabilita os cards sem redesenhar o painel: `holdCorpo()` aqui apagaria o log
+       que a pessoa acabou de ver rolar. */
+    document.querySelectorAll(".hd-c").forEach((b) => b.removeAttribute("disabled"));
+    /* Um botao no fim do log devolve o gesto de executar sem exigir que a pessoa
+       reselecione o cenario — o log e o veredito continuam na tela. */
+    if (!document.getElementById("hd-again")) {
+      log.insertAdjacentHTML("beforeend",
+        `<div style="padding:11px 2px 3px"><button class="hd-go" id="hd-again" type="button">
+          <span class="go-i">▶</span> Executar outra vez</button></div>`);
+      document.getElementById("hd-again").addEventListener("click", () => {
+        const alvo = HOLD.atual;
+        holdMostraPrevia();
+        holdRoda(alvo);
+      });
+      log.scrollTop = log.scrollHeight;
+    }
+  };
+
+  fonte.onmessage = (msg) => {
+    let ev;
+    try { ev = JSON.parse(msg.data); } catch { return; }
+
+    if (ev.tipo === "inicio") {
+      st.textContent = "o agente está trabalhando…";
+      pal.insertAdjacentHTML("afterbegin", `<div class="hd-caso">
+        <div class="hd-caso-h">
+          <span class="hd-caso-id">${esc(ev.ticket_id || "")} · ${esc(ev.case_id || "")}</span>
+          <span class="hd-caso-meta">${esc(ev.asset_id || "—")} · ${esc(ev.user_id || "")} · seed ${esc(ev.seed || "")}</span>
+        </div>
+        <p class="hd-caso-m">“${esc(ev.mensagem || "")}”</p>
+      </div>`);
+      return;
+    }
+
+    if (ev.tipo === "llm") { tokens += ev.total || 0; tk.textContent = `${tokens.toLocaleString("pt-BR")} tokens`; }
+
+    if (ev.tipo === "resposta") {
+      st.textContent = "respondeu — comparando com o gabarito…";
+      log.insertAdjacentHTML("beforeend", `<div class="hd-resp">
+        <span class="hd-dec">${esc(ev.decisao || "—")}</span>
+        <h4>Resposta ao cliente</h4>
+        <p>${esc(ev.resposta || "(sem resposta)")}</p>
+      </div>`);
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+
+    if (ev.tipo === "veredito") {
+      HOLD.feitos[ev.case_id] = { passou: ev.passou, decisao: ev.decisao };
+      log.insertAdjacentHTML("beforeend", holdVeredito(ev));
+      log.scrollTop = log.scrollHeight;
+      /* Com o comitê ligado o fluxo continua: `juizes` (ou `juizes_erro`) ainda vem.
+         Encerrar aqui fecharia o SSE antes das notas chegarem. */
+      if (HOLD.julgar) { st.textContent = "julgando a resposta…"; return; }
+      document.querySelector(".hd-bar")?.remove();
+      encerra();
+      /* Atualiza o selo no card da esquerda, agora que o resultado existe. */
+      const alvo = document.querySelector(`.hd-c[data-caso="${CSS.escape(ev.case_id)}"]`);
+      if (alvo && !alvo.querySelector(".hd-c-v")) {
+        alvo.insertAdjacentHTML("beforeend", `<span class="hd-c-v ${ev.passou ? "ok" : "no"}">${
+          ev.passou ? "✓ passou" : "✕ não passou"} · ${esc(ev.decisao || "")}</span>`);
+      }
+      return;
+    }
+
+    if (ev.tipo === "juizes_iniciou") {
+      log.insertAdjacentHTML("beforeend",
+        `<div class="hd-jz-wait" id="hd-jz-wait">comitê avaliando a resposta em
+         ${(ev.dimensoes || []).length} dimensões…</div>`);
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+
+    if (ev.tipo === "juizes") {
+      document.getElementById("hd-jz-wait")?.remove();
+      document.querySelector(".hd-bar")?.remove();
+      log.insertAdjacentHTML("beforeend", holdJuizes(ev.vereditos, ev.modelos));
+      log.scrollTop = log.scrollHeight;
+      encerra();
+      return;
+    }
+
+    if (ev.tipo === "juizes_erro") {
+      document.getElementById("hd-jz-wait")?.remove();
+      document.querySelector(".hd-bar")?.remove();
+      /* O comitê é opcional: falhar nele não invalida a camada 1, que já está na tela. */
+      log.insertAdjacentHTML("beforeend", `<div class="hd-jz-erro">
+        Não foi possível julgar: ${esc(ev.mensagem || "")}.<br>
+        A comparação com o gabarito acima não é afetada — ela não depende de LLM.</div>`);
+      log.scrollTop = log.scrollHeight;
+      encerra();
+      return;
+    }
+
+    if (ev.tipo === "erro") {
+      st.textContent = "a execução falhou";
+      document.querySelector(".hd-pulse")?.remove();
+      log.insertAdjacentHTML("beforeend", holdEventoHtml(ev));
+      encerra();
+      return;
+    }
+
+    const html = holdEventoHtml(ev);
+    if (html) { log.insertAdjacentHTML("beforeend", html); log.scrollTop = log.scrollHeight; }
+  };
+
+  /* `EventSource` reconecta sozinho por padrao — o que aqui significaria rodar o
+     cenario de novo, gastando cota. Fechar na primeira falha e o comportamento certo. */
+  fonte.onerror = () => {
+    if (HOLD.fonte) {
+      st.textContent = "conexão interrompida";
+      document.querySelector(".hd-pulse")?.remove();
+      encerra();
+    }
+  };
+}
+
+function holdLigaCards() {
+  document.querySelectorAll(".hd-c").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (HOLD.fonte) return;                   // execucao em curso: nao troca de caso
+      /* Clicar no card SELECIONA. Quem executa e o botao da previa: assim ninguem
+         dispara uma chamada de LLM so por explorar a lista. */
+      HOLD.atual = b.dataset.caso;
+      document.querySelectorAll(".hd-c").forEach((o) => {
+        o.setAttribute("aria-current", String(o === b));
+      });
+      holdMostraPrevia();
+    });
+  });
+}
+
+function ligarHoldout() {
+  const cx = document.getElementById("hold");
+  const corpo = document.getElementById("hold-corpo");
+  const abrir = document.getElementById("sw-hold");
+
+  let antes = null;
+  const abre = async () => {
+    antes = document.activeElement;
+    cx.setAttribute("open", "");
+    document.getElementById("hold-x").focus();
+
+    if (!HOLD.cenarios.length) {
+      corpo.innerHTML = `<div class="hd-vazio">carregando os cenários…</div>`;
+      try {
+        const r = await fetch(`${API_AGENTE}/holdout/cenarios`).then((x) => x.json());
+        HOLD.cenarios = r.cenarios || [];
+      } catch {
+        /* Sem o agente no ar nao ha o que rodar — a aba inteira depende dele, ao
+           contrario da leitura por ativo, que e estatica. */
+        corpo.innerHTML = `<div class="hd-vazio">
+          <b>O agente não está no ar.</b><br>
+          Esta aba executa o agente de verdade, então precisa de <code>make consulta</code>
+          com a API industrial rodando (<code>make up</code>).</div>`;
+        return;
+      }
+    }
+    corpo.innerHTML = holdCorpo();
+    holdLigaCards();
+    holdMostraPrevia();
+  };
+  const fecha = () => {
+    /* Fechar no meio de uma execucao encerraria o streaming e perderia o resultado de
+       uma chamada de LLM que ja foi paga. O trace fica em disco de qualquer forma, mas
+       a tela nao teria como reconstruir o log. */
+    if (HOLD.fonte && !confirm("Uma execução está em andamento. Fechar mesmo assim?")) return;
+    if (HOLD.fonte) { HOLD.fonte.close(); HOLD.fonte = null; }
+    cx.removeAttribute("open");
+    if (antes) antes.focus();
+  };
+
+  ligaDica(abrir, `<span class="dica-t">holdout ao vivo</span>
+    <p>Oito cenários que o agente nunca viu, resolvidos na sua frente: cada consulta à API
+    aparece enquanto acontece, e o gabarito só é revelado no fim.</p>`);
+  abrir.addEventListener("click", abre);
+  document.getElementById("hold-x").addEventListener("click", fecha);
+  cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && cx.hasAttribute("open")) fecha();
+  });
 }
 
 function ligarExperimentos() {
@@ -1840,6 +2434,11 @@ function ligarConfiguracao() {
       guarda.escrever("brand", on ? "" : "tractian");
       sincroniza();
     });
+    const sel = corpo.querySelector("#sel-juiz");
+    if (sel) sel.addEventListener("change", () => {
+      JUIZ.escolhido = sel.value;
+      guarda.escrever("juiz-modelo", sel.value);
+    });
     corpo.querySelector("#sw-retorno").addEventListener("click", () => {
       const on = RETORNO_ON();
       guarda.escrever("retorno", on ? "" : "on");
@@ -1870,6 +2469,8 @@ function ligarConfiguracao() {
     sincroniza();
     cx.setAttribute("open", "");
     document.getElementById("eng-x").focus();
+    /* O catálogo do OpenRouter chega depois; `sincroniza` redesenha com a lista real. */
+    carregaJuizModelos(() => { if (cx.hasAttribute("open")) sincroniza(); });
   };
   const fecha = () => {
     cx.removeAttribute("open");
@@ -2013,6 +2614,7 @@ async function carregar() {
   dicaEl = document.getElementById("dica");
   ligarConfiguracao();
   ligarExperimentos();
+  ligarHoldout();
   atual = DATA.slice().sort((x, y) => ORDEM[situacao(x).key] - ORDEM[situacao(y).key])[0].id;
   fimDoEsqueleto();
   lista();
