@@ -12,7 +12,7 @@ desse módulo dentro de `../agent/`.
 
 ## Pirâmide de três camadas
 
-Da [ADR 0005](../docs/adr/0005-piramide-de-avaliacao-em-tres-camadas.md). A ordem importa: a camada 1 é
+Da [ADR 0005](../docs/ARCHITECTURE.md#36-avaliação-em-três-camadas-em-vez-de-um-método-só). A ordem importa: a camada 1 é
 gratuita e instantânea, e funciona como filtro antes de gastar LLM nas seguintes.
 
 ### Camada 1 — determinística ([`deterministic.py`](runner/deterministic.py))
