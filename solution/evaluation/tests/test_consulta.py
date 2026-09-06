@@ -1,0 +1,508 @@
+"""Testes da consulta livre e do gabarito sintético.
+
+O que estes testes protegem não é o formato da saída — é o que torna a nota sintética
+defensável. Se `assert_modelos_distintos` deixar passar um gerador igual ao juiz, ou se
+uma consulta livre vazar para o diretório dos traces avaliados contra gabarito real, o
+sistema continua rodando e produzindo números: só que números sem significado. Falha
+silenciosa é exatamente o caso em que um teste paga o próprio custo.
+
+Nenhum teste aqui chama LLM: o gerador é dublado.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+SOLUTION_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(SOLUTION_DIR / "agent"))
+
+from app.config import Settings  # noqa: E402
+
+from runner.consulta import CONSULTAS_DIR, metricas_execucao, monta_caso  # noqa: E402
+from runner.sintetico import (  # noqa: E402
+    ExpectativaSintetica,
+    ModelosIndistintos,
+    _decisoes_validas,
+    _modo_valido,
+    assert_modelos_distintos,
+    gera_gabarito,
+)
+
+
+def _settings(modelo: str, provedor: str = "groq") -> Settings:
+    return Settings(
+        api_base_url="http://localhost:8000",
+        llm_provider=provedor,
+        llm_model=modelo,
+        llm_api_key=None,
+        llm_temperature=0.0,
+        agent_port=8001,
+        request_timeout_s=30.0,
+        max_supervisor_turns=12,
+        max_worker_steps=6,
+    )
+
+
+class _LlmFalso:
+    """Dublê do gerador: devolve a expectativa combinada, sem rede."""
+
+    def __init__(self, resposta: ExpectativaSintetica) -> None:
+        self._resposta = resposta
+
+    def with_structured_output(self, _schema):
+        return self
+
+    def invoke(self, _mensagens):
+        return self._resposta
+
+
+# -- a regra que sustenta a validade da nota --------------------------------
+def test_gerador_igual_ao_juiz_e_recusado():
+    """Mesmo modelo nos dois papéis mede auto-consistência, não acurácia."""
+    with pytest.raises(ModelosIndistintos, match="mesmo modelo"):
+        assert_modelos_distintos(_settings("modelo-x"), _settings("modelo-x"))
+
+
+def test_gerador_igual_ao_juiz_ignora_caixa_e_espaco():
+    """`Modelo-X ` e `modelo-x` são o mesmo modelo — comparar cru deixaria passar."""
+    with pytest.raises(ModelosIndistintos):
+        assert_modelos_distintos(_settings("  Modelo-X  "), _settings("modelo-x"))
+
+
+def test_mesmo_modelo_em_provedores_diferentes_e_aceito():
+    """Um modelo servido por dois provedores continua sendo dois pesos distintos na
+    prática (quantização, versão, roteamento) — não é o caso que a regra veda."""
+    assert_modelos_distintos(
+        _settings("llama-3", provedor="groq"), _settings("llama-3", provedor="openrouter")
+    )
+
+
+def test_modelos_distintos_passa():
+    assert_modelos_distintos(_settings("gerador-a"), _settings("juiz-b"))
+
+
+@pytest.mark.parametrize("faltando", ["gerador", "juiz"])
+def test_modelo_ausente_e_recusado(faltando):
+    """Modelo vazio não pode ser tratado como 'diferente de tudo'."""
+    gerador = _settings("" if faltando == "gerador" else "gerador-a")
+    juiz = _settings("" if faltando == "juiz" else "juiz-b")
+    with pytest.raises(ModelosIndistintos):
+        assert_modelos_distintos(gerador, juiz)
+
+
+# -- gabarito sintético -----------------------------------------------------
+def test_gabarito_nasce_sem_trajetoria():
+    """`expected_path` vazio é a marca de que a camada 1 não se aplica.
+
+    Se algum dia este teste falhar porque alguém preencheu a trajetória, a camada 1
+    passará a comparar contra uma sequência inventada por LLM — que é o erro que o
+    módulo inteiro existe para evitar.
+    """
+    llm = _LlmFalso(
+        ExpectativaSintetica(
+            root_question="O sensor está offline desde quando?",
+            mode="partial",
+            accepted_decisions=["orientar", "escalar"],
+            rationale="Depende de intervenção física.",
+        )
+    )
+    caso = monta_caso(
+        user_id="usr_pedro",
+        company_id="comp_x",
+        asset_id="asset_G501",
+        mensagem="O sensor parou de mandar dado.",
+    )
+
+    gabarito = gera_gabarito(caso, settings=_settings("gerador-a"), llm=llm)
+
+    assert gabarito.golden.expected_path == []
+    assert gabarito.golden.required_actions == []
+    assert gabarito.golden.accepted_decisions == frozenset({"orientar", "escalar"})
+    assert gabarito.golden.is_ambiguous
+    assert gabarito.to_dict()["origem"] == "sintetico"
+    assert gabarito.modelo_gerador == "gerador-a"
+
+
+def test_modo_invalido_cai_em_complete():
+    assert _modo_valido("inventado") == "complete"
+    assert _modo_valido("PARTIAL") == "partial"
+    assert _modo_valido("") == "complete"
+
+
+def test_decisao_invalida_nao_entra():
+    assert _decisoes_validas(["agir", "explodir"]) == frozenset({"agir"})
+
+
+def test_sem_decisao_valida_aceita_todas():
+    """Sem informação, a avaliação não pode punir nenhum desfecho."""
+    assert _decisoes_validas(["explodir"]) == frozenset({"orientar", "agir", "escalar"})
+    assert _decisoes_validas([]) == frozenset({"orientar", "agir", "escalar"})
+
+
+# -- montagem do caso -------------------------------------------------------
+def test_caso_montado_tem_o_schema_do_agente():
+    """`run_case` acessa `id`, `user_id` e `message` direto — faltar qualquer um quebra."""
+    caso = monta_caso(
+        user_id="usr_ana",
+        company_id="comp_y",
+        asset_id="asset_B100",
+        mensagem="Vibração alta na bomba.",
+    )
+    assert set(caso) == {"id", "ticket_id", "company_id", "user_id", "asset_id", "message"}
+    assert caso["ticket_id"].startswith("CONS-")
+    assert caso["message"] == "Vibração alta na bomba."
+
+
+def test_consultas_ficam_fora_dos_traces_avaliados():
+    """Isolamento das métricas: `cli.py` lê `results/traces/<suite>/`, e nada mais.
+
+    Se este caminho passar a cair dentro de `traces/`, uma consulta livre entraria nos
+    relatórios dos 17 cenários com gabarito real — misturando métrica sintética com
+    métrica de referência, que é justamente o que não pode acontecer.
+    """
+    assert CONSULTAS_DIR.name == "consultas"
+    assert CONSULTAS_DIR.parent.name == "results"
+    assert "traces" not in CONSULTAS_DIR.parts
+
+
+# -- métricas sem gabarito --------------------------------------------------
+def test_repeticao_e_insistencia_sao_medidas_sem_gabarito():
+    trace = {
+        "final_answer": "resposta",
+        "stop_reason": "concluido",
+        "steps": [
+            {"step": "GET /assets/a", "status_code": 200},
+            {"step": "GET /assets/a", "status_code": 200},
+            {"step": "POST /cases/c/escalate", "status_code": 403},
+            {"step": "POST /cases/c/escalate", "status_code": 403},
+        ],
+        "token_usage": {"total_tokens": 1234},
+    }
+    metricas = metricas_execucao(trace)
+
+    assert metricas["executou_sem_erro"] is True
+    assert metricas["chamadas_repetidas"] == 2
+    assert metricas["taxa_repeticao"] == 0.5
+    assert metricas["insistiu_apos_negativa"] is True
+    assert metricas["acoes_de_impacto"] == [
+        "POST /cases/c/escalate",
+        "POST /cases/c/escalate",
+    ]
+    assert metricas["tokens"] == 1234
+
+
+def test_negativa_unica_nao_conta_como_insistencia():
+    """Levar um 403 uma vez é ler a permissão; repetir é que é falha."""
+    trace = {
+        "final_answer": "resposta",
+        "steps": [{"step": "POST /cases/c/escalate", "status_code": 403}],
+    }
+    assert metricas_execucao(trace)["insistiu_apos_negativa"] is False
+
+
+def test_execucao_quebrada_nao_conta_como_valida():
+    trace = {"error": "Boom", "final_answer": None, "steps": []}
+    metricas = metricas_execucao(trace)
+    assert metricas["executou_sem_erro"] is False
+    assert metricas["taxa_repeticao"] is None
+
+
+def test_lista_ignora_o_trace_bruto_da_propria_consulta(tmp_path, monkeypatch):
+    """Cada consulta deixa DOIS arquivos no diretório e só um é um registro.
+
+    `run_case` grava o trace por conta própria como `<id>__seed-….json`, que casa com o
+    mesmo glob. Sem filtrar por `origem`, a listagem devolveria o dobro de itens, metade
+    deles vazios — e o histórico do painel mostraria linhas em branco.
+    """
+    import json as _json
+
+    from runner import consulta as mod
+
+    registro = {
+        "id": "consulta_20260101T000000",
+        "criado_em": "2026-01-01T00:00:00+00:00",
+        "origem": "consulta_livre",
+        "trace": {},
+    }
+    (tmp_path / "consulta_20260101T000000.json").write_text(
+        _json.dumps(registro), encoding="utf-8"
+    )
+    # O trace bruto que run_case grava ao lado: mesmo prefixo, sem `origem`.
+    (tmp_path / "consulta_20260101T000000__seed-complete__20260101T000001.json").write_text(
+        _json.dumps({"case_id": "consulta_20260101T000000", "steps": []}), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(mod, "CONSULTAS_DIR", tmp_path)
+    listadas = mod.lista_consultas()
+
+    assert len(listadas) == 1
+    assert listadas[0]["id"] == "consulta_20260101T000000"
+
+
+# -- cenário registrado e veredito humano ----------------------------------
+# Registrar dá visibilidade a uma consulta livre; não muda a classe de evidência dela.
+# É essa distinção que estes testes seguram: no dia em que registrar passar a escrever
+# em `traces/`, ou o resumo perder a marca de não-comparável, o painel começa a somar
+# nota sintética com métrica de gabarito e nada quebra — só a média deixa de significar.
+
+
+def _registro_falso(identificador="consulta_20260101T000000", asset_id="asset_M101"):
+    return {
+        "id": identificador,
+        "criado_em": "2026-01-01T00:00:00+00:00",
+        "origem": "consulta_livre",
+        "entrada": {"asset_id": asset_id, "user_id": "usr_ana", "mensagem": "e aí?"},
+        "trace": {"decision": "orientar", "final_answer": "resposta"},
+        "avaliacao": {"execucao": {"chamadas": 4, "tokens": 1200}, "juizes": None},
+        "cenario": None,
+        "veredito_humano": None,
+    }
+
+
+@pytest.fixture()
+def consultas(tmp_path, monkeypatch):
+    """Um diretório de consultas isolado, com um registro dentro."""
+    import json as _json
+
+    from runner import consulta as mod
+
+    (tmp_path / "consulta_20260101T000000.json").write_text(
+        _json.dumps(_registro_falso()), encoding="utf-8"
+    )
+    monkeypatch.setattr(mod, "CONSULTAS_DIR", tmp_path)
+    return mod
+
+
+def test_registrar_cenario_nao_escreve_fora_do_diretorio_de_consultas(consultas, tmp_path):
+    """O degrau entre consulta e caso de referência não é um clique.
+
+    Registrar torna a consulta visível na página do ativo. Se além disso copiasse o
+    trace para `evaluation/results/traces/`, a execução entraria no relatório dos casos
+    com gabarito — e uma questão que um LLM escreveu passaria a contar como acurácia
+    medida contra gabarito humano.
+    """
+    antes = set(tmp_path.iterdir())
+    consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome="RMS alto")
+
+    assert set(tmp_path.iterdir()) == antes, "registrar criou arquivo novo"
+    assert consultas.CONSULTAS_DIR.name != "traces"
+
+
+def test_cenario_registrado_continua_nao_comparavel(consultas):
+    """A marca do ADR 0007 viaja no resumo, não é deduzida por quem desenha a tela."""
+    registro = consultas.registra_cenario(
+        consulta_id="consulta_20260101T000000", nome="RMS alto"
+    )
+    resumo = consultas.resumo_consulta(registro)
+
+    assert resumo["comparavel_com_cenarios"] is False
+    assert resumo["cenario"]["nome"] == "RMS alto"
+
+
+def test_registrar_e_reversivel_sem_perder_a_execucao(consultas):
+    """Desregistrar tira da lista; não apaga uma execução que custou tokens."""
+    consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome="errado")
+    consultas.remove_registro("consulta_20260101T000000")
+
+    guardado = consultas.carrega_consulta("consulta_20260101T000000")
+    assert guardado["cenario"] is None
+    assert guardado["trace"]["final_answer"] == "resposta"
+
+
+@pytest.mark.parametrize("nome", ["", "   ", "x" * 81])
+def test_nome_de_cenario_invalido_e_recusado(consultas, nome):
+    with pytest.raises(ValueError):
+        consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome=nome)
+
+
+@pytest.mark.parametrize(
+    "identificador",
+    ["../../../etc/passwd", "consulta_20260101T000000/../outro", "qualquer_coisa", ""],
+)
+def test_id_de_consulta_fora_do_formato_nao_chega_ao_disco(consultas, identificador):
+    """O id vira nome de arquivo e chega pela URL (`POST /consultas/{id}/cenario`).
+
+    Sem a trava de formato, um id com `..` escreveria fora de `CONSULTAS_DIR`.
+    """
+    with pytest.raises(ValueError):
+        consultas.carrega_consulta(identificador)
+
+
+def test_veredito_humano_fica_no_registro_e_nao_no_trace(consultas):
+    """O rótulo humano é sobre a execução, não parte dela.
+
+    Se entrasse no trace, a próxima leitura do trace veria um campo que o agente nunca
+    produziu — e uma nota que realimenta o sistema que ela mede deixa de medi-lo.
+    """
+    registro = consultas.registra_veredito(
+        consulta_id="consulta_20260101T000000",
+        decisao_correta=False,
+        comentario="devia ter escalado",
+    )
+
+    assert registro["veredito_humano"]["decisao_correta"] is False
+    assert registro["veredito_humano"]["comentario"] == "devia ter escalado"
+    assert "veredito_humano" not in registro["trace"]
+
+
+def test_comentario_em_branco_vira_ausencia(consultas):
+    """`""` e `"   "` não são um comentário: guardá-los como texto faria a interface
+    desenhar aspas vazias na tela."""
+    registro = consultas.registra_veredito(
+        consulta_id="consulta_20260101T000000", decisao_correta=True, comentario="   "
+    )
+    assert registro["veredito_humano"]["comentario"] is None
+
+
+def test_filtros_da_listagem_separam_ativo_e_registro(consultas, tmp_path):
+    import json as _json
+
+    outro = _registro_falso("consulta_20260101T000001", asset_id="asset_B204")
+    (tmp_path / "consulta_20260101T000001.json").write_text(
+        _json.dumps(outro), encoding="utf-8"
+    )
+    consultas.registra_cenario(consulta_id="consulta_20260101T000001", nome="do B204")
+
+    assert len(consultas.lista_consultas()) == 2
+    assert len(consultas.lista_consultas(apenas_registradas=True)) == 1
+    assert len(consultas.lista_consultas(asset_id="asset_M101")) == 1
+    assert consultas.lista_consultas(asset_id="asset_M101", apenas_registradas=True) == []
+
+
+def test_resumo_nao_carrega_o_trace(consultas):
+    """A lista de cenários registrados desenha cinco linhas por item.
+
+    Devolver o registro completo mandaria o trace inteiro de cada um pela rede para
+    preencher um card — e são traces de execuções com dezenas de passos.
+    """
+    resumo = consultas.resumo_consulta(consultas.carrega_consulta("consulta_20260101T000000"))
+
+    assert "trace" not in resumo
+    assert resumo["decisao"] == "orientar"
+    assert resumo["chamadas"] == 4
+
+
+# -- seleção de modelo do juiz ---------------------------------------------
+def test_juiz_nunca_herda_o_provedor_do_agente(monkeypatch):
+    """O juiz é sempre OpenRouter, mesmo com LLM_PROVIDER=groq.
+
+    Herdar o provedor foi o defeito que produziu 401: a chave do OpenRouter enviada à
+    Groq. `settings_juiz` fixa o provedor, não o lê do ambiente do agente.
+    """
+    from runner.juiz_modelos import settings_juiz
+
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("JUDGE_API_KEY", "sk-or-teste")
+
+    s = settings_juiz("minimax/minimax-m3:free")
+    assert s.llm_provider == "openrouter"
+    assert s.llm_api_key == "sk-or-teste"
+    assert s.llm_temperature == 0.0  # juiz é determinístico
+
+
+def test_sem_chave_do_openrouter_falha_explicitamente(monkeypatch):
+    """Sem chave, recusar é melhor que tentar e receber 401 no meio do julgamento."""
+    from runner.juiz_modelos import ChaveDeJuizAusente, settings_juiz
+
+    monkeypatch.delenv("JUDGE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(ChaveDeJuizAusente, match="OpenRouter"):
+        settings_juiz("minimax/minimax-m3:free")
+
+
+def test_judge_model_da_groq_nao_vira_padrao_do_juiz(monkeypatch):
+    """`JUDGE_MODEL` apontando para a Groq é ignorado — usá-lo causaria 401.
+
+    Um id sem `:free` existe nos dois provedores (`openai/gpt-oss-120b` está na Groq),
+    então tratá-lo como OpenRouter mandaria a chave para o provedor errado.
+    """
+    from runner.juiz_modelos import PADRAO, modelo_padrao
+
+    monkeypatch.delenv("JUDGE_MODEL_HONESTIDADE", raising=False)
+    monkeypatch.setenv("JUDGE_MODEL", "qwen/qwen3.8-27b")
+    assert modelo_padrao("honestidade") == PADRAO
+
+    monkeypatch.setenv("JUDGE_MODEL", "z-ai/glm-5.2:free")
+    assert modelo_padrao("honestidade") == "z-ai/glm-5.2:free"
+
+
+def test_variavel_por_dimensao_tem_precedencia(monkeypatch):
+    from runner.juiz_modelos import modelo_padrao
+
+    monkeypatch.setenv("JUDGE_MODEL", "minimax/minimax-m3:free")
+    monkeypatch.setenv("JUDGE_MODEL_CAUSA_RAIZ", "z-ai/glm-5.2:free")
+    assert modelo_padrao("causa_raiz") == "z-ai/glm-5.2:free"
+    assert modelo_padrao("honestidade") == "minimax/minimax-m3:free"
+
+
+def test_comite_aceita_um_modelo_por_dimensao():
+    """Cada dimensão pode ser julgada por um modelo distinto, e a nota registra qual."""
+    from runner.golden import GoldenCase
+    from runner.judges import run_committee
+
+    class _Juiz:
+        def __init__(self, nome, nota):
+            self.model_name = nome
+            self._nota = nota
+
+        def with_structured_output(self, _schema):
+            return self
+
+        def invoke(self, _msgs):
+            from runner.judges import JudgeVerdict
+
+            return JudgeVerdict(reasoning="analise de teste", score=self._nota)
+
+    golden = GoldenCase(
+        case_id="c", ticket_id="", root_question="q", mode="complete",
+        expected_path=[], expected_notes={},
+    )
+    trace = {"final_answer": "resposta", "steps": [], "findings": []}
+
+    vereditos = run_committee(
+        trace,
+        golden,
+        llm_por_dimensao={
+            "honestidade": _Juiz("modelo-a:free", 5),
+            "causa_raiz": _Juiz("modelo-b:free", 2),
+            "justificativa": _Juiz("modelo-a:free", 4),
+        },
+    )
+
+    assert vereditos["honestidade"]["score"] == 5
+    assert vereditos["causa_raiz"]["score"] == 2
+    # A procedência é o que torna a nota interpretável quando os modelos diferem.
+    assert vereditos["honestidade"]["modelo"] == "modelo-a:free"
+    assert vereditos["causa_raiz"]["modelo"] == "modelo-b:free"
+
+
+def test_mapa_parcial_sem_reserva_e_erro():
+    """Dimensão sem modelo não pode cair num padrão inventado em silêncio.
+
+    `honestidade` é a primeira dimensão do comitê e tem modelo; o erro tem de aparecer
+    na seguinte, que não tem — e sem tocar a rede para descobrir isso.
+    """
+    from runner.golden import GoldenCase
+    from runner.judges import JudgeVerdict, run_committee
+
+    class _JuizOk:
+        model_name = "modelo-a:free"
+
+        def with_structured_output(self, _schema):
+            return self
+
+        def invoke(self, _msgs):
+            return JudgeVerdict(reasoning="analise", score=4)
+
+    golden = GoldenCase(
+        case_id="c", ticket_id="", root_question="q", mode="complete",
+        expected_path=[], expected_notes={},
+    )
+    with pytest.raises(ValueError, match="causa_raiz"):
+        run_committee(
+            {"final_answer": "r", "steps": [], "findings": []},
+            golden,
+            llm_por_dimensao={"honestidade": _JuizOk()},
+        )

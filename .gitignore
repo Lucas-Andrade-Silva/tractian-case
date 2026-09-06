@@ -34,5 +34,11 @@ AGENTS.md
 .idea/
 
 # Resultados gerados pela avaliação (traces e relatórios)
-evaluation/results/**
-!evaluation/results/.gitkeep
+solution/evaluation/results/**
+!solution/evaluation/results/.gitkeep
+
+# Companion visual do brainstorming
+.superpowers/
+
+# Painel de quatro batidas, aposentado (a página viva é solution/painel/leitura/)
+_legado/
