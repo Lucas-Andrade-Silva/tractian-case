@@ -147,11 +147,11 @@ def assert_modelos_distintos(gerador: Settings, juiz: Settings) -> None:
     """
     if not (gerador.llm_model or "").strip():
         raise ModelosIndistintos(
-            "Modelo do gerador não definido. Defina GERADOR_MODEL em agent/.env."
+            "Modelo do gerador não definido. Defina GERADOR_MODEL em .env."
         )
     if not (juiz.llm_model or "").strip():
         raise ModelosIndistintos(
-            "Modelo do juiz não definido. Defina JUDGE_MODEL em agent/.env."
+            "Modelo do juiz não definido. Defina JUDGE_MODEL em .env."
         )
     mesmo_modelo = gerador.llm_model.strip().lower() == juiz.llm_model.strip().lower()
     mesmo_provedor = (gerador.llm_provider or "").strip().lower() == (
@@ -162,7 +162,7 @@ def assert_modelos_distintos(gerador: Settings, juiz: Settings) -> None:
             f"Gerador e juiz usam o mesmo modelo ({gerador.llm_model} em "
             f"{gerador.llm_provider}). O juiz avaliaria a resposta contra um gabarito "
             "escrito por ele mesmo, o que mede auto-consistência e não acurácia. "
-            "Defina GERADOR_MODEL diferente de JUDGE_MODEL em agent/.env."
+            "Defina GERADOR_MODEL diferente de JUDGE_MODEL em .env."
         )
 
 

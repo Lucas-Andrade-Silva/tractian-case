@@ -23,7 +23,7 @@ Requisitos: Python ≥ 3.10 e [`uv`](https://docs.astral.sh/uv/).
 make setup      # material do parceiro: venv da API + geração dos dados
 make my-setup   # minha solução: .venv na raiz
 
-cp solution/agent/.env.example solution/agent/.env   # preencher a chave de LLM
+cp .env.example .env   # preencher a chave de LLM
 
 make up                                        # API industrial em :8000
 make agent-run CASE=TKT-INV-04 SEED=complete   # um caso

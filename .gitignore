@@ -10,6 +10,9 @@ env/
 # Env / secrets
 .env
 .env.*
+# O template não tem segredo e é o que diz quais variáveis existem: sem esta exceção,
+# a regra acima o esconde e quem clona o repositório não tem de onde partir.
+!.env.example
 *.key
 *credential*
 
@@ -42,3 +45,6 @@ solution/evaluation/results/**
 
 # Painel de quatro batidas, aposentado (a página viva é solution/painel/leitura/)
 _legado/
+
+# Companion visual do impeccable
+.impeccable/

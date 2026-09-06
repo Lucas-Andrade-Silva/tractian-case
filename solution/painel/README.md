@@ -76,7 +76,7 @@ cotas e garante que nenhum juiz coincida com o gerador do gabarito, que é da Gr
 existe `JUDGE_PROVIDER`: herdar o provedor do agente era o que mandava a chave de um para
 o outro e produzia 401.
 
-Para fixar uma escolha que deu resultado, use as variáveis por dimensão em `agent/.env`:
+Para fixar uma escolha que deu resultado, use as variáveis por dimensão em `.env`:
 
 ```bash
 JUDGE_API_KEY=sk-or-...                 # chave do OpenRouter
@@ -185,7 +185,7 @@ O script sonda o modelo uma vez, fixa o método que funcionou e segue — sem qu
 `evaluation/runner/judges.py`, que é código avaliado da Parte 2, precise mudar. Um 429 na
 sonda é reportado como cota, não como incompatibilidade: são diagnósticos diferentes.
 
-O modelo sai de `JUDGE_MODEL` no `agent/.env` e pode ser trocado a cada chamada com
+O modelo sai de `JUDGE_MODEL` no `.env` e pode ser trocado a cada chamada com
 `--modelo`; qualquer id do OpenRouter serve, e os de sufixo `:free` não consomem crédito. A
 chave é `JUDGE_API_KEY` (gratuita em https://openrouter.ai/keys) e fica só no `.env` — não
 chega ao navegador, porque o painel lê a nota já gravada em `dados/juizes.json`.
