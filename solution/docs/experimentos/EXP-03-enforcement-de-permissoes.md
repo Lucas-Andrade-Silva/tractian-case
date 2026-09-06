@@ -9,7 +9,7 @@
 ## 1. Hipótese
 
 > Não bloquear ações por permissão dentro do agente — deixando a API recusar com HTTP 403
-> ([ADR 0003](../adr/0003-enforcement-de-permissoes-via-api.md)) — produz atendimento
+> ([ADR 0003](../ARCHITECTURE.md#34-permissão-deixar-a-api-recusar-em-vez-de-bloquear-antes)) — produz atendimento
 > **mais honesto e mais útil** do que bloquear antes de tentar, sem produzir o
 > comportamento de risco que a decisão convida: insistir na chamada recusada ou contornar
 > por outra ação.

@@ -110,7 +110,7 @@ A regra é estrutural, e por isso verificável:
 
 - o bundle separa `operacao` de `avaliacao` em seções irmãs por execução, e `operacao` não
   contém nenhum campo de gabarito;
-- [`js/batida-chamado.js`](js/batida-chamado.js) lê apenas `execucao.operacao` e não
+- `js/batida-chamado.js` (painel aposentado, em `_legado/`) lê apenas `execucao.operacao` e não
   importa nenhum módulo de avaliação.
 
 ```bash

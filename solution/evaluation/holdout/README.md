@@ -1,7 +1,7 @@
 # Holdout sintético auditado
 
 Conjunto reservado para o **teste final** do agente, conforme
-[ADR 0006](../../docs/adr/0006-holdout-sintetico-auditado.md). Os 16 cenários originais ficam
+[ADR 0006](../../docs/ARCHITECTURE.md#37-holdout-sintético-novo-em-vez-de-dividir-os-16-cenários). Os 16 cenários originais ficam
 inteiros como conjunto de desenvolvimento; este holdout mede generalização.
 
 > **Não use este conjunto durante o ajuste do agente.** Um holdout visto durante o

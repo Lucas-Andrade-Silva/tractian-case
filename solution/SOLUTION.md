@@ -58,16 +58,18 @@ Detalhes de cada parte: [`agent/README.md`](./agent/README.md) e
 
 ### Decisões de arquitetura
 
-Registradas como ADRs em [`docs/adr/`](./docs/adr/):
+Consolidadas em [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), que substitui os sete ADRs
+originais e traz o raciocínio completo de cada uma — inclusive o que foi descartado e por quê.
 
-| ADR | Decisão | Ponto não-óbvio |
+| # | Decisão | Ponto não-óbvio |
 | :--- | :--- | :--- |
-| [0001](./docs/adr/0001-langgraph-multiagente-com-supervisor.md) | Multiagente com supervisor, não agente único | Nenhum cenário *exige* a divisão; foi escolha deliberada de explorar separação de responsabilidades, com custo aceito de mais instrumentação |
-| [0002](./docs/adr/0002-roteamento-hibrido-transicao-fixa-para-executor.md) | Roteamento híbrido | Decisor → Executor é fixo em código: nenhuma ação de impacto sem decisão formal, garantido estruturalmente |
-| [0003](./docs/adr/0003-enforcement-de-permissoes-via-api.md) | Permissão só no prompt, enforcement na API | Bloquear cedo eliminaria o comportamento que CEN-14/15/16 avaliam |
-| [0004](./docs/adr/0004-trace-local-desacoplado-do-langsmith.md) | Trace local, não LangSmith | A avaliação não pode depender de serviço externo para ser reprodutível |
-| [0005](./docs/adr/0005-piramide-de-avaliacao-em-tres-camadas.md) | Avaliação em 3 camadas | Um juiz multitarefa confundiria dimensões distintas numa nota só |
-| [0006](./docs/adr/0006-holdout-sintetico-auditado.md) | Holdout sintético auditado | Dividir os 16 originais cortaria facetas não-redundantes do domínio |
+| [0001](./docs/ARCHITECTURE.md#31-multiagente-com-supervisor-em-vez-de-um-agente-só) | Multiagente com supervisor, não agente único | Nenhum cenário *exige* a divisão; foi escolha deliberada de explorar separação de responsabilidades, com custo aceito de mais instrumentação |
+| [0002](./docs/ARCHITECTURE.md#33-roteamento-híbrido-o-llm-decide-o-meio-o-código-decide-o-fim) | Roteamento híbrido | Decisor → Executor é fixo em código: nenhuma ação de impacto sem decisão formal, garantido estruturalmente |
+| [0003](./docs/ARCHITECTURE.md#34-permissão-deixar-a-api-recusar-em-vez-de-bloquear-antes) | Permissão só no prompt, enforcement na API | Bloquear cedo eliminaria o comportamento que CEN-14/15/16 avaliam |
+| [0004](./docs/ARCHITECTURE.md#35-trace-local-não-langsmith) | Trace local, não LangSmith | A avaliação não pode depender de serviço externo para ser reprodutível |
+| [0005](./docs/ARCHITECTURE.md#36-avaliação-em-três-camadas-em-vez-de-um-método-só) | Avaliação em 3 camadas | Um juiz multitarefa confundiria dimensões distintas numa nota só |
+| [0006](./docs/ARCHITECTURE.md#37-holdout-sintético-novo-em-vez-de-dividir-os-16-cenários) | Holdout sintético auditado | Dividir os 16 originais cortaria facetas não-redundantes do domínio |
+| [0007](./docs/ARCHITECTURE.md#38-consulta-livre-gabarito-gerado-por-llm-em-métrica-separada) | Consulta livre com gabarito sintético | Sem gabarito a camada 1 daria `recall = 1.0` sobre conjunto vazio — número ótimo e vazio; é pulada, não adaptada |
 
 ## 3. Separação entre material do parceiro e solução própria
 
