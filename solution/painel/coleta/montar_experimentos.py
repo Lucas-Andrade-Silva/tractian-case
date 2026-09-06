@@ -32,24 +32,30 @@ def _le_json(caminho: Path) -> dict:
 
 
 def _estado_do_documento(exp_id: str) -> str:
-    """Lê a linha `**Estado:**` da seção do experimento no documento único.
+    """Lê a linha de estado da seção do experimento em `docs/EXPERIMENTOS.md`.
 
-    Os seis experimentos moram em `docs/EXPERIMENTOS.md`, cada um sob um cabeçalho
-    `# EXP-NN — ...`. A varredura começa nesse cabeçalho e para no seguinte: sem o
-    corte, o `**Estado:**` do próximo experimento vazaria para este.
+    Cada experimento abre com `# EXP-NN — ...` seguido de uma linha de metadados em negrito
+    (`**Concluído, ...** · n · data`), que pode continuar na linha seguinte quando é longa.
+    A varredura para no próximo `# EXP-` — sem esse corte, o estado de um experimento
+    vazaria para o anterior quando a seção não tivesse a sua.
     """
     if not DOC.exists():
         return ""
     linhas = DOC.read_text(encoding="utf-8").splitlines()
     dentro = False
-    for linha in linhas:
+    for n, linha in enumerate(linhas):
         if linha.startswith("# EXP-"):
             if dentro:
                 break
             dentro = linha.startswith(f"# {exp_id} ")
             continue
-        if dentro and linha.startswith("**Estado:**"):
-            return re.sub(r"[*`]", "", linha.replace("**Estado:**", "")).strip(" ·")
+        if dentro and linha.startswith("**"):
+            texto = linha
+            # Metadado que não coube numa linha: a continuação vem logo abaixo e termina
+            # onde começa a linha em branco.
+            if texto.rstrip().endswith("·") and n + 1 < len(linhas):
+                texto = f"{texto.rstrip()} {linhas[n + 1].strip()}"
+            return re.sub(r"[*`]", "", texto).strip(" ·")
     return ""
 
 
