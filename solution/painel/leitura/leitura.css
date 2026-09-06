@@ -1,0 +1,594 @@
+/* Leitura de Vibracao + Agente de Suporte
+ *
+ * O sistema visual vem do artefato de referencia e nao foi redesenhado: mesmos tokens,
+ * mesma escala tipografica, mesmos paddings (.wrap = 28px 22px 56px, .card = 16px 18px).
+ * O que este arquivo acrescenta e (a) o tema Tractian, alternativo ao padrao, e
+ * (b) as classes da secao do agente, que reusam .card/.chip/.spec em vez de inventar.
+ */
+
+/* ---------------- tema padrao: o do artefato ---------------- */
+:root{
+  color-scheme: light;
+  --plane:#f2f1ec; --surface:#fbfaf7; --surface-2:#f6f5f0;
+  /* --ink-3 escurecido de #84867a para #6d6f65: o tom original dava 3.3-3.5:1 sobre as
+     tres superficies claras, abaixo dos 4.5:1 de AA, e e a cor que carrega rodape,
+     rotulos de seed e metadados das colunas. Mesmo matiz, um passo mais escuro. */
+  --ink:#14150f; --ink-2:#4e5046; --ink-3:#6d6f65;
+  --rule:#e0dfd6; --rule-2:#c9c8bd; --hair:rgba(20,21,15,.10);
+  --accent:#b4560c;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --grid:#e6e5dc; --band:rgba(42,120,214,.09); --alarm-band:rgba(208,59,59,.07);
+  --shadow:0 1px 2px rgba(20,21,15,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --plane:#0e0f0d; --surface:#181916; --surface-2:#1f201c;
+    --ink:#f4f3ec; --ink-2:#b6b8aa; --ink-3:#86887d;
+    --rule:#2b2c27; --rule-2:#3a3b34; --hair:rgba(244,243,236,.10);
+    --accent:#e2903f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --grid:#252620; --band:rgba(57,135,229,.13); --alarm-band:rgba(208,59,59,.10);
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0e0f0d; --surface:#181916; --surface-2:#1f201c;
+  --ink:#f4f3ec; --ink-2:#b6b8aa; --ink-3:#86887d;
+  --rule:#2b2c27; --rule-2:#3a3b34; --hair:rgba(244,243,236,.10);
+  --accent:#e2903f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --grid:#252620; --band:rgba(57,135,229,.13); --alarm-band:rgba(208,59,59,.10);
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+
+/* ---------------- tema Tractian, opcional ----------------
+   O azul e o acento da marca (barra de navegacao e botoes primarios do produto);
+   o plano vai a branco/cinza-frio. A geometria nao muda: so as cores. */
+:root[data-brand="tractian"]{
+  --plane:#eef2f7; --surface:#ffffff; --surface-2:#f5f8fc;
+  --ink:#0d1b2a; --ink-2:#41546b; --ink-3:#617082; /* AA sobre as tres superficies claras */
+  --rule:#dde5ee; --rule-2:#c2cedd; --hair:rgba(13,27,42,.10);
+  --accent:#1461b8;
+  --s1:#1461b8; --s2:#eb6834; --s3:#12a06f;
+  --grid:#e4ebf3; --band:rgba(20,97,184,.09); --alarm-band:rgba(208,59,59,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root[data-brand="tractian"]:not([data-theme="light"]){
+    --plane:#080f18; --surface:#101b28; --surface-2:#16232f;
+    --ink:#eaf1f8; --ink-2:#a9bccf; --ink-3:#7a8ca3;
+    --rule:#22303f; --rule-2:#31414f; --hair:rgba(234,241,248,.10);
+    --accent:#4d9bef;
+    --s1:#4d9bef; --s2:#d95926; --s3:#12a06f;
+    --grid:#1b2836; --band:rgba(77,155,239,.13); --alarm-band:rgba(208,59,59,.10);
+  }
+}
+:root[data-brand="tractian"][data-theme="dark"]{
+  --plane:#080f18; --surface:#101b28; --surface-2:#16232f;
+  --ink:#eaf1f8; --ink-2:#a9bccf; --ink-3:#7a8ca3;
+  --rule:#22303f; --rule-2:#31414f; --hair:rgba(234,241,248,.10);
+  --accent:#4d9bef;
+  --s1:#4d9bef; --s2:#d95926; --s3:#12a06f;
+  --grid:#1b2836; --band:rgba(77,155,239,.13); --alarm-band:rgba(208,59,59,.10);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace}
+.wrap{max-width:1220px; margin:0 auto; padding:28px 22px 56px}
+
+/* ---- cabecalho ---- */
+.top{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; padding-bottom:14px; border-bottom:1px solid var(--rule-2)}
+.eyebrow{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-weight:500}
+h1{font-size:25px; line-height:1.15; margin:5px 0 0; font-weight:600; letter-spacing:-.015em; text-wrap:balance}
+.sub{color:var(--ink-2); margin:7px 0 0; max-width:60ch; font-size:13px}
+.src{text-align:right; font-size:11.5px; color:var(--ink-3); line-height:1.75}
+.src b{color:var(--ink-2); font-weight:500}
+
+/* alternador de tema/marca: discreto, no canto do cabecalho */
+.switches{display:flex; gap:6px; justify-content:flex-end; margin-bottom:7px}
+.sw{
+  font:inherit; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+  font-weight:500; padding:3px 9px; border-radius:2px; cursor:pointer;
+  border:1px solid var(--rule-2); background:var(--surface); color:var(--ink-2);
+}
+.sw:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.sw[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.sw:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+/* ---- layout ---- */
+.cols{display:grid; grid-template-columns:262px minmax(0,1fr); gap:22px; margin-top:20px; align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+/* ---- lista de ativos ---- */
+.aside{position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto}
+@media (max-width:900px){.aside{position:static; max-height:none}}
+.list-hd{display:flex; justify-content:space-between; align-items:baseline; padding:0 2px 7px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:500}
+.plant-lbl{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:600; padding:12px 2px 5px}
+.plant-lbl.first{padding-top:0}
+.items{display:flex; flex-direction:column; gap:3px}
+.item{
+  display:grid; grid-template-columns:3px 1fr auto; align-items:center; gap:9px;
+  width:100%; text-align:left; background:var(--surface); color:inherit;
+  border:1px solid var(--hair); border-radius:3px; padding:7px 9px 7px 0;
+  font:inherit; cursor:pointer; overflow:hidden;
+}
+.item:hover{background:var(--surface-2); border-color:var(--rule-2)}
+.item[aria-current="true"]{background:var(--surface-2); border-color:var(--ink-3); box-shadow:inset 0 0 0 1px var(--ink-3)}
+.item:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.stripe{width:3px; height:34px; background:var(--rule-2)}
+.stripe.sev-crit{background:var(--crit)}
+.stripe.sev-serious{background:var(--serious)}
+.stripe.sev-warn{background:var(--warn)}
+.stripe.sev-good{background:var(--good)}
+.stripe.sev-none{background:var(--rule-2)}
+.i-name{min-width:0}
+.i-name b{display:block; font-weight:500; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.i-name span{display:block; font-size:10.5px; color:var(--ink-3); letter-spacing:.02em}
+.i-val{font-size:12px; font-weight:500; text-align:right; padding-right:2px; font-variant-numeric:tabular-nums}
+.i-val small{display:block; font-size:9.5px; color:var(--ink-3); font-weight:400; letter-spacing:.04em; text-transform:uppercase}
+/* marca de cobertura: quantos cenarios da bateria passaram por este ativo */
+.i-cen{display:inline-block; margin-left:5px; font-size:9.5px; font-weight:600; color:var(--accent); letter-spacing:.03em}
+
+/* ---- painel ---- */
+.panel{display:flex; flex-direction:column; gap:16px; min-width:0}
+.card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px}
+.card-hd{display:flex; justify-content:space-between; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.card-hd h2{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2); margin:0; font-weight:600}
+
+/* ---- identificacao ---- */
+.ident{display:flex; justify-content:space-between; align-items:flex-start; gap:18px; flex-wrap:wrap}
+.ident h3{margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em}
+.ident .id{font-size:12px; color:var(--ink-3); margin-top:2px}
+.specs{display:flex; flex-wrap:wrap; margin:12px 0 0; border-top:1px solid var(--rule); padding-top:10px}
+.spec{padding-right:22px; margin-right:22px; border-right:1px solid var(--rule)}
+.spec.last{border-right:0; margin-right:0; padding-right:0}
+.spec dt{font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-weight:500}
+.spec dd{margin:1px 0 0; font-size:13px; font-weight:500; font-variant-numeric:tabular-nums}
+
+/* ---- chips ---- */
+.chips{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+.chip{
+  display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:500;
+  letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:2px;
+  border:1px solid var(--rule-2); color:var(--ink-2); background:var(--surface-2); white-space:nowrap;
+}
+.chip .dot{width:6px; height:6px; border-radius:50%; background:currentColor; flex:none}
+.chip.ok{color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--rule-2))}
+.chip.warn{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 40%, var(--rule-2))}
+.chip.bad{color:var(--crit); border-color:color-mix(in srgb, var(--crit) 40%, var(--rule-2))}
+
+/* ---- grafico ---- */
+.plot{width:100%; display:block; overflow:visible}
+.plot text{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:9.5px; fill:var(--ink-3)}
+.plot .ax-title{font-family:"IBM Plex Sans",sans-serif; font-size:10px; fill:var(--ink-3); letter-spacing:.06em}
+.plot .grid{stroke:var(--grid); stroke-width:1}
+.plot .base-axis{stroke:var(--rule-2); stroke-width:1}
+.plot .lbl-on-line{font-family:"IBM Plex Sans",sans-serif; font-size:10px; font-weight:600; letter-spacing:.03em}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--ink-2); padding:8px 0 0}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.key{width:14px; height:0; border-top-width:2px; border-top-style:solid; flex:none}
+.key.dash{border-top-style:dashed}
+.plot-wrap{position:relative; margin-top:6px}
+
+/* tooltip */
+.tip{
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:var(--surface); border:1px solid var(--rule-2); border-radius:3px;
+  padding:6px 9px; font-size:11.5px; box-shadow:0 3px 10px rgba(0,0,0,.13);
+  white-space:nowrap; z-index:5; font-variant-numeric:tabular-nums;
+}
+.tip.on{opacity:1}
+.tip b{font-size:13px; font-weight:600; display:block}
+.tip i{font-style:normal; color:var(--ink-3); font-size:10.5px; letter-spacing:.04em}
+.tip .st{display:block; margin-top:2px; font-size:10.5px; font-weight:500}
+
+/* ---- espectro ---- */
+.spec-rows{display:flex; flex-direction:column; margin-top:10px}
+.srow{display:grid; grid-template-columns:118px minmax(0,1fr) 64px; align-items:center; gap:12px; padding:7px 0; border-top:1px solid var(--rule)}
+.srow.first{border-top:0}
+.srow .fq{font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink-2)}
+.srow .fq b{color:var(--ink); font-weight:500}
+.bar-track{height:12px; background:var(--surface-2); border-radius:2px; overflow:hidden}
+.bar{height:100%; border-radius:0 3px 3px 0; background:var(--s1)}
+.bar.hi{background:var(--s2)}
+.srow .amp{font-size:12px; text-align:right; font-variant-numeric:tabular-nums; font-weight:500}
+.note-tag{font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+
+/* ---- qualidade ---- */
+.dq{display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); margin:8px 0 0}
+.dq > div{padding:2px 16px; border-left:1px solid var(--rule)}
+.dq > div.first{border-left:0; padding-left:0}
+.dq dt{font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-weight:500}
+.dq dd{margin:2px 0 0; font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.dq dd small{font-size:11px; font-weight:400; color:var(--ink-3); margin-left:1px}
+
+/* ---- avisos / vazios ---- */
+.empty{
+  border:1px dashed var(--rule-2); border-radius:3px; padding:18px;
+  color:var(--ink-2); font-size:13px; background:var(--surface-2); margin-top:8px;
+}
+.empty b{display:block; color:var(--ink); font-weight:600; margin-bottom:3px; font-size:13px}
+.note{
+  margin-top:10px; padding:8px 11px; border-left:2px solid var(--accent);
+  background:var(--surface-2); font-size:12px; color:var(--ink-2);
+}
+.analysis{display:flex; flex-direction:column; gap:9px; margin-top:8px}
+.an{border-top:1px solid var(--rule); padding-top:9px}
+.an.first{border-top:0; padding-top:0}
+.an-hd{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+.an-hd b{font-size:13.5px; font-weight:600}
+.ev{font-size:12px; color:var(--ink-2); margin-top:4px}
+.ev code{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink)}
+.foot{margin-top:26px; padding-top:12px; border-top:1px solid var(--rule-2); font-size:11.5px; color:var(--ink-3); line-height:1.7}
+.foot code{font-family:"IBM Plex Mono",monospace; color:var(--ink-2)}
+table.tbl{width:100%; border-collapse:collapse; font-size:11.5px; font-variant-numeric:tabular-nums}
+table.tbl th,table.tbl td{text-align:right; padding:3px 8px; border-bottom:1px solid var(--rule)}
+table.tbl th.l,table.tbl td.l{text-align:left}
+table.tbl th{color:var(--ink-3); font-weight:500; font-size:10px; letter-spacing:.07em; text-transform:uppercase}
+details.data{margin-top:10px}
+details.data summary{font-size:11.5px; color:var(--ink-3); cursor:pointer; padding:3px 0}
+details.data summary:hover{color:var(--ink-2)}
+.scroll{overflow-x:auto; max-height:230px; overflow-y:auto; margin-top:6px}
+
+/* ================= secao do agente =================
+   Comeca aqui o que nao existia no artefato. Reusa .card, .chip, .spec e a mesma
+   escala tipografica: nenhuma familia, raio ou padding novo foi introduzido. */
+
+/* marcador de seed em cada card de leitura */
+.seed-tag{font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+
+/* divisor entre a leitura tecnica e a solucao — a virada de assunto da pagina */
+.divider{
+  display:flex; align-items:center; gap:12px; margin:10px 0 -2px;
+  font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-weight:600;
+}
+.divider::after{content:""; flex:1; height:1px; background:var(--rule-2)}
+
+/* aviso de fase experimental: a pagina nao pode deixar confundir bateria com producao */
+.fase-tag{
+  font-size:9.5px; letter-spacing:.06em; padding:2px 7px; border-radius:2px; margin-left:8px;
+  border:1px solid var(--accent); color:var(--accent); font-weight:600; text-transform:none;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+}
+.fase-aviso{
+  margin:0 0 -4px; padding:9px 12px; border-left:2px solid var(--accent);
+  background:var(--surface-2); font-size:12px; color:var(--ink-2); line-height:1.55;
+}
+
+/* cabecalho do cenario */
+.cen-hd{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
+.cen-hd h3{margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em}
+.cen-q{font-size:12.5px; color:var(--ink-2); margin:3px 0 0; max-width:68ch}
+blockquote.msg{
+  margin:12px 0 0; padding:9px 13px; border-left:2px solid var(--rule-2);
+  background:var(--surface-2); font-size:12.5px; color:var(--ink-2); line-height:1.6;
+}
+blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+
+/* comparacao das 3 seeds: uma coluna por execucao */
+.seeds3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-top:10px; border-top:1px solid var(--rule)}
+@media (max-width:760px){.seeds3{grid-template-columns:1fr}}
+.sd{padding:10px 14px; border-left:1px solid var(--rule)}
+.sd.first{border-left:0; padding-left:0}
+@media (max-width:760px){.sd{border-left:0; border-top:1px solid var(--rule); padding-left:0} .sd.first{border-top:0}}
+.sd-hd{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.sd-seed{font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.sd-dec{font-size:15px; font-weight:600; margin:4px 0 0; letter-spacing:-.01em}
+.sd-meta{font-size:11px; color:var(--ink-3); margin-top:3px; font-variant-numeric:tabular-nums}
+.sd-why{font-size:11.5px; color:var(--ink-2); margin-top:6px; line-height:1.55}
+
+/* ---- marca ---- */
+.marca{display:block; color:var(--accent)}
+.marca-wrap{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+.marca-div{width:1px; height:15px; background:var(--rule-2)}
+
+/* ---- dica: o tooltip proprio da pagina ----
+   Substitui o `title` nativo, que aparece depois de ~1s, some sozinho, ignora o tema e
+   quebra linha onde quer. Este segue o mesmo desenho dos cards: superficie, regua de
+   1px, raio 3, mono para dado cru. */
+.dica{
+  position:fixed; z-index:60; max-width:400px; pointer-events:none;
+  opacity:0; transform:translateY(3px); transition:opacity .12s ease, transform .12s ease;
+  background:var(--surface); border:1px solid var(--rule-2); border-radius:3px;
+  padding:9px 11px; box-shadow:0 6px 22px rgba(0,0,0,.17);
+  font-size:11.5px; line-height:1.55; color:var(--ink-2);
+}
+.dica.on{opacity:1; transform:translateY(0)}
+.dica b{color:var(--ink); font-weight:600}
+.dica .dica-t{
+  display:block; font-size:9.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin-bottom:5px;
+}
+/* grade de comparacao: rotulo, antes, seta, depois */
+.dica-g{display:grid; grid-template-columns:auto auto 12px auto; gap:2px 7px; align-items:baseline; font-variant-numeric:tabular-nums}
+.dica-g .k{color:var(--ink-3); font-size:10.5px}
+.dica-g .a{color:var(--ink-3)}
+.dica-g .s{color:var(--ink-3); text-align:center}
+.dica-g .d{font-weight:600; color:var(--ink)}
+.dica-g .g{color:var(--good); font-weight:600}
+.dica-g .r{color:var(--crit); font-weight:600}
+.dica p{margin:6px 0 0}
+.dica p:first-child{margin-top:0}
+.dica code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink)}
+/* fatos apurados, um por linha, com o valor destacado */
+.dica-f{display:flex; flex-direction:column; gap:3px}
+.dica-f span{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink-2)}
+.dica-f span b{color:var(--ink)}
+.dica-f span i{font-style:normal; color:var(--ink-3)}
+
+/* qualquer coisa que abre dica */
+[data-dica]{cursor:help}
+.sd-meta.custo{border-bottom:1px dotted var(--rule-2); display:inline-block}
+
+/* comite de juizes, dentro da coluna da seed */
+.juiz{margin-top:9px; padding-top:8px; border-top:1px solid var(--rule)}
+.juiz-hd{font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600; margin-bottom:4px}
+.juiz-fase{
+  font-size:9px; letter-spacing:.05em; padding:1px 5px; border-radius:2px; margin-left:4px;
+  border:1px solid var(--rule-2); color:var(--ink-3); font-weight:500;
+}
+.juiz-l{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; color:var(--ink-2); padding:2px 0; cursor:help}
+.juiz-n{font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink)}
+.juiz-n small{font-size:9px; font-weight:400; color:var(--ink-3)}
+.juiz-nota{margin:5px 0 0; font-size:10px; line-height:1.45; color:var(--ink-3)}
+
+/* barra de concordancia entre seeds */
+.agree{display:flex; align-items:center; gap:9px; margin-top:11px; font-size:11.5px; color:var(--ink-2)}
+.agree-bar{display:flex; gap:2px; flex:none}
+.agree-bar i{width:22px; height:5px; border-radius:1px; background:var(--rule-2)}
+.agree-bar i.ok{background:var(--good)}
+.agree-bar i.bad{background:var(--crit)}
+.agree-bar i.warn{background:var(--warn)}
+
+/* trajetoria: passos esperados x percorridos */
+.traj{display:flex; flex-direction:column; margin-top:9px}
+.tstep{display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; gap:9px; padding:5px 0; border-top:1px solid var(--rule); font-size:12px}
+.tstep.first{border-top:0}
+.tstep .mk{font-size:11px; text-align:center; font-weight:600}
+.tstep.hit .mk{color:var(--good)}
+.tstep.miss .mk{color:var(--crit)}
+.tstep.extra .mk{color:var(--ink-3)}
+.tstep .st{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tstep.miss .st{color:var(--ink-2)}
+.tstep .rt{font-size:10.5px; color:var(--ink-3); letter-spacing:.04em; white-space:nowrap}
+
+/* papeis do agente: quem falou, com que custo */
+.roles{display:flex; flex-direction:column; margin-top:9px}
+.role{display:grid; grid-template-columns:104px minmax(0,1fr) 62px; align-items:center; gap:11px; padding:6px 0; border-top:1px solid var(--rule)}
+.role.first{border-top:0}
+.role-n{font-size:11.5px; font-weight:500; letter-spacing:.02em}
+.role-b{height:9px; background:var(--surface-2); border-radius:2px; overflow:hidden}
+.role-b i{display:block; height:100%; background:var(--s1); border-radius:0 2px 2px 0}
+.role-t{font-size:11.5px; text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-2)}
+
+.roles-dica{margin:8px 0 0; font-size:10.5px; color:var(--ink-3)}
+
+/* achados apurados por cada papel */
+.finds{display:flex; flex-direction:column; gap:7px; margin-top:8px}
+.find{border-left:2px solid var(--rule-2); padding:4px 0 4px 11px}
+.find b{display:block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.find p{margin:2px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55}
+
+/* resposta final ao cliente */
+.answer{margin-top:9px; padding:11px 13px; background:var(--surface-2); border:1px solid var(--rule); border-radius:3px; font-size:12.5px; line-height:1.6; color:var(--ink); white-space:pre-wrap}
+
+/* ---- consulta ao vivo ---- */
+.ask{display:flex; gap:8px; margin-top:9px; flex-wrap:wrap}
+.ask input{
+  flex:1; min-width:220px; font:inherit; font-size:13px; padding:8px 11px;
+  border:1px solid var(--rule-2); border-radius:3px; background:var(--surface); color:var(--ink);
+}
+.ask input:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent)}
+.ask select{
+  font:inherit; font-size:12px; padding:8px 9px; border:1px solid var(--rule-2);
+  border-radius:3px; background:var(--surface); color:var(--ink-2);
+}
+.btn{
+  font:inherit; font-size:12px; font-weight:500; letter-spacing:.03em; padding:8px 15px;
+  border-radius:3px; cursor:pointer; border:1px solid var(--accent);
+  background:var(--accent); color:#fff;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.55; cursor:default; filter:none}
+.btn:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+.btn.ghost{background:var(--surface); color:var(--ink-2); border-color:var(--rule-2)}
+.btn.ghost:hover{background:var(--surface-2); border-color:var(--ink-3)}
+
+/* opcao de julgar a consulta: custo declarado na propria linha */
+.ask-juiz{display:flex; align-items:center; gap:7px; margin-top:9px; font-size:11.5px; color:var(--ink-2); cursor:pointer}
+.ask-juiz input{accent-color:var(--accent); margin:0; cursor:pointer}
+.ask-juiz b{color:var(--ink-3); font-weight:400}
+
+/* sugestoes de pergunta, derivadas do estado real do ativo */
+.hints{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.hint{
+  font:inherit; font-size:11.5px; padding:4px 10px; border-radius:2px; cursor:pointer;
+  border:1px dashed var(--rule-2); background:transparent; color:var(--ink-2); text-align:left;
+}
+.hint:hover{border-style:solid; border-color:var(--ink-3); background:var(--surface-2)}
+
+/* papeis acendendo durante a execucao */
+.live{display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; align-items:center}
+.pip{
+  display:inline-flex; align-items:center; gap:5px; font-size:10.5px; letter-spacing:.05em;
+  text-transform:uppercase; font-weight:500; padding:3px 9px; border-radius:2px;
+  border:1px solid var(--rule-2); color:var(--ink-3); background:var(--surface-2);
+}
+.pip .dot{width:6px; height:6px; border-radius:50%; background:var(--rule-2)}
+.pip.on{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 45%, var(--rule-2))}
+.pip.on .dot{background:var(--accent); animation:pulse 1.1s ease-in-out infinite}
+.pip.done{color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--rule-2))}
+.pip.done .dot{background:var(--good)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.elapsed{font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums; margin-left:2px}
+
+/* ---- registrar como cenario, e o veredito humano ----
+   Reusa `.ask`, `.btn.ghost` e `.note` da consulta: e a mesma caixa de interacao, um
+   passo depois. O que se acrescenta aqui e so a separacao do bloco acima. */
+.reg{margin-top:12px; padding-top:11px; border-top:1px solid var(--rule)}
+.vh{margin-top:11px; padding:9px 11px; background:var(--surface-2); border-left:2px solid var(--accent)}
+.vh-hd{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.vh .ask{margin-top:7px}
+.vh .btn[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.vh .note{margin-top:8px}
+
+/* um cenario registrado por bloco, separados por regua — nao sao cards proprios: sao
+   itens de um card, e cada um com moldura competiria com os cenarios da bateria */
+.cen-reg{margin-top:12px; padding-top:11px; border-top:1px solid var(--rule)}
+.cen-reg-hd{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap}
+.cen-reg-hd h3{margin:0; font-size:14px; font-weight:600; letter-spacing:-.01em}
+.cen-reg .id{font-size:11px; color:var(--ink-3); margin-top:2px}
+.cen-reg blockquote.msg{margin-top:8px}
+
+/* selo de fronteira: consulta livre nunca entra nas metricas dos cenarios */
+.synth{
+  margin-top:10px; padding:7px 11px; border-left:2px solid var(--warn);
+  background:var(--surface-2); font-size:11.5px; color:var(--ink-2);
+}
+
+/* ---- painel de configuracao ----
+   Tema, politica de evidencia e metodologia saem do cabecalho e vao para ca: eram tres
+   assuntos disputando o canto superior com a procedencia dos dados. */
+.eng{
+  position:fixed; inset:0; z-index:80; display:none;
+  align-items:flex-start; justify-content:center; padding:48px 20px;
+  background:color-mix(in srgb, var(--plane) 62%, transparent);
+  backdrop-filter:blur(7px) saturate(.9);
+  -webkit-backdrop-filter:blur(7px) saturate(.9);
+  overflow-y:auto;
+}
+.eng[open]{display:flex}
+.eng-cx{
+  width:100%; max-width:620px; background:var(--surface);
+  border:1px solid var(--rule-2); border-radius:5px;
+  box-shadow:0 18px 50px rgba(0,0,0,.24); padding:20px 22px 22px;
+  animation:sobe .16s ease;
+}
+@keyframes sobe{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+.eng-hd{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:12px; border-bottom:1px solid var(--rule)}
+.eng-hd h2{margin:0; font-size:17px; font-weight:600; letter-spacing:-.01em}
+.eng-hd p{margin:3px 0 0; font-size:12px; color:var(--ink-2)}
+.eng-x{
+  font:inherit; font-size:17px; line-height:1; padding:5px 9px; cursor:pointer;
+  background:none; border:1px solid var(--rule-2); border-radius:3px; color:var(--ink-2);
+}
+.eng-x:hover{background:var(--surface-2); border-color:var(--ink-3); color:var(--ink)}
+.eng-x:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.eng-s{padding:14px 0; border-bottom:1px solid var(--rule)}
+.eng-s:last-child{border-bottom:0; padding-bottom:0}
+.eng-s h3{margin:0 0 3px; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.eng-s p{margin:0 0 9px; font-size:12px; color:var(--ink-2); line-height:1.55}
+.eng-s p:last-child{margin-bottom:0}
+.eng-lin{display:flex; gap:7px; flex-wrap:wrap; align-items:center}
+.eng-lin .sw{font-size:11px; padding:5px 11px}
+/* comparacao das duas politicas de evidencia */
+.pol{display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:4px; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+@media (max-width:520px){.pol{grid-template-columns:1fr}}
+.pol-c{padding:11px 13px; border-left:1px solid var(--rule); background:var(--surface)}
+.pol-c.first{border-left:0}
+@media (max-width:520px){.pol-c{border-left:0; border-top:1px solid var(--rule)} .pol-c.first{border-top:0}}
+.pol-c[aria-current="true"]{background:var(--surface-2); box-shadow:inset 2px 0 0 var(--accent)}
+.pol-n{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; font-weight:600; color:var(--ink)}
+.pol-d{font-size:11.5px; color:var(--ink-2); margin:4px 0 8px; line-height:1.5}
+.pol-m{font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+/* card clicavel: carrega a bateria que rodou aquela politica */
+.pol-c.pol-clic{cursor:pointer}
+.pol-c.pol-clic:hover{background:var(--surface-2)}
+.pol-c.pol-clic:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.pol-x{
+  margin-top:8px; padding-top:7px; border-top:1px solid var(--rule);
+  font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; font-weight:600;
+  color:var(--ink-3);
+}
+.pol-c[aria-current="true"] .pol-x{color:var(--accent)}
+.pol-ir{color:var(--accent)}
+.pol-c.pol-clic:hover .pol-ir{text-decoration:underline}
+.pol-off{color:var(--ink-3); font-weight:400; text-transform:none; letter-spacing:0; font-style:italic}
+/* metricas do experimento, em linhas comparaveis */
+.exp{display:flex; flex-direction:column; margin-top:2px}
+.exp-l{display:grid; grid-template-columns:1fr auto auto 12px auto; gap:8px; align-items:baseline; padding:5px 0; border-top:1px solid var(--rule); font-size:12px; font-variant-numeric:tabular-nums}
+.exp-l.first{border-top:0}
+.exp-k{color:var(--ink-2)}
+.exp-a{color:var(--ink-3); font-size:11.5px}
+.exp-s{color:var(--ink-3); text-align:center}
+.exp-d{font-weight:600}
+.exp-g{color:var(--good)}
+.exp-r{color:var(--crit)}
+
+/* ---------------- aba de experimentos ----------------
+   Reusa .eng (mesmo modal), .eng-s, .chip e os tokens existentes. Nenhuma familia
+   tipografica, raio ou padding novo: as regras abaixo so compoem o que ja existe. */
+
+/* A caixa de configuracao cabe numa tela; a de experimentos tem cinco hipoteses e nao
+   cabe. Com o cabecalho rolando junto, quem esta no EXP-07 perde o botao de fechar e o
+   titulo que diz onde esta — entao aqui a caixa rola por dentro e o cabecalho fica.
+   Vale so para #exp: mexer no .eng-cx generico mudaria a configuracao de tabela. */
+#exp .eng-cx{display:flex; flex-direction:column; max-height:calc(100vh - 96px)}
+#exp .eng-hd{flex:none}
+#exp #exp-corpo{overflow-y:auto; min-height:0; margin:0 -22px; padding:0 22px}
+.xp{display:flex; flex-direction:column; gap:0}
+.xp-i{padding:13px 0; border-top:1px solid var(--rule)}
+.xp-i:first-child{border-top:0; padding-top:2px}
+.xp-hd{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+.xp-id{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600;
+  color:var(--ink-3); letter-spacing:.03em;
+}
+.xp-t{font-size:13.5px; font-weight:600; color:var(--ink); margin:0}
+.xp-n{margin-left:auto; font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.xp-h{margin:5px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.55}
+.xp-r{margin:6px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55}
+/* como reproduzir na propria pagina: o unico texto que pede acao do leitor */
+.xp-go{
+  margin:8px 0 0; padding:7px 10px; border-left:2px solid var(--accent);
+  background:var(--surface-2); font-size:11.5px; color:var(--ink-2); line-height:1.5;
+}
+/* veredito: reusa o vocabulario de cor dos chips, sem inventar estado novo */
+.xp-v{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:600}
+.xp-v.ok{color:var(--good)}
+.xp-v.no{color:var(--crit)}
+.xp-v.pend{color:var(--ink-3)}
+/* placar do EXP-07: tres numeros que se leem juntos */
+.xp-sc{display:flex; gap:0; margin:10px 0 0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-sc>div{flex:1; padding:9px 11px; border-left:1px solid var(--rule); background:var(--surface)}
+.xp-sc>div:first-child{border-left:0}
+.xp-sc dt{font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:500; margin:0}
+.xp-sc dd{margin:2px 0 0; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink)}
+.xp-sc dd small{font-size:11px; font-weight:400; color:var(--ink-3)}
+.xp-sc .fail dd{color:var(--crit)}
+/* os quatro casos mutados, um por linha */
+.xp-c{display:flex; flex-direction:column; margin-top:9px; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-cl{padding:10px 12px; border-top:1px solid var(--rule); background:var(--surface)}
+.xp-cl:first-child{border-top:0}
+.xp-cl.fail{background:color-mix(in srgb, var(--crit) 5%, var(--surface))}
+.xp-ch{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.xp-cn{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600; color:var(--ink-3)}
+.xp-ct{font-size:12.5px; font-weight:600; color:var(--ink)}
+.xp-cm{margin:4px 0 0; font-size:11.5px; color:var(--ink-2); line-height:1.5}
+.xp-cm code{font-size:11px}
+.xp-cb{display:flex; gap:5px; margin-left:auto; flex-wrap:wrap}
+/* marcador de nivel: ✔/✘ com o rotulo do que foi medido */
+.xp-lv{
+  display:inline-flex; align-items:center; gap:4px; padding:2px 7px;
+  border:1px solid var(--rule-2); border-radius:2px; font-size:10.5px; font-weight:600;
+  letter-spacing:.03em; color:var(--ink-3); background:var(--plane);
+}
+.xp-lv.ok{color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--rule-2))}
+.xp-lv.no{color:var(--crit); border-color:color-mix(in srgb, var(--crit) 40%, var(--rule-2))}
+
+@media (max-width:560px){
+  .xp-sc{flex-direction:column}
+  .xp-sc>div{border-left:0; border-top:1px solid var(--rule)}
+  .xp-sc>div:first-child{border-top:0}
+  .xp-cb{margin-left:0; margin-top:6px}
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}

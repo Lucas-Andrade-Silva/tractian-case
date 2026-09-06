@@ -164,3 +164,27 @@ def test_decider_escalates_when_evidence_is_physical_and_irreversible():
         f"'{parsed.decision}' — regressão na calibração de _DECISION_POLICY. "
         f"Justificativa emitida: {parsed.justification!r}"
     )
+
+
+@pytest.mark.parametrize("role", sorted(ROLES))
+def test_configured_reasoning_effort_is_accepted_by_the_model(role: str):
+    """O valor de `REASONING_EFFORT_<PAPEL>` precisa existir NAQUELE modelo.
+
+    Os valores aceitos variam por modelo: o `qwen3.6-27b` só admite `none|default` e
+    recusa `low` com HTTP 400, enquanto o `qwen3.8-27b` aceita `low`. Configurado errado,
+    o papel não falha na carga — falha na primeira chamada, no meio da execução, e leva o
+    caso inteiro a `stop_reason=erro_execucao`. Aqui custa uma chamada por papel.
+    """
+    settings = load_settings()
+    esforco = settings.reasoning_effort_for(role)
+    if not esforco:
+        pytest.skip(f"papel '{role}' não define REASONING_EFFORT — usa o padrão do modelo")
+
+    model = settings.model_for(role)
+    resposta = build_llm(
+        _settings_for(model), max_tokens=200, reasoning_effort=esforco
+    ).invoke([HumanMessage("Responda apenas: ok")])
+
+    assert resposta is not None, (
+        f"o modelo '{model}' do papel '{role}' não respondeu com reasoning_effort={esforco}"
+    )

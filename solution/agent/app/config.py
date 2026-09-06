@@ -42,19 +42,48 @@ class Settings:
     # Modelo por papel. Papel ausente usa `llm_model`, para que uma configuração
     # single-model continue funcionando e sirva de baseline no experimento.
     models_by_role: dict[str, str] = field(default_factory=dict)
+    # Teto de tokens de saída por papel. A Groq recusa a requisição pelo `max_tokens`
+    # DECLARADO, antes de gerar: um papel sem teto herda o padrão do cliente e estoura o
+    # limite por minuto do modelo (`qwen3.6-27b` permite 1.000 OTPM) mesmo quando a
+    # resposta real caberia. Instrução de brevidade no prompt não resolve — ela governa o
+    # que o modelo escreve, não o número que a requisição declara.
+    max_tokens_by_role: dict[str, int] = field(default_factory=dict)
+    # Esforço de raciocínio por papel (`REASONING_EFFORT_<PAPEL>`: none|low|medium|high).
+    # Num papel com teto de saída baixo, o raciocínio compete com a resposta pelo MESMO
+    # orçamento: o Investigador gastava os 950 tokens pensando e era cortado antes de
+    # escrever o resumo. Como o teto não pode subir (o modelo tem 1.000 OTPM), a saída é
+    # reduzir o raciocínio. Papel ausente mantém o padrão do modelo.
+    reasoning_effort_by_role: dict[str, str] = field(default_factory=dict)
     # Política de evidência do Investigador: `fixed` exige sempre as quatro consultas
     # básicas; `conditional` adapta ao tipo de pergunta do caso. É variável de
     # experimento — as duas são defensáveis, e qual rende melhor recall por token é
     # questão empírica, não de opinião.
     evidence_policy: str = "fixed"
-    # Arquitetura do agente: `multi` (grafo de papéis, ADR 0001) ou `single` (agente
-    # único com todas as tools). É a variável do EXP-05 — as duas rodam o mesmo material
-    # e produzem o mesmo formato de trace, para que a comparação isole a arquitetura.
-    architecture: str = "multi"
+    # Rótulo da bateria corrente, gravado em cada trace. Sem ele, a fase precisa ser
+    # inferida depois por junção com o CSV de resultados — que falha quando duas
+    # execuções do mesmo caso e seed empatam em tokens.
+    run_phase: str | None = None
+    # Chaves adicionais do mesmo provedor (`LLM_API_KEY2`, `LLM_API_KEY3`, …). A cota da
+    # Groq no plano gratuito é por dia e por CONTA: 200k tokens/dia no menor modelo, o
+    # que dá ~10 execuções da bateria inteira. Com chaves de contas diferentes, esgotar
+    # uma não interrompe a bateria — o cliente troca para a próxima e segue.
+    llm_api_keys_extras: tuple[str, ...] = ()
 
+    @property
+    def chaves_llm(self) -> tuple[str, ...]:
+        """Todas as chaves disponíveis, na ordem de uso. Vazia quando não há nenhuma."""
+        return tuple(k for k in (self.llm_api_key, *self.llm_api_keys_extras) if k)
     def model_for(self, role: str) -> str:
         """Modelo do papel, caindo no modelo geral quando não há um específico."""
         return self.models_by_role.get(role) or self.llm_model
+
+    def max_tokens_for(self, role: str) -> int | None:
+        """Teto de saída do papel. `None` deixa o padrão do provedor valer."""
+        return self.max_tokens_by_role.get(role)
+
+    def reasoning_effort_for(self, role: str) -> str | None:
+        """Esforço de raciocínio do papel. `None` deixa o padrão do modelo valer."""
+        return self.reasoning_effort_by_role.get(role)
 
     @property
     def cases_path(self) -> Path:
@@ -72,6 +101,13 @@ def load_settings() -> Settings:
         llm_provider=os.getenv("LLM_PROVIDER", ""),
         llm_model=os.getenv("LLM_MODEL", ""),
         llm_api_key=os.getenv("LLM_API_KEY") or None,
+        # `LLM_API_KEY2` … `LLM_API_KEY9`. Buracos na numeração são ignorados: definir
+        # só a 2 e a 4 é uma escolha legítima de quem tem duas contas extras.
+        llm_api_keys_extras=tuple(
+            chave
+            for n in range(2, 10)
+            if (chave := (os.getenv(f"LLM_API_KEY{n}") or "").strip())
+        ),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.0")),
         agent_port=int(os.getenv("AGENT_PORT", "8001")),
         request_timeout_s=float(os.getenv("REQUEST_TIMEOUT_S", "30")),
@@ -82,6 +118,16 @@ def load_settings() -> Settings:
             for role in ROLES
             if (value := (os.getenv(f"MODEL_{role.upper()}") or "").strip())
         },
+        max_tokens_by_role={
+            role: int(value)
+            for role in ROLES
+            if (value := (os.getenv(f"MAX_TOKENS_{role.upper()}") or "").strip())
+        },
+        reasoning_effort_by_role={
+            role: value.lower()
+            for role in ROLES
+            if (value := (os.getenv(f"REASONING_EFFORT_{role.upper()}") or "").strip())
+        },
         evidence_policy=(os.getenv("EVIDENCE_POLICY") or "fixed").strip().lower(),
-        architecture=(os.getenv("AGENT_ARCHITECTURE") or "multi").strip().lower(),
+        run_phase=(os.getenv("RUN_PHASE") or "").strip() or None,
     )

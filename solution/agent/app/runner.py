@@ -17,7 +17,7 @@ from .api_client import ApiClient
 from .config import Settings, load_settings
 from .graph import build_graph
 from .llm import RoleModels
-from .single_graph import build_single_graph
+from .mutacao import Bundle, hook_de
 from .tools import action_tools, investigation_tools, knowledge_tools
 from .trace import Trace
 
@@ -40,6 +40,7 @@ def run_case(
     seed: str | None = None,
     settings: Settings | None = None,
     save_to: Path | None = None,
+    mutacao: "Bundle | None" = None,
 ) -> Trace:
     """Roda o agente sobre um caso e devolve o trace da execução.
 
@@ -58,6 +59,11 @@ def run_case(
         message=case["message"],
         # Preenchido com o mapa papel->modelo depois de resolver os modelos.
         model=settings.llm_provider,
+        # Gravados na origem: a fase deixa de ser inferida por junção com o CSV, e a
+        # política de evidência fica legível sem desempacotar o JSON de `model`.
+        fase=settings.run_phase,
+        evidence_policy=settings.evidence_policy,
+        mutacao=mutacao.para_trace() if mutacao else None,
     )
 
     with ApiClient(
@@ -66,6 +72,7 @@ def run_case(
         trace=trace,
         seed=seed,
         timeout_s=settings.request_timeout_s,
+        response_hook=hook_de(mutacao),
     ) as client:
         try:
             models = RoleModels(settings)
@@ -75,15 +82,10 @@ def run_case(
                 {
                     **models.describe(),
                     "_evidence_policy": settings.evidence_policy,
-                    "_architecture": settings.architecture,
                 },
                 ensure_ascii=False,
             )
-            # EXP-05: a arquitetura é variável de experimento. Os dois construtores têm
-            # a mesma assinatura e produzem o mesmo formato de trace, de modo que a
-            # avaliação lê os dois braços sem saber qual rodou.
-            build = build_single_graph if settings.architecture == "single" else build_graph
-            graph = build(
+            graph = build_graph(
                 models=models,
                 client=client,
                 settings=settings,

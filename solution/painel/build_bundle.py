@@ -1,24 +1,25 @@
 """Gera o bundle de dados do painel a partir dos traces e do CSV da bateria.
 
 O painel é somente-leitura e não executa o agente: ele lê o que já foi gravado. Este
-script é a fronteira entre os arquivos crus e a UI, e resolve o problema que impede a
-leitura direta — **o trace não grava em que fase foi executado**.
+script é a fronteira entre os arquivos crus e a UI.
 
-## A junção que atribui a fase
+## Como a fase é atribuída
 
-Os arquivos de trace não têm campo `fase`, e 33 pares `(case_id, seed)` têm mais de um
-arquivo (reexecuções durante o ajuste). Nem o nome da pasta nem o timestamp resolvem: as
-pastas são nomes de experimento (`traces_fix_policy`, `traces_restantes`) e o corte por
-horário erra em 21 casos.
+Traces novos gravam `fase` na origem (`RUN_PHASE` no ambiente → `agent/app/trace.py`), e
+a junção com o CSV é direta por `(case_id, seed, fase)` — a identidade da execução.
 
-O que resolve é juntar por `(case_id, seed, token_usage.total_tokens)` contra
-`resultados_avaliacao.csv`: o total de tokens é uma assinatura da execução, e a junção é
-1:1 para as 77 linhas do CSV. A garantia é empírica, não estrutural — duas execuções do
-mesmo caso e seed poderiam empatar em tokens —, então o script **aborta** ao encontrar
-ambiguidade em vez de escolher uma. Mascarar isso produziria um painel confiante e errado.
+Traces gravados antes de o campo existir caem no caminho antigo: junção por
+`(case_id, seed, token_usage.total_tokens)`. O total de tokens funciona como assinatura da
+execução, e era o que permitia separar as 33 combinações `(case_id, seed)` com mais de um
+arquivo — nem o nome da pasta nem o timestamp resolviam, porque as pastas são nomes de
+experimento (`traces_fix_policy`, `traces_restantes`) e o corte por horário errava em 21
+casos. A garantia é empírica, não estrutural: duas execuções do mesmo caso e seed poderiam
+empatar em tokens. Por isso o script **aborta** ao encontrar ambiguidade em vez de escolher
+uma — mascarar isso produziria um painel confiante e errado.
 
-A correção de fundo é gravar `fase` no trace, no runner; enquanto isso não existe, esta
-junção é a fonte da verdade e precisa falhar alto.
+Fases novas não exigem editar código: `fases_de` lê o que está presente e mantém
+`baseline` e `pos-correcao` na frente, para que a leitura "antes → depois" não dependa de
+ordenação alfabética.
 
 ## Duas seções irmãs, não um objeto achatado
 
@@ -49,7 +50,12 @@ SAIDA = Path(__file__).resolve().parent / "dados" / "bundle.json"
 
 # Os dois diretórios de trace. `agent/.run` não é sobra: as 3 execuções de baseline de
 # case_tkt_exe_16 só existem lá, e varrer só a raiz as perderia em silêncio.
-RAIZES_TRACE = [SOLUCAO / ".run", SOLUCAO / "agent" / ".run"]
+RAIZES_TRACE = [
+    SOLUCAO / ".run",
+    SOLUCAO / "agent" / ".run",
+    # Onde `runner.cli` grava uma bateria completa (make eval / eval-politica).
+    SOLUCAO / "evaluation" / "results",
+]
 
 CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
 CSV_RESUMO = SOLUCAO / ".run" / "resumo_por_cenario.csv"
@@ -60,7 +66,24 @@ GABARITO = TRACTIAN / "eval" / "expected-paths.json"
 JUIZES = Path(__file__).resolve().parent / "dados" / "juizes.json"
 
 SEEDS = ("complete", "s2", "s3")
-FASES = ("baseline", "pos-correcao")
+
+# As duas fases da comparação principal. Outras baterias (uma política de evidência
+# diferente, por exemplo) entram automaticamente: `fases_presentes` lê o que existe no
+# CSV e mantém estas duas na frente, para que a ordem de leitura do painel não dependa
+# de ordenação alfabética.
+FASES_BASE = ("baseline", "pos-correcao")
+
+
+def fases_de(registros: list[dict[str, Any]]) -> tuple[str, ...]:
+    """Fases presentes nos registros, com as duas principais na frente.
+
+    Serve tanto para linhas do CSV quanto para execuções montadas: as duas carregam a
+    chave `fase`. A ordem importa porque o painel lê "antes → depois", e ordenação
+    alfabética colocaria `conditional` na frente de `baseline`.
+    """
+    vistas = {r["fase"] for r in registros if r.get("fase")}
+    extras = sorted(vistas - set(FASES_BASE))
+    return tuple([f for f in FASES_BASE if f in vistas] + extras)
 
 # As três dimensões do comitê, iguais às de `evaluation/runner/judges.py`.
 COMITE = [
@@ -147,7 +170,10 @@ def carrega_traces() -> list[tuple[Path, dict[str, Any]]]:
                 "Os dois diretórios são obrigatórios: 3 execuções de baseline de "
                 "case_tkt_exe_16 só existem em agent/.run/."
             )
-        for arquivo in sorted(raiz.glob("traces_*/*.json")):
+        # `traces_*/` são pastas de experimento; `traces/<suite>/` é a bateria completa.
+        for arquivo in sorted(
+            [*raiz.glob("traces_*/*.json"), *raiz.glob("traces/*/*.json")]
+        ):
             achados.append((arquivo, json.loads(arquivo.read_text(encoding="utf-8"))))
     if not achados:
         raise ErroDeDados("Nenhum trace encontrado nos diretórios .run.")
@@ -183,8 +209,22 @@ def junta_por_tokens(
     fase errada contamina a comparação entre fases, que é justamente o que o painel
     existe para mostrar.
     """
-    indice: dict[tuple[str, str, Any], list[tuple[Path, dict[str, Any]]]] = defaultdict(list)
+    # Traces novos gravam `fase` na origem (agent/app/trace.py). Quando ela existe, a
+    # junção por tokens é dispensável: casa direto por (case_id, seed, fase), que é
+    # exatamente a identidade da execução. A junção por assinatura de tokens continua
+    # valendo para os traces gravados antes do campo existir.
+    direto: dict[tuple[str, str, str], list[tuple[Path, dict[str, Any]]]] = defaultdict(list)
+    herdados: list[tuple[Path, dict[str, Any]]] = []
     for caminho, trace in traces:
+        if trace.get("fase"):
+            direto[(trace.get("case_id"), trace.get("seed"), trace["fase"])].append(
+                (caminho, trace)
+            )
+        else:
+            herdados.append((caminho, trace))
+
+    indice: dict[tuple[str, str, Any], list[tuple[Path, dict[str, Any]]]] = defaultdict(list)
+    for caminho, trace in herdados:
         tokens = (trace.get("token_usage") or {}).get("total_tokens")
         indice[(trace.get("case_id"), trace.get("seed"), tokens)].append((caminho, trace))
 
@@ -203,9 +243,24 @@ def junta_por_tokens(
     ambiguos: list[str] = []
 
     for linha in linhas:
+        rotulo = f"{linha['fase']}/{linha['case_id']}/{linha['seed']}"
+        # Fase gravada no trace vence: é dado da execução, não inferência.
+        marcados = direto.get((linha["case_id"], linha["seed"], linha["fase"]), [])
+        if len(marcados) > 1:
+            # Retentativa de cota deixa vários arquivos para a mesma célula: as anteriores
+            # quebraram por 429 e a última é a que valeu. Uma execução que concluiu sempre
+            # vence uma que falhou; entre as que concluíram, a mais recente — foi ela que
+            # produziu a linha do CSV. Diferente do caminho antigo, aqui não há ambiguidade
+            # real a preservar: a fase veio gravada, o desempate é só de tentativa.
+            concluidos = [par for par in marcados if not par[1].get("error")]
+            candidatos = concluidos or marcados
+            marcados = [max(candidatos, key=lambda par: par[1].get("started_at", ""))]
+        if len(marcados) == 1:
+            casados[id_execucao(linha)] = marcados[0]
+            continue
+
         chave = (linha["case_id"], linha["seed"], linha["tokens_total"])
         candidatos = indice.get(chave, [])
-        rotulo = f"{linha['fase']}/{linha['case_id']}/{linha['seed']}"
         if len(candidatos) == 1:
             casados[id_execucao(linha)] = candidatos[0]
         elif not candidatos:
@@ -532,7 +587,7 @@ def config_por_fase(execucoes: list[dict[str, Any]]) -> tuple[dict[str, Any], bo
     acontece — e o aviso precisa existir mesmo quando hoje não dispara.
     """
     por_fase: dict[str, Any] = {}
-    for fase in FASES:
+    for fase in fases_de(execucoes):
         configs = {
             json.dumps(e["operacao"]["modelo"], sort_keys=True, ensure_ascii=False)
             for e in execucoes
@@ -681,7 +736,7 @@ def monta_bundle() -> tuple[dict[str, Any], list[dict[str, str]]]:
         primeiro = do_caso[0]
         gab = gabarito.get(case_id, {})
         por_fase: dict[str, Any] = {}
-        for fase in FASES:
+        for fase in fases_de(execucoes):
             da_fase = [e for e in do_caso if e["fase"] == fase]
             por_fase[fase] = (
                 {
@@ -721,7 +776,7 @@ def monta_bundle() -> tuple[dict[str, Any], list[dict[str, str]]]:
             "traces_sem_linha_no_csv": len(traces) - len(traces_usados),
             "chave_juncao": ["case_id", "seed", "token_usage.total_tokens"],
             "seeds": list(SEEDS),
-            "fases": list(FASES),
+            "fases": list(fases_de(execucoes)),
             "modelos_por_fase": modelos,
             "config_diverge_entre_fases": diverge,
             # A camada 2 só tem nota do que `painel/julgar.py` já julgou. Sem isso, a tela
@@ -740,7 +795,8 @@ def monta_bundle() -> tuple[dict[str, Any], list[dict[str, str]]]:
         "execucoes": execucoes,
         "casos": casos,
         "agregados": {
-            fase: agrega_fase([e for e in execucoes if e["fase"] == fase]) for fase in FASES
+            fase: agrega_fase([e for e in execucoes if e["fase"] == fase])
+            for fase in fases_de(execucoes)
         },
         "facetas": facetas(execucoes),
         "glossario": [
@@ -775,7 +831,7 @@ def main() -> int:
     print(f"  arquivos de trace varridos: {meta['arquivos_varridos']}")
     print(f"  execuções com fase atribuída: {meta['execucoes']}")
     print(f"  traces sem linha no CSV: {meta['traces_sem_linha_no_csv']} (não entram no painel)")
-    for fase in FASES:
+    for fase in meta["fases"]:
         agregado = bundle["agregados"][fase]
         print(f"  {fase:14} {agregado['execucoes']:3} execuções, {agregado['falhas_execucao']} falhas")
 

@@ -124,7 +124,16 @@ evidência concreta apurada no caso. Insatisfação do cliente, sozinha, não é
 
 
 def supervisor_prompt(case: dict[str, Any], user_context: dict[str, Any] | None) -> str:
-    return f"""{DOMAIN_BRIEF}
+    """Prompt de roteamento — deliberadamente sem o `DOMAIN_BRIEF`.
+
+    O Supervisor não interpreta retorno de API nem redige resposta: ele escolhe entre três
+    papéis sobre a evidência já resumida. Saber o ciclo de vida do baseline ou como ler o
+    envelope probabilístico não muda essa escolha, e o brief é reenviado a cada turno —
+    são ~700 tokens por volta, num papel que é o segundo mais chamado do grafo. O que ele
+    de fato precisa (o que cada papel faz, e quando parar de investigar) está abaixo.
+    """
+    return f"""Você faz parte de um agente de suporte da Tractian, que atende solicitações
+sobre monitoramento de condição de máquinas industriais (vibração, manutenção preditiva).
 
 Seu papel é o de SUPERVISOR. Você não consulta a API nem responde ao cliente: você
 decide qual papel deve agir em seguida, com base no que já foi apurado.
@@ -138,11 +147,48 @@ decide qual papel deve agir em seguida, com base no que já foi apurado.
   permitir concluir — investigar além do necessário é desperdício, e a decisão precisa
   acontecer antes que o orçamento de turnos se esgote.
 
+Um papel que já resumiu seus achados não deve ser reacionado para repetir a mesma
+apuração: se a evidência dele veio vazia ou incompleta, prefira `decisor` — ele resolve
+com o que houver, e é a resolução honesta do caso. Reacionar o mesmo papel só se justifica
+quando há uma pergunta NOVA e concreta, que ele ainda não tentou responder.
+
 {_case_block(case)}
 
-CONTEXTO DE AUTORIZAÇÃO DO CASO:
-{user_context if user_context else "(não foi possível recuperar o perfil do usuário)"}
+PERMISSÕES DO USUÁRIO DO CASO: {_permissoes(user_context)}
 """
+
+
+_VOZ_AO_CLIENTE = """\
+COMO ESCREVER A RESPOSTA — regra dura, vale para cada frase:
+
+Quem lê é um técnico de manutenção na planta. Ele não conhece o schema da API e não deve
+precisar conhecer. Toda a evidência crua já está registrada no trace, que é onde o
+engenheiro a procura — repeti-la aqui só atrapalha quem precisa agir.
+
+PROIBIDO na resposta final:
+- nome de campo da API: `model.coverage.motor_dc.supported`, `can_learn_baseline`,
+  `processing_state`, `staleness_flag`, `baseline_state`, `evidence`, `completeness`;
+- identificador interno: `an_9902`, `act_d1a2f6bd`, `kb_proc_001`, `mdl_vib_v3`,
+  `asset_C710`, `pt_M101_de`;
+- valor de enum cru: `motor_dc`, `delayed`, `learning`, `invalidated`, `established`;
+- sintaxe de dado: `campo=valor`, `chave: valor`, listas de campos entre crases.
+
+OBRIGATÓRIO:
+- nomeie o ativo pelo nome ("o motor CC antigo", "o compressor de gás");
+- diga o EFEITO PRÁTICO do estado técnico, não o estado. Exemplos de reescrita:
+    `can_learn_baseline=false` → "este motor não aprende um padrão de vibração próprio,
+       então só dá para monitorá-lo por sintoma"
+    `baseline invalidated`     → "a referência de vibração deixou de valer depois da troca
+       da peça, e volta a valer quando o equipamento rodar cerca de um dia"
+    `processing_state=delayed` → "o modelo ainda não processou as leituras mais recentes"
+    `analysis stale`           → "o diagnóstico disponível é anterior à intervenção"
+    `sensor offline`           → "o sensor parou de enviar leitura"
+- medidas com unidade e comparação PERMANECEM, porque são acionáveis: "vibração em
+  3,27 mm/s contra o alarme de 2,60" é exatamente o que o técnico precisa ler;
+- três a seis frases corridas, sem título de seção, sem lista de campos, sem markdown
+  de estrutura.
+
+Se uma frase só faz sentido para quem leu a documentação da API, reescreva-a."""
 
 
 _EVIDENCE_FIXED = """\
@@ -260,6 +306,8 @@ Sua resposta ao cliente deve:
 - deixar claro o que será feito na plataforma, quando a resolução for `agir` ou `escalar`;
 - não inventar dado que não apareceu na investigação.
 
+{_VOZ_AO_CLIENTE}
+
 {_case_block(case)}
 
 CONTEXTO DE AUTORIZAÇÃO:
@@ -296,6 +344,8 @@ Como trabalhar:
 - Depois de executar (ou de ser recusado), escreva a resposta final ao cliente: o que
   foi feito ou tentado, o resultado, e o que o cliente deve fazer em seguida.
 
+{_VOZ_AO_CLIENTE}
+
 {_case_block(case)}
 
 EVIDÊNCIA APURADA:
@@ -303,60 +353,17 @@ EVIDÊNCIA APURADA:
 """
 
 
-def single_agent_prompt(
-    case: dict[str, Any],
-    user_context: dict[str, Any] | None,
-    evidence_policy: str = "fixed",
-) -> str:
-    """Prompt do braço de agente único do EXP-05.
+def _permissoes(user_context: dict[str, Any] | None) -> str:
+    """Só a lista de permissões — é o que o roteamento usa do perfil do usuário.
 
-    Monta-se a partir das MESMAS peças dos papéis — `DOMAIN_BRIEF`, o bloco de evidência
-    de `EVIDENCE_POLICIES` e `_DECISION_POLICY` — e não de um texto paralelo. É o que
-    mantém o experimento honesto: se este prompt reescrevesse a política de decisão com
-    outras palavras, a comparação mediria redação, não arquitetura.
-
-    O que ele acrescenta é só o que a ausência de papéis exige: dizer ao agente que ele
-    acumula as três funções e que precisa decidir sozinho quando parar de investigar —
-    trabalho que no multiagente pertence ao Supervisor.
+    O objeto inteiro de `/users/me` (nome, empresa, papel, e-mail) era renderizado a cada
+    turno do Supervisor sem influenciar a escolha do papel. O Decisor, que precisa do
+    perfil completo para julgar autorização, continua recebendo-o.
     """
-    evidence_block = EVIDENCE_POLICIES.get(evidence_policy, _EVIDENCE_FIXED)
-    return f"""{DOMAIN_BRIEF}
-
-Você é um agente de suporte que atende o caso do início ao fim, SOZINHO. Você acumula as
-três funções: apurar a evidência técnica e documental, resolver o caso e executar na
-plataforma a ação que decidir.
-
-{evidence_block}
-
-Acrescente, conforme o caso: `list_analyses`/`get_analysis` quando houver insight em
-questão, `get_model` para comparar requisitos ou cobertura, `get_spectrum` quando a
-frequência da falha importar, e `search_knowledge`/`get_knowledge_doc` quando a pergunta
-pedir procedimento, definição ou orientação documental.
-
-Como trabalhar:
-- Consultas que não dependem uma da outra devem ser pedidas TODAS NA MESMA RESPOSTA,
-  numa única rodada — não uma por vez.
-- Não repita consulta já respondida, nem com outro filtro.
-- Use só IDs vindos de respostas anteriores. Id inventado dá 404 e queima uma volta.
-- Insight `detection_mode=baseline`: cheque o baseline antes de confiar nele.
-- VOCÊ decide quando parar de investigar. Apurado o que o caso pede, pare de consultar e
-  resolva — varredura além disso é erro, não zelo, e o orçamento de voltas é finito.
-- Se a resolução exigir uma ação na plataforma, execute-a com a tool correspondente,
-  passando uma justificativa ancorada na evidência que você apurou.
-
-{_DECISION_POLICY}
-
-Ao final, você será solicitado a formalizar a resolução: categoria, justificativa, ação e
-resposta ao cliente. A resposta ao cliente deve responder à pergunta feita em português
-claro, citar a evidência concreta que sustenta a conclusão (estados, valores, limiares),
-ser explícita sobre o que NÃO pôde ser determinado e não inventar dado que não apareceu
-na investigação.
-
-{_case_block(case)}
-
-CONTEXTO DE AUTORIZAÇÃO:
-{user_context if user_context else "(perfil do usuário não recuperado)"}
-"""
+    if not user_context:
+        return "(perfil não recuperado)"
+    perms = user_context.get("permissions")
+    return ", ".join(perms) if perms else "(nenhuma)"
 
 
 def _case_block(case: dict[str, Any]) -> str:

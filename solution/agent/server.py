@@ -69,6 +69,27 @@ class ConsultaRequest(BaseModel):
     )
 
 
+class CenarioRequest(BaseModel):
+    """O nome com que uma consulta livre passa a aparecer na página do ativo.
+
+    Definido no escopo do módulo pela mesma razão que `ConsultaRequest` — ver a
+    docstring de lá.
+    """
+
+    nome: str = Field(
+        min_length=1, max_length=80, description="Como o cenário aparece na lista."
+    )
+
+
+class VeredictoRequest(BaseModel):
+    """O julgamento humano sobre a decisão do agente numa consulta."""
+
+    decisao_correta: bool = Field(description="A decisão do agente estava certa?")
+    comentario: str | None = Field(
+        default=None, max_length=600, description="Por quê, com as palavras de quem julga."
+    )
+
+
 def build_app():
     """Monta a aplicação FastAPI da aba Consulta.
 
@@ -97,6 +118,10 @@ def build_app():
         catalogo_usuarios,
         executa_consulta,
         lista_consultas,
+        registra_cenario,
+        registra_veredito,
+        remove_registro,
+        resumo_consulta,
     )
     from runner.sintetico import ModelosIndistintos, gerador_settings  # noqa: E402
     from runner.juiz_modelos import (  # noqa: E402
@@ -181,9 +206,70 @@ def build_app():
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.get("/consultas", tags=["Consulta"])
-    def consultas():
-        """Histórico das consultas livres já executadas, da mais recente à mais antiga."""
-        return {"consultas": lista_consultas()}
+    def consultas(
+        asset_id: str | None = None,
+        registradas: bool = False,
+        resumido: bool = False,
+    ):
+        """Histórico das consultas livres já executadas, da mais recente à mais antiga.
+
+        `asset_id` filtra as de um ativo; `registradas=true` devolve só as que alguém
+        nomeou como cenário; `resumido=true` corta o trace, que é o grosso do registro.
+        A página de leitura chama com os três — ela desenha um card por cenário, não o
+        trace inteiro.
+        """
+        return {
+            "consultas": lista_consultas(
+                asset_id=asset_id,
+                apenas_registradas=registradas,
+                resumido=resumido,
+            )
+        }
+
+    @app.post("/consultas/{consulta_id}/cenario", tags=["Consulta"])
+    def registrar_cenario(consulta_id: str, pedido: CenarioRequest):
+        """Nomeia uma consulta e a torna visível na página do ativo.
+
+        Não promove nada a caso de referência: o registro continua em `consultas/`,
+        fora do diretório que a avaliação dos 17 casos lê, e a nota continua sintética
+        (ADR 0007). O que muda é quem enxerga.
+        """
+        return _muda_registro(lambda: registra_cenario(consulta_id=consulta_id, nome=pedido.nome))
+
+    @app.delete("/consultas/{consulta_id}/cenario", tags=["Consulta"])
+    def desregistrar_cenario(consulta_id: str):
+        """Tira o cenário da lista. A consulta e o trace continuam gravados em disco."""
+        return _muda_registro(lambda: remove_registro(consulta_id))
+
+    @app.post("/consultas/{consulta_id}/veredito", tags=["Consulta"])
+    def registrar_veredito(consulta_id: str, pedido: VeredictoRequest):
+        """Guarda o julgamento humano sobre a decisão do agente nesta consulta.
+
+        Não volta para o agente. Uma nota que realimenta o sistema que ela mede deixa
+        de ser medida — vale para o comitê de juízes e vale aqui.
+        """
+        return _muda_registro(
+            lambda: registra_veredito(
+                consulta_id=consulta_id,
+                decisao_correta=pedido.decisao_correta,
+                comentario=pedido.comentario,
+            )
+        )
+
+    def _muda_registro(operacao):
+        """Traduz os erros das mutações de registro em status HTTP, num lugar só.
+
+        `LookupError` é 404 (o id não existe) e `ValueError` é 422 (o id ou o nome não
+        têm forma aceitável) — a distinção importa porque só a segunda é culpa de quem
+        chamou. Devolve o resumo, não o registro: o cliente que acabou de mutar já tem
+        o trace na tela, e reenviá-lo dobraria a resposta à toa.
+        """
+        try:
+            return resumo_consulta(operacao())
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     painel_dir = SOLUTION_DIR / "painel"
     if painel_dir.exists():

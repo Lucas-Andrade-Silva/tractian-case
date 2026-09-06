@@ -88,8 +88,8 @@ rodam qwen) custa uma chamada por caso.
 
 **Hipótese sustentada.** O custo é constante em 1,00 chamada/execução, e a separação é
 estruturalmente estanque (0 chamadas de API). O que o experimento **não** mostra é que essa
-arquitetura decide melhor — só que ela decide barato. A pergunta sobre qualidade é a de
-[EXP-05](EXP-05-multiagente-vs-agente-unico.md), que ainda não rodou.
+arquitetura decide melhor — só que ela decide barato. A pergunta sobre qualidade exigiria
+comparar com um agente único, o que este projeto não fez (`SOLUTION.md` §10).
 
 Consequência prática registrada: a ausência da faixa do Decisor na timeline do painel é
 **arquitetura funcionando**, não instrumentação faltando — e o painel a declara como legenda

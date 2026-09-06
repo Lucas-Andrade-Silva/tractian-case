@@ -7,6 +7,14 @@
 > Este é o único experimento do projeto que foi desenhado **como** experimento: dois braços,
 > pareados, variando uma única coisa. Ficou sem registro escrito até agora.
 
+> ⚠️ **Contradito pelo [EXP-06](EXP-06-politica-de-evidencia-bateria-completa.md)** no que
+> diz respeito a custo. A segunda medição (18 pares, as três famílias) viu `conditional`
+> gastando **13% mais** tokens, não 8% menos — e em todas as famílias, inclusive a
+> conceitual. A limitação 2 deste documento ("casos de ação direta ficaram de fora") era
+> pertinente. O que os dois experimentos concordam: **a decisão não muda** — zero
+> divergências par a par nos dois. Os números abaixo continuam válidos para os 6 pares que
+> mediram; a conclusão sobre economia, não.
+
 ## 1. Hipótese
 
 > Obrigar o Investigador a apurar sempre os quatro pilares do ativo (`get_asset`,

@@ -29,7 +29,12 @@ sys.path.insert(0, str(SOLUCAO / "agent"))
 sys.path.insert(0, str(SOLUCAO / "evaluation"))
 
 CSV_EXECUCOES = SOLUCAO / ".run" / "resultados_avaliacao.csv"
-RAIZES_TRACE = [SOLUCAO / ".run", SOLUCAO / "agent" / ".run"]
+RAIZES_TRACE = [
+    SOLUCAO / ".run",
+    SOLUCAO / "agent" / ".run",
+    # Onde `runner.cli` grava uma bateria completa (make eval / eval-politica).
+    SOLUCAO / "evaluation" / "results",
+]
 
 # Qual diretório de trace pertence a qual fase. É a informação que o trace não grava; a
 # correção de fundo seria gravá-la em agent/app/trace.py.
@@ -84,11 +89,18 @@ def traces_por_fase() -> dict[tuple[str, str, str], dict[str, Any]]:
     for raiz in RAIZES_TRACE:
         if not raiz.exists():
             continue
-        for arquivo in sorted(raiz.glob("traces_*/*.json")):
-            fase = FASE_POR_PASTA.get(arquivo.parent.name)
-            if fase is None:
-                continue  # pasta de experimento, fora das duas fases
+        # `traces_*/` são as pastas de experimento; `traces/<suite>/` é onde
+        # `runner.cli` grava uma bateria completa. As duas entram.
+        for arquivo in sorted(
+            [*raiz.glob("traces_*/*.json"), *raiz.glob("traces/*/*.json")]
+        ):
             trace = json.loads(arquivo.read_text(encoding="utf-8"))
+            # A fase gravada no trace vence o mapa de pastas: é dado da execução, não
+            # convenção de nome de diretório. O mapa continua valendo para os traces
+            # anteriores ao campo.
+            fase = trace.get("fase") or FASE_POR_PASTA.get(arquivo.parent.name)
+            if fase is None:
+                continue  # pasta de experimento, fora das fases conhecidas
             chave = (fase, trace.get("case_id"), trace.get("seed"))
             anterior = escolhidos.get(chave)
             if anterior is None or trace.get("started_at", "") > anterior.get("started_at", ""):
@@ -142,7 +154,9 @@ def linha_para(fase: str, trace: dict[str, Any], cenario: str, golden) -> dict[s
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Recalcula o CSV de execuções")
-    parser.add_argument("--fase", choices=("baseline", "pos-correcao"), help="Refaz só esta fase")
+    # Sem `choices`: uma bateria nova (`RUN_PHASE=conditional`) traz uma fase que este
+    # script não precisa conhecer de antemão.
+    parser.add_argument("--fase", help="Refaz só esta fase (ex.: pos-correcao, conditional)")
     parser.add_argument("--conferir", action="store_true", help="Não grava; só compara")
     args = parser.parse_args()
 

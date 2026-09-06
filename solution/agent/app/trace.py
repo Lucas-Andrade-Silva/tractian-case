@@ -100,6 +100,21 @@ class Trace:
     asset_id: str | None
     message: str
     model: str = ""
+    # Rótulo da bateria a que esta execução pertence (`baseline`, `pos-correcao`,
+    # `conditional`, …). Vem de `RUN_PHASE` no ambiente e é gravado no próprio trace
+    # porque a alternativa — inferir a fase depois, juntando por
+    # `(case_id, seed, total_tokens)` contra um CSV — quebra assim que duas execuções
+    # empatam em tokens, e obriga a editar o painel a cada bateria nova.
+    fase: str | None = None
+    # A política de evidência vigente na execução. Já viajava dentro de `model` como
+    # JSON; promovida a campo próprio para que comparar políticas não exija desempacotar
+    # uma string.
+    evidence_policy: str | None = None
+    # Bundle de mutação de evidência ativo nesta execução (EXP-07), ou `None` no braço de
+    # controle e em toda execução normal. Gravado no próprio trace porque um trace mutado
+    # não é medida de referência: sem esta marca, ele fica indistinguível de uma execução
+    # real no mesmo diretório, e qualquer script que varra a pasta passa a misturar as duas.
+    mutacao: dict[str, Any] | None = None
     started_at: str = field(default_factory=_now)
     steps: list[TraceStep] = field(default_factory=list)
     llm_calls: list[LlmCall] = field(default_factory=list)
@@ -197,6 +212,9 @@ class Trace:
             "asset_id": self.asset_id,
             "message": self.message,
             "model": self.model,
+            "fase": self.fase,
+            "evidence_policy": self.evidence_policy,
+            "mutacao": self.mutacao,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
             "decision": self.decision,

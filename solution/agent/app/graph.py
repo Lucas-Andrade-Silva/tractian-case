@@ -54,6 +54,41 @@ def _text(message: AnyMessage) -> str:
     return "\n".join(p for p in parts if p).strip()
 
 
+def _tool_results(scratch: list[AnyMessage]) -> list[AnyMessage]:
+    """Só as respostas de tool do scratch, como texto solto.
+
+    Usado na segunda tentativa depois de um corte por tamanho: é a evidência apurada, sem
+    o raciocínio que estourou o orçamento. Vai como `HumanMessage` porque um `ToolMessage`
+    órfão — sem a `AIMessage` que o pediu — é rejeitado por vários provedores.
+    """
+    blocos = [
+        _text(m) for m in scratch if getattr(m, "type", None) == "tool"
+    ]
+    blocos = [b for b in blocos if b]
+    if not blocos:
+        return []
+    cabecalho = "RESULTADOS JÁ CONSULTADOS:"
+    return [HumanMessage(cabecalho + "\n" + "\n".join(blocos))]
+
+
+def _foi_truncado(message: AnyMessage) -> bool:
+    """A resposta acabou por bater no teto de saída, não porque o modelo concluiu.
+
+    Modelos de raciocínio gastam o orçamento de `max_tokens` pensando e podem ser cortados
+    ANTES de emitir qualquer texto. O resultado é uma mensagem sem tool calls e sem
+    conteúdo — indistinguível, para o grafo, de um papel que encerrou a apuração. Tratá-la
+    como encerramento gravava `(sem resumo)` nos findings; o Supervisor não via evidência,
+    reacionava o mesmo papel, e a apuração inteira era refeita (as consultas repetidas
+    saíam do cache, mas cada volta custava um prompt completo).
+
+    `finish_reason` varia por provedor: OpenAI/Groq usam `length`, Anthropic
+    `max_tokens`. Provedor que não informa nada cai no `False` — o comportamento de antes.
+    """
+    meta = getattr(message, "response_metadata", None) or {}
+    motivo = meta.get("finish_reason") or meta.get("stop_reason")
+    return motivo in ("length", "max_tokens")
+
+
 def _clear(messages: list[AnyMessage]) -> list[RemoveMessage]:
     """Instruções para esvaziar o scratch — o reducer `add_messages` aplica as remoções."""
     return [RemoveMessage(id=m.id) for m in messages if getattr(m, "id", None)]
@@ -218,7 +253,36 @@ def build_graph(
                     "worker_steps": steps + 1,
                 }
 
-            summary = _text(response) or "(sem resumo)"
+            summary = _text(response)
+
+            # Cortado no teto de saída antes de escrever o resumo. A evidência já foi
+            # consultada e está no scratch: o que falta é só redigi-la. Pede-se de novo,
+            # sem tools e sem o scratch — o transcrito é o que estourou o orçamento, e
+            # reenviá-lo faria a segunda tentativa ser cortada igual. As respostas das
+            # tools que importam já passaram pelo modelo na volta anterior.
+            if not summary and _foi_truncado(response):
+                retry = role_llm.invoke(
+                    [
+                        SystemMessage(prompt_fn(case)),
+                        HumanMessage(_findings_block(state.get("findings", []))),
+                        *_tool_results(scratch),
+                        HumanMessage(
+                            "Sua resposta anterior foi cortada por limite de tamanho antes "
+                            "de você escrever o resumo. Não raciocine mais e não chame "
+                            "tools: escreva AGORA, direto, o resumo dos achados acima."
+                        ),
+                    ]
+                )
+                trace.add_llm_call(agent=role, response=retry)
+                summary = _text(retry)
+
+            # Persistindo o vazio, registra-se a falha como achado — em vez de `(sem
+            # resumo)`, que o Supervisor lê como "nada foi apurado" e tenta de novo.
+            if not summary:
+                summary = (
+                    f"(o papel {role} não produziu resumo — resposta cortada por limite de "
+                    "tamanho. NÃO reacione este papel: decida com a evidência disponível.)"
+                )
             trace.add_finding(agent=role, summary=summary)
             return {
                 "scratch": [*reset, response],
