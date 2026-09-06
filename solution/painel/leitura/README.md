@@ -39,10 +39,10 @@ só existisse no JS seria um número que ninguém pode auditar contra o reposit�
 
 ```bash
 make experimentos   # regenera dados/experimentos.json (roda junto com make leitura)
-make exp07          # roda o EXP-07: 12 execuções (CASOS="A D" roda só a metade prioritária)
+make exp07          # roda o EXP-06 (alvo mantém o nome exp07): 12 execuções (CASOS="A D" roda só a metade prioritária)
 ```
 
-O EXP-07 é o único pré-registrado, e a aba mostra o detalhe dele: o placar de três números
+O EXP-06 é o único pré-registrado, e a aba mostra o detalhe dele: o placar de três números
 (o Investigador leu, o Decisor usou, o placebo mudou) e os quatro casos com a mutação
 aplicada, o critério que julgou cada um e a justificativa que o Decisor escreveu no braço
 mutado. O caso C aparece destacado porque falhou — e o teste
@@ -274,9 +274,9 @@ faz o Investigador apurar os quatro só em perguntas de diagnóstico, e apenas
 
 **E já foi medido duas vezes, com resultados opostos.**
 
-O [EXP-02](../../docs/experimentos/EXP-02-politica-de-evidencia.md) comparou as duas em 6
+O [EXP-02](../../docs/EXPERIMENTOS.md#exp-02-política-de-evidência-apurar-sempre-vs-apurar-sob-demanda) comparou as duas em 6
 pares e viu `conditional` gastando 8% menos, com decisão idêntica. O
-[EXP-06](../../docs/experimentos/EXP-06-politica-de-evidencia-bateria-completa.md) repetiu
+[EXP-06](../../docs/EXPERIMENTOS.md#exp-05-política-de-evidência-segunda-medição) repetiu
 com 18 pares e as três famílias de caso — e **inverteu o sinal de custo**:
 
 | | `fixed` | `conditional` |

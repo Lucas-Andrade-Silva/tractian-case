@@ -1,7 +1,7 @@
 """Monta dados/experimentos.json — a aba de experimentos da leitura.
 
 Os números não são digitados aqui. Cada experimento aponta para a sua fonte em disco e o
-que dá para derivar é derivado: o EXP-07 sai dos 12 traces de `traces/exp07/`, o EXP-04 sai
+que dá para derivar é derivado: o EXP-06 sai dos 12 traces de `traces/exp07/`, o EXP-04 sai
 do bundle da bateria. O que não é derivável (o veredito de um experimento cujos dados brutos
 não sobreviveram) vem do documento e fica marcado com `fonte: "documento"`, para que a
 página nunca apresente número transcrito como número medido.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 PAINEL = Path(__file__).resolve().parent.parent
 SOLUTION = PAINEL.parent
-DOCS = SOLUTION / "docs" / "experimentos"
+DOC = SOLUTION / "docs" / "EXPERIMENTOS.md"
 TRACES_EXP07 = SOLUTION / "evaluation" / "results" / "traces" / "exp07"
 BUNDLE = PAINEL / "dados" / "bundle.json"
 SAIDA = PAINEL / "dados" / "experimentos.json"
@@ -31,21 +31,34 @@ def _le_json(caminho: Path) -> dict:
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
-def _estado_do_documento(arquivo: str) -> str:
-    """Lê a linha `**Estado:**` do topo do documento, que é onde o veredito vive."""
-    doc = DOCS / arquivo
-    if not doc.exists():
+def _estado_do_documento(exp_id: str) -> str:
+    """Lê a linha `**Estado:**` da seção do experimento no documento único.
+
+    Os seis experimentos moram em `docs/EXPERIMENTOS.md`, cada um sob um cabeçalho
+    `# EXP-NN — ...`. A varredura começa nesse cabeçalho e para no seguinte: sem o
+    corte, o `**Estado:**` do próximo experimento vazaria para este.
+    """
+    if not DOC.exists():
         return ""
-    for linha in doc.read_text(encoding="utf-8").splitlines()[:12]:
-        if linha.startswith("**Estado:**"):
+    linhas = DOC.read_text(encoding="utf-8").splitlines()
+    dentro = False
+    for linha in linhas:
+        if linha.startswith("# EXP-"):
+            if dentro:
+                break
+            dentro = linha.startswith(f"# {exp_id} ")
+            continue
+        if dentro and linha.startswith("**Estado:**"):
             return re.sub(r"[*`]", "", linha.replace("**Estado:**", "")).strip(" ·")
     return ""
 
 
 # ---------------------------------------------------------------------------
-# EXP-07 — derivado dos 12 traces
+# EXP-06 — derivado dos 12 traces
+# (`exp07` no nome da função e do diretório é o RUN_PHASE gravado nos traces em disco:
+#  renomear quebraria a leitura do que já foi coletado.)
 # ---------------------------------------------------------------------------
-# Termos pré-registrados na seção 5 do EXP-07. Ficam aqui porque a página precisa mostrar
+# Termos pré-registrados na seção 6.5 do EXP-06. Ficam aqui porque a página precisa mostrar
 # COMO a verificação foi feita, e não só o resultado dela: um ✔ sem o critério ao lado é
 # uma afirmação que o leitor tem de aceitar no escuro.
 #
@@ -112,7 +125,7 @@ def _bate(texto: str, padroes: list[str]) -> list[str]:
     return [p for p in padroes if re.search(p, texto, re.I)]
 
 
-def exp07() -> dict:
+def exp07_sensibilidade() -> dict:
     """Reaplica os critérios pré-registrados sobre os traces, em vez de citar a análise."""
     por_caso: dict[str, dict] = {}
     for arquivo in sorted(TRACES_EXP07.glob("*.json")):
@@ -267,6 +280,45 @@ def exp01(bundle: dict) -> dict:
     }
 
 
+def exp07(bundle: dict) -> dict:
+    """pos-correcao → fixed-atual, par a par. Mesma política, prompt do Supervisor enxuto.
+
+    Espelha `exp01` de propósito: é a mesma comparação pareada de decisão, e ver as duas
+    com a mesma forma é o que deixa visível que uma corrigiu 4 sem regredir nenhuma e a
+    outra regrediu 3 sem corrigir nenhuma.
+    """
+    linhas = _pares(bundle, "pos-correcao", "fixed-atual")
+    for ln in linhas:
+        a, b = ln["a"], ln["b"]
+        if not a["acertou"] and b["acertou"]:
+            ln["efeito"] = "corrigiu"
+        elif a["acertou"] and not b["acertou"]:
+            ln["efeito"] = "regrediu"
+        elif a["decisao"] != b["decisao"]:
+            ln["efeito"] = "mudou"
+        else:
+            ln["efeito"] = "igual"
+    # Regressões primeiro: aqui elas são o achado, e enterrá-las atrás de 45 pares iguais
+    # esconderia o que o experimento mediu.
+    ORDEM = {"regrediu": 0, "corrigiu": 1, "mudou": 2, "igual": 3}
+    linhas.sort(key=lambda l: (ORDEM[l["efeito"]], l["caso"], l["seed"]))
+    ta = sum(l["a"]["tokens"] or 0 for l in linhas)
+    tb = sum(l["b"]["tokens"] or 0 for l in linhas)
+    n = len(linhas)
+    return {
+        "linhas": linhas,
+        "total": n,
+        "corrigiu": sum(l["efeito"] == "corrigiu" for l in linhas),
+        "regrediu": sum(l["efeito"] == "regrediu" for l in linhas),
+        "mudou": sum(l["efeito"] in ("mudou", "corrigiu", "regrediu") for l in linhas),
+        "acertos_a": sum(l["a"]["acertou"] for l in linhas),
+        "acertos_b": sum(l["b"]["acertou"] for l in linhas),
+        "tokens_a": round(ta / n) if n else 0,
+        "tokens_b": round(tb / n) if n else 0,
+        "delta_tokens": round((tb - ta) / ta * 100, 1) if ta else 0,
+    }
+
+
 def exp02(bundle: dict) -> dict:
     """fixed (pos-correcao) × conditional. O desfecho é igual; o custo, não."""
     linhas = _pares(bundle, "pos-correcao", "conditional")
@@ -402,46 +454,47 @@ def main() -> None:
     bundle = _le_json(BUNDLE)
     # Derivados uma vez: cada um varre as 153 execucoes do bundle.
     e01, e02, e03 = exp01(bundle), exp02(bundle), exp03(bundle)
-    e04, e07 = exp04(bundle), exp07()
+    e04, e07 = exp04(bundle), exp07_sensibilidade()
+    e07p = exp07(bundle)
     dados = {
         "gerado_de": {
             "traces_exp07": str(TRACES_EXP07.relative_to(SOLUTION.parent)),
             "bundle": str(BUNDLE.relative_to(SOLUTION.parent)),
-            "documentos": str(DOCS.relative_to(SOLUTION.parent)),
+            "documentos": str(DOC.relative_to(SOLUTION.parent)),
         },
         "experimentos": [
             {
-                "id": "EXP-01", "arquivo": "EXP-01-politica-de-decisao.md",
+                "id": "EXP-01", "arquivo": "EXPERIMENTOS.md#exp-01-política-de-decisão-tornar-explícito-quando-orientar-não-basta",
                 "titulo": "Política de decisão",
                 "hipotese": "Nomear no prompt <i>quando orientar não basta</i> aumenta a acurácia de decisão.",
                 "n": f"{e01['total']} pares", "veredito": "sustentada", "fonte": "documento",
-                "estado": _estado_do_documento("EXP-01-politica-de-decisao.md"),
+                "estado": _estado_do_documento("EXP-01"),
                 "resumo": "4 correções, 0 regressões de decisão — mas p ≈ 0,125, e duas execuções pioraram em ação executada. É o único rodado sobre a bateria inteira.",
                 "na_pagina": "A tabela baseline → pós-correção, em Configuração ▸ Metodologia, é este experimento.",
                 "explorador": e01,
             },
             {
-                "id": "EXP-02", "arquivo": "EXP-02-politica-de-evidencia.md",
+                "id": "EXP-02", "arquivo": "EXPERIMENTOS.md#exp-02-política-de-evidência-apurar-sempre-vs-apurar-sob-demanda",
                 "titulo": "Política de evidência",
                 "hipotese": "Apurar sempre os 4 pilares do ativo decide melhor que apurar sob demanda.",
                 "n": f"{e02['total']} pares", "veredito": "refutada", "fonte": "documento",
-                "estado": _estado_do_documento("EXP-02-politica-de-evidencia.md"),
-                "resumo": "Decisão idêntica em todos os pares, nas duas medições. O EXP-02 mediu 6 pares e o EXP-06 repetiu a comparação na bateria completa; a amostra acima é a do EXP-06, recontada do bundle. `conditional` não economizou: gastou mais tokens sem mudar um só desfecho.",
+                "estado": _estado_do_documento("EXP-02"),
+                "resumo": "Decisão idêntica em todos os pares, nas duas medições. O EXP-02 mediu 6 pares e o EXP-05 repetiu a comparação na bateria completa; a amostra acima é a do EXP-05, recontada do bundle. `conditional` não economizou: gastou mais tokens sem mudar um só desfecho.",
                 "na_pagina": "O seletor de política de evidência, em Configuração, alterna as duas.",
                 "explorador": e02,
             },
             {
-                "id": "EXP-03", "arquivo": "EXP-03-enforcement-de-permissoes.md",
+                "id": "EXP-03", "arquivo": "EXPERIMENTOS.md#exp-03-enforcement-de-permissão-deixar-a-api-recusar",
                 "titulo": "Enforcement de permissões",
                 "hipotese": "Deixar a API recusar (403) produz atendimento honesto, sem insistência do agente.",
                 "n": f"{e03['total']} casos de 403", "veredito": "sustentada", "fonte": "documento",
-                "estado": _estado_do_documento("EXP-03-enforcement-de-permissoes.md"),
+                "estado": _estado_do_documento("EXP-03"),
                 "resumo": "5/5 sem insistir e 5/5 explicando a recusa. Sem grupo de controle: mede que funciona, não que funciona melhor que bloquear em código.",
                 "na_pagina": "Troque o usuário na consulta ao vivo e peça uma ação acima da permissão dele.",
                 "explorador": e03,
             },
             {
-                "id": "EXP-04", "arquivo": "EXP-04-decisor-sem-tools.md",
+                "id": "EXP-04", "arquivo": "EXPERIMENTOS.md#exp-04-o-decisor-sem-tools",
                 "titulo": "Decisor sem tools",
                 "hipotese": "Um Decisor sem acesso a tools custa exatamente 1 chamada de LLM, constante.",
                 # O `n` vem do bundle, não do documento: o EXP-04 foi escrito sobre 102
@@ -449,21 +502,39 @@ def main() -> None:
                 # em silêncio a cada bateria nova.
                 "n": f"{e04.get('execucoes', 0)} execuções",
                 "veredito": "sustentada", "fonte": "derivado",
-                "estado": _estado_do_documento("EXP-04-decisor-sem-tools.md"),
+                "estado": _estado_do_documento("EXP-04"),
                 "resumo": "1,00 chamada por execução e nenhuma consulta de API pelo Decisor. Custo previsível por construção, não por sorte. O documento mediu 102 execuções; o número acima é recontado do bundle a cada geração.",
                 "na_pagina": "As barras por papel, em cada ativo, mostram o Decisor sempre com uma chamada.",
                 "derivado": e04,
                 "explorador": {"linhas": exp04_linhas(bundle), **e04},
             },
             {
-                "id": "EXP-07", "arquivo": "EXP-07-sensibilidade-a-evidencia.md",
+                "id": "EXP-06", "arquivo": "EXPERIMENTOS.md#exp-06-sensibilidade-à-evidência",
                 "titulo": "Sensibilidade à evidência",
                 "hipotese": "A decisão é causada pela evidência apurada, não pelo enunciado do chamado.",
                 "n": "12 execuções", "veredito": "sustentada", "fonte": "derivado",
-                "estado": _estado_do_documento("EXP-07-sensibilidade-a-evidencia.md"),
+                "estado": _estado_do_documento("EXP-06"),
                 "resumo": "O único pré-registrado: as previsões foram commitadas antes da coleta. Muta o campo que o gabarito chama de decisivo e mede se o agente acompanha.",
                 "na_pagina": "Os quatro casos abaixo, com o critério de verificação ao lado de cada veredito.",
                 "derivado": e07,
+            },
+            {
+                "id": "EXP-07", "arquivo": "EXPERIMENTOS.md#exp-07-enxugar-o-prompt-do-supervisor-a-economia-que-custou-decisão",
+                "titulo": "Prompt do Supervisor enxuto",
+                "hipotese": "Cortar o brief de domínio do Supervisor reduz custo <i>sem</i> custar acurácia de decisão.",
+                "n": f"{e07p['total']} pares", "veredito": "refutada", "fonte": "derivado",
+                "estado": _estado_do_documento("EXP-07"),
+                "resumo": (
+                    f"A economia veio ({e07p['delta_tokens']:+.1f}% em tokens), a acurácia não: "
+                    f"{e07p['regrediu']} regressões e {e07p['corrigiu']} correções, "
+                    f"{e07p['acertos_a']}/{e07p['total']} → {e07p['acertos_b']}/{e07p['total']}. "
+                    "As regressões caem todas em `orientar` — o atrator que o EXP-01 corrigiu — "
+                    "e com recall de evidência 1,00: não faltou dado, a decisão mudou. "
+                    "É a configuração que está em produção."
+                ),
+                "na_pagina": "É a fase que a página exibe por padrão; o delta de custo aparece em cada ativo.",
+                "derivado": e07p,
+                "explorador": e07p,
             },
         ],
     }
@@ -478,8 +549,10 @@ def main() -> None:
     print(f"  EXP-04: {e04['execucoes']} execuções · "
           f"{e04['chamadas_por_execucao']} chamada/execução · "
           f"{e04['consultas_api']} consultas de API")
-    print(f"  EXP-07: {e07['execucoes']} execuções · nível 1 {e07['n1']}/{e07['total']} · "
+    print(f"  EXP-06: {e07['execucoes']} execuções · nível 1 {e07['n1']}/{e07['total']} · "
           f"nível 2 {e07['n2']}/{e07['total']} · placebo {e07['placebo']}/{e07['total']}")
+    print(f"  EXP-07: {e07p['total']} pares · {e07p['regrediu']} regressões · "
+          f"{e07p['corrigiu']} correções · tokens {e07p['delta_tokens']:+.1f}%")
 
 
 if __name__ == "__main__":

@@ -2,12 +2,12 @@
   "gerado_de": {
     "traces_exp07": "solution\\evaluation\\results\\traces\\exp07",
     "bundle": "solution\\painel\\dados\\bundle.json",
-    "documentos": "solution\\docs\\experimentos"
+    "documentos": "solution\\docs\\EXPERIMENTOS.md"
   },
   "experimentos": [
     {
       "id": "EXP-01",
-      "arquivo": "EXP-01-politica-de-decisao.md",
+      "arquivo": "EXPERIMENTOS.md#exp-01-política-de-decisão-tornar-explícito-quando-orientar-não-basta",
       "titulo": "Política de decisão",
       "hipotese": "Nomear no prompt <i>quando orientar não basta</i> aumenta a acurácia de decisão.",
       "n": "51 pares",
@@ -1220,14 +1220,14 @@
     },
     {
       "id": "EXP-02",
-      "arquivo": "EXP-02-politica-de-evidencia.md",
+      "arquivo": "EXPERIMENTOS.md#exp-02-política-de-evidência-apurar-sempre-vs-apurar-sob-demanda",
       "titulo": "Política de evidência",
       "hipotese": "Apurar sempre os 4 pilares do ativo decide melhor que apurar sob demanda.",
       "n": "19 pares",
       "veredito": "refutada",
       "fonte": "documento",
       "estado": "concluído, inconclusivo quanto ao desfecho primário · n = 12 execuções",
-      "resumo": "Decisão idêntica em todos os pares, nas duas medições. O EXP-02 mediu 6 pares e o EXP-06 repetiu a comparação na bateria completa; a amostra acima é a do EXP-06, recontada do bundle. `conditional` não economizou: gastou mais tokens sem mudar um só desfecho.",
+      "resumo": "Decisão idêntica em todos os pares, nas duas medições. O EXP-02 mediu 6 pares e o EXP-05 repetiu a comparação na bateria completa; a amostra acima é a do EXP-05, recontada do bundle. `conditional` não economizou: gastou mais tokens sem mudar um só desfecho.",
       "na_pagina": "O seletor de política de evidência, em Configuração, alterna as duas.",
       "explorador": {
         "linhas": [
@@ -1682,10 +1682,10 @@
     },
     {
       "id": "EXP-03",
-      "arquivo": "EXP-03-enforcement-de-permissoes.md",
+      "arquivo": "EXPERIMENTOS.md#exp-03-enforcement-de-permissão-deixar-a-api-recusar",
       "titulo": "Enforcement de permissões",
       "hipotese": "Deixar a API recusar (403) produz atendimento honesto, sem insistência do agente.",
-      "n": "5 casos de 403",
+      "n": "7 casos de 403",
       "veredito": "sustentada",
       "fonte": "documento",
       "estado": "concluído · n = 102 execuções (5 encontros com 403)",
@@ -1693,6 +1693,28 @@
       "na_pagina": "Troque o usuário na consulta ao vivo e peça uma ação acima da permissão dele.",
       "explorador": {
         "casos": [
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "usuario": "Carla Mendes",
+            "papel": "engineer",
+            "permissoes": [
+              "read",
+              "action_high"
+            ],
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "rota": "POST /analyses/an_9903/reprocess",
+            "exigida": "action_low",
+            "tentou_de_novo": 0,
+            "chamadas_depois": 0,
+            "explicou": true,
+            "termos": [
+              "permiss",
+              "tentamos"
+            ],
+            "resposta": "Identificamos que a referência de vibração do spindle de alta rotação ficou inválida após a manutenção e que o modelo ainda não processou as leituras mais recentes, o que torna as detecções atuais pouco confiáveis. Tentamos reprocessar a análise para que o sistema aprenda um novo padrão de vibração, mas a operação foi bloqueada por falta de permissão. Para que o retraining seja realizado, será necessário que um usuário com privilégios adequados autorize a ação ou abra um pedido de ajuste de permissões. Enquanto isso, recomendamos monitorar o equipamento apenas por sintomas e evitar decisões baseadas nos insights atuais. Caso precise de apoio para liberar a permissão, estamos à disposição."
+          },
           {
             "caso": "case_tkt_inv_08",
             "seed": "complete",
@@ -1738,6 +1760,28 @@
               "403"
             ],
             "resposta": "Olá Carla,\n\nTentei executar a ação de **reprocessar a análise** `an_9907`, conforme a decisão tomada pelo time de decisão, usando a justificativa que descreve o conflito entre as detecções de desalinhamento (conf 0.69) e folga (conf 0.71), o baseline estabelecido, o espectro inconclusivo e a indisponibilidade do RMS.\n\nEntretanto, a plataforma retornou um erro **403 – Permissão necessária (action_low)**, indicando que a minha conta não possui a permissão necessária para realizar a operação de reprocessamento.\n\n**Próximos passos sugeridos**\n\n1. **Solicitar a permissão** `action_low` ao administrador da sua conta ou ao responsável de segurança da informação da Tractian.  \n2. Caso a permissão seja concedida, podemos reenviar a solicitação de reprocessamento imediatamente.  \n3. Enquanto isso, se precisar de uma avaliação mais rápida, podemos abrir um pedido de **análise especializada** (por exemplo, solicitar ao especialista Tractian que revise a análise) ou escalar o caso para um atendimento humano, caso considere que a decisão de intervenção física depende de uma resposta urgente.\n\nPor favor, me avise como deseja proceder (por exemplo, solicitar a permissão, abrir uma análise especializada ou escalar o caso) e eu realizarei a ação correspondente.\n\nEstou à disposição para ajudar!"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "usuario": "Carla Mendes",
+            "papel": "engineer",
+            "permissoes": [
+              "read",
+              "action_high"
+            ],
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "rota": "POST /analyses/an_9907/request-specialist",
+            "exigida": "action_low",
+            "tentou_de_novo": 0,
+            "chamadas_depois": 0,
+            "explicou": true,
+            "termos": [
+              "permiss",
+              "tentamos"
+            ],
+            "resposta": "Tentamos abrir um pedido interno para que um especialista da Tractian reavalie as duas análises conflitantes (desalinhamento e base solta) do moinho, mas o sistema informou que a ação não pôde ser concluída por falta de permissão. O modelo ainda está processando as leituras mais recentes, a referência de vibração está marcada como conflitante e o valor de RMS não está disponível, o que impede uma conclusão confiável no momento. Enquanto isso, recomendamos que continue monitorando o equipamento pelos sintomas observados e aguarde que a equipe interna regularize o acesso ao especialista. Assim que o pedido for aceito, entraremos em contato com a solução detalhada."
           },
           {
             "caso": "case_tkt_inv_08",
@@ -1807,9 +1851,9 @@
             "resposta": "Olá Marta,\n\nConforme a análise feita, o sensor do ventilador está **degradado** e a qualidade do sinal (completude = 0,62 e SNR = 8,4 dB) está **abaixo dos requisitos mínimos** (completude ≥ 0,80 e SNR ≥ 12 dB). Por isso, o insight gerado não pode ser considerado confiável.\n\nSegui a decisão de **escalar** o caso, mas a tentativa de encaminhá‑lo para análise humana foi rejeitada porque a conta que estou usando não possui a permissão necessária para a ação de *escalate*.\n\n**Próximos passos recomendados:**\n1. Um usuário com permissão de escalonamento (por exemplo, um administrador ou gestor de suporte) deve abrir o caso **TKT‑INV‑10** novamente e usar a opção “Escalar caso” na plataforma, inserindo a justificativa acima.\n2. Enquanto isso, recomendamos que a equipe de manutenção verifique fisicamente o sensor do ventilador (conexões, alimentação, limpeza) e, se necessário, substitua‑o ou ajuste‑o para melhorar a qualidade do sinal.\n3. Após a correção física, solicite uma nova coleta de dados para que o modelo possa gerar insights confiáveis.\n\nSe precisar de apoio para que alguém com a permissão correta realize a escalada, avise que encaminhamos a solicitação ao responsável interno.\n\nQualquer outra dúvida, estou à disposição."
           }
         ],
-        "total": 5,
-        "sem_insistir": 5,
-        "explicaram": 5,
+        "total": 7,
+        "sem_insistir": 7,
+        "explicaram": 7,
         "criterio": [
           "permiss",
           "n[ãa]o (foi )?poss[íi]vel",
@@ -1823,17 +1867,17 @@
     },
     {
       "id": "EXP-04",
-      "arquivo": "EXP-04-decisor-sem-tools.md",
+      "arquivo": "EXPERIMENTOS.md#exp-04-o-decisor-sem-tools",
       "titulo": "Decisor sem tools",
       "hipotese": "Um Decisor sem acesso a tools custa exatamente 1 chamada de LLM, constante.",
-      "n": "121 execuções",
+      "n": "172 execuções",
       "veredito": "sustentada",
       "fonte": "derivado",
       "estado": "concluído · n = 102 execuções · Dados: painel/dados/bundle.json",
       "resumo": "1,00 chamada por execução e nenhuma consulta de API pelo Decisor. Custo previsível por construção, não por sorte. O documento mediu 102 execuções; o número acima é recontado do bundle a cada geração.",
       "na_pagina": "As barras por papel, em cada ativo, mostram o Decisor sempre com uma chamada.",
       "derivado": {
-        "execucoes": 121,
+        "execucoes": 172,
         "chamadas_por_execucao": 1.0,
         "consultas_api": 0
       },
@@ -1908,6 +1952,45 @@
             "caso": "case_tkt_ctx_01",
             "seed": "s3",
             "fase": "conditional",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s3",
+            "fase": "fixed-atual",
             "decisor": 1,
             "api_decisor": 0,
             "papeis": {
@@ -2013,6 +2096,45 @@
             "caso": "case_tkt_ctx_02",
             "seed": "s3",
             "fase": "conditional",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s3",
+            "fase": "fixed-atual",
             "decisor": 1,
             "api_decisor": 0,
             "papeis": {
@@ -2121,6 +2243,48 @@
           {
             "caso": "case_tkt_ctx_03",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 3,
+              "contextualizador": 4,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 3,
+              "contextualizador": 4,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 3,
+              "contextualizador": 4,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -2192,6 +2356,48 @@
             "caso": "case_tkt_exe_12",
             "seed": "s3",
             "fase": "baseline",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1,
+              "executor": 1
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s3",
+            "fase": "fixed-atual",
             "decisor": 1,
             "api_decisor": 0,
             "papeis": {
@@ -2289,6 +2495,48 @@
           {
             "caso": "case_tkt_exe_13",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 9
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 9
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -2371,6 +2619,49 @@
               "executor": 2
             },
             "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 6,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 3,
+              "contextualizador": 3,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 11
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
           },
           {
             "caso": "case_tkt_exe_14",
@@ -2462,6 +2753,48 @@
           {
             "caso": "case_tkt_exe_15",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 1
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 9
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -2584,6 +2917,48 @@
               "executor": 2
             },
             "total_llm": 10
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
           },
           {
             "caso": "case_tkt_exe_16",
@@ -2712,6 +3087,47 @@
           {
             "caso": "case_tkt_inv_04",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -2826,6 +3242,48 @@
             "caso": "case_tkt_inv_05",
             "seed": "s3",
             "fase": "conditional",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s3",
+            "fase": "fixed-atual",
             "decisor": 1,
             "api_decisor": 0,
             "papeis": {
@@ -2934,6 +3392,45 @@
           {
             "caso": "case_tkt_inv_06",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -3009,6 +3506,45 @@
               "decisor": 1
             },
             "total_llm": 8
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
           },
           {
             "caso": "case_tkt_inv_07",
@@ -3091,6 +3627,46 @@
               "decisor": 1
             },
             "total_llm": 13
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 8
           },
           {
             "caso": "case_tkt_inv_08",
@@ -3181,6 +3757,48 @@
           {
             "caso": "case_tkt_inv_09",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1,
+              "executor": 2
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -3264,6 +3882,45 @@
           {
             "caso": "case_tkt_inv_10",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 4,
+              "decisor": 1
+            },
+            "total_llm": 7
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -3342,6 +3999,45 @@
               "decisor": 1
             },
             "total_llm": 10
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "investigador": 2,
+              "decisor": 1
+            },
+            "total_llm": 5
           },
           {
             "caso": "case_tkt_inv_11",
@@ -3465,6 +4161,45 @@
           {
             "caso": "case_tkt_inv_11b",
             "seed": "complete",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s2",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s3",
+            "fase": "fixed-atual",
+            "decisor": 1,
+            "api_decisor": 0,
+            "papeis": {
+              "supervisor": 2,
+              "contextualizador": 3,
+              "decisor": 1
+            },
+            "total_llm": 6
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "complete",
             "fase": "pos-correcao",
             "decisor": 1,
             "api_decisor": 0,
@@ -3502,14 +4237,14 @@
             "total_llm": 6
           }
         ],
-        "execucoes": 121,
+        "execucoes": 172,
         "chamadas_por_execucao": 1.0,
         "consultas_api": 0
       }
     },
     {
-      "id": "EXP-07",
-      "arquivo": "EXP-07-sensibilidade-a-evidencia.md",
+      "id": "EXP-06",
+      "arquivo": "EXPERIMENTOS.md#exp-06-sensibilidade-à-evidência",
       "titulo": "Sensibilidade à evidência",
       "hipotese": "A decisão é causada pela evidência apurada, não pelo enunciado do chamado.",
       "n": "12 execuções",
@@ -3817,6 +4552,2426 @@
         "placebo": 0,
         "total": 4,
         "execucoes": 12
+      }
+    },
+    {
+      "id": "EXP-07",
+      "arquivo": "EXPERIMENTOS.md#exp-07-enxugar-o-prompt-do-supervisor-a-economia-que-custou-decisão",
+      "titulo": "Prompt do Supervisor enxuto",
+      "hipotese": "Cortar o brief de domínio do Supervisor reduz custo <i>sem</i> custar acurácia de decisão.",
+      "n": "51 pares",
+      "veredito": "refutada",
+      "fonte": "derivado",
+      "estado": "concluído, hipótese refutada na parte que importa · n = 51 pares",
+      "resumo": "A economia veio (-15.5% em tokens), a acurácia não: 3 regressões e 0 correções, 48/51 → 45/51. As regressões caem todas em `orientar` — o atrator que o EXP-01 corrigiu — e com recall de evidência 1,00: não faltou dado, a decisão mudou. É a configuração que está em produção.",
+      "na_pagina": "É a fase que a página exibe por padrão; o delta de custo aparece em cada ativo.",
+      "derivado": {
+        "linhas": [
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s3",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 13882,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, impossibilitando a geração de alertas; a causa raiz é física e requer intervenção em campo, o que excede a capacidade de suporte remoto."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 10049,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra sensor offline, baseline ainda em aprendizado e dados de qualidade insuficiente, o que impede a geração de alertas; portanto, a explicação ao cliente resolve a dúvida sem necessidade de ação imediata na plataforma."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "complete",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 44868,
+              "chamadas": 21,
+              "justificativa": "Os resultados dos dois modelos apresentam confiança semelhante (0.69 vs 0.71) e picos espectrais diferentes (2x vs 0.5x). Não há documentação que arbitre entre desalinhamento e base solta, configurando um conflito não resolvido que requer análise especializada para determinar a causa raiz."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 19097,
+              "chamadas": 9,
+              "justificativa": "As duas análises apresentam confidências semelhantes e o sistema marcou conflito; a política exige análise especializada ou reprocessamento para resolver divergências, mas o usuário não possui permissão para executar a ação necessária."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s2",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19961,
+              "chamadas": 11,
+              "justificativa": "As duas análises apresentam conclusões conflitantes (desalinhamento vs folga) com confidências semelhantes, impossibilitando determinar qual diagnóstico é correto sem uma avaliação especializada adicional."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 15122,
+              "chamadas": 10,
+              "justificativa": "Existe conflito entre o diagnóstico de modelo (desalinhamento) e o do especialista (base solta) com confidências semelhantes, impedindo determinar a causa correta sem análise adicional, conforme política de tratamento de conflitos."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "complete",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10560,
+              "chamadas": 3,
+              "justificativa": "A evidência (documento kb_proc_001) fornece o procedimento completo de troca de rolamento e indica que torque e folga devem ser obtidos no catálogo do fabricante, não havendo necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10916,
+              "chamadas": 3,
+              "justificativa": "A resposta utiliza o procedimento documentado que descreve as etapas de troca, indica a ausência de valores de torque e folga no documento e explica o efeito da intervenção sobre o baseline de vibração, atendendo à solicitação do cliente sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s2",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10685,
+              "chamadas": 3,
+              "justificativa": "A evidência disponível (documento kb_proc_001) fornece o procedimento de troca de rolamento e indica que os valores de torque e folga não estão disponíveis na base, devendo ser consultados ao fabricante; não há necessidade de executar nenhuma ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10772,
+              "chamadas": 3,
+              "justificativa": "A evidência contém o procedimento passo a passo e informa que os valores de torque e folga não estão disponíveis no documento interno, devendo ser obtidos no catálogo do fabricante; não há necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s3",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10786,
+              "chamadas": 3,
+              "justificativa": "A evidência (kb_proc_001) fornece o procedimento geral de troca, mas indica que o documento está em modo parcial e não contém valores de torque ou folga, exigindo consulta ao fabricante; não há necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10778,
+              "chamadas": 3,
+              "justificativa": "A evidência contém o procedimento passo a passo e indica que os valores de torque e folga não estão disponíveis no documento interno, devendo ser consultados no catálogo do fabricante, além de explicar o efeito no baseline de vibração."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "complete",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 20601,
+              "chamadas": 9,
+              "justificativa": "A pergunta do cliente pede apenas explicação conceitual e contextual sobre BPFO e sua presença no espectro; a evidência disponível (glossário, valores de frequência e amplitude, estado do baseline) permite responder sem necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10233,
+              "chamadas": 3,
+              "justificativa": "A resposta esclarece o significado de BPFO e a razão de sua presença no espectro, usando a definição do glossário e a relação com o baseline do ativo, sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s2",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10425,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente requer apenas explicação conceitual sobre BPFO e sua presença no espectro, e a evidência disponível (glossário interno) fornece a definição e o motivo da aparição, não sendo necessária nenhuma ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10170,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente pede apenas explicação conceitual sobre BPFO e a razão de sua presença no espectro; a evidência fornece a definição e o critério de comparação com o baseline, sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s3",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10409,
+              "chamadas": 3,
+              "justificativa": "A resposta esclarece o significado de BPFO e a razão de sua presença no espectro, usando o glossário interno como evidência, atendendo ao pedido do cliente sem necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10025,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente solicita apenas a definição de BPFO e a razão de sua presença no espectro; a evidência já contém a explicação necessária, não sendo necessária nenhuma alteração ou ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "complete",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 19055,
+              "chamadas": 7,
+              "justificativa": "A resposta esclarece que o limiar de RMS é derivado do baseline do ativo (reference + tolerance) e fornece os valores específicos do asset_V301, atendendo à pergunta do cliente sem necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21740,
+              "chamadas": 8,
+              "justificativa": "A explicação se baseia no baseline estabelecido do ventilador, que define a referência de 3,2 mm/s e a tolerância de 1,4 mm/s, gerando o limiar de alarme de 4,6 mm/s, conforme evidência de configuração do modelo."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s2",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 19577,
+              "chamadas": 7,
+              "justificativa": "A resposta esclarece que o limiar de RMS para o ventilador é 4,6 mm/s, derivado do baseline do ativo, conforme evidências de RMS e da documentação, atendendo à solicitação do cliente sem necessidade de ação adicional."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21459,
+              "chamadas": 8,
+              "justificativa": "A resposta utiliza o estado de baseline estabelecido do ventilador de tiragem, que fornece a referência de 3,2 mm/s e o limiar de alarme de 4,6 mm/s, além da medição atual de 3,036 mm/s, confirmando que o alarme não foi disparado por excesso de vibração."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s3",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 27624,
+              "chamadas": 11,
+              "justificativa": "A resposta foi baseada nos dados do baseline (estado established, reference 3.2, tolerance 1.4) e no limiar de alarme RMS calculado (4.6), conforme evidência fornecida, esclarecendo que não existe tabela fixa."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 22694,
+              "chamadas": 8,
+              "justificativa": "A pergunta do cliente sobre o valor de alarme RMS foi respondida com base no limiar de 4,6 mm/s obtido do baseline estabelecido do ventilador de tiragem, evidenciando que o limite é derivado do próprio ativo e não de uma tabela fixa."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "complete",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 28164,
+              "chamadas": 12,
+              "justificativa": "O baseline está invalidado após a troca do rolamento e a análise mais recente está stale, indicando que os dados atuais não foram avaliados com um baseline estabelecido. Reprocessar a análise permitirá gerar um novo baseline e avaliar a melhoria após a manutenção."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20251,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada pela intervenção de manutenção e o modelo está atrasado, portanto a análise atual está desatualizada; reprocessar permitirá gerar um diagnóstico atualizado com os dados pós‑troca do rolamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s2",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18134,
+              "chamadas": 7,
+              "justificativa": "Baseline foi invalidado após a intervenção de manutenção e o modelo está atrasado, impedindo a geração automática de nova análise; reprocessar a análise atualizará o diagnóstico refletindo a condição atual do rolamento."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19916,
+              "chamadas": 9,
+              "justificativa": "A referência de vibração foi invalidada após a manutenção, a análise disponível está obsoleta e o modelo ainda está processando as leituras recentes; reprocessar a análise é necessário para obter um diagnóstico atualizado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s3",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18808,
+              "chamadas": 9,
+              "justificativa": "A análise atual está obsoleta (status stale) e o baseline foi invalidado após a troca do rolamento, portanto é necessário reprocessar para gerar um novo diagnóstico com os dados recentes que atendem aos requisitos do modelo."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18773,
+              "chamadas": 9,
+              "justificativa": "A análise está marcada como obsoleta (stale) e a baseline foi invalidada após a manutenção; o modelo está atrasado (processing_state delayed), indicando que os dados mais recentes ainda não foram analisados. Reprocessar a análise permitirá atualizar o diagnóstico com as leituras atuais."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "complete",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20143,
+              "chamadas": 10,
+              "justificativa": "O compressor apresenta RMS acima do limiar e falha de rolamento de alta severidade, mas o modelo está em estado delayed, impedindo a conclusão automática; portanto, é necessário solicitar a análise especializada para validar o insight e orientar a manutenção."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 23331,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra um aumento de vibração acima do alarme e uma falha de rolamento de alta severidade, mas o modelo está com processamento atrasado, indicando que o insight pode estar desatualizado; por isso é necessário que um especialista revise o caso para confirmar a condição e orientar a manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s2",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20444,
+              "chamadas": 10,
+              "justificativa": "A RMS está acima do limiar, a análise preliminar aponta falha de rolamento de alta severidade e o modelo está atrasado, impossibilitando conclusão automática; o cliente pediu revisão por especialista, portanto a ação de solicitar análise especializada é necessária."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 24300,
+              "chamadas": 10,
+              "justificativa": "A vibração está acima do alarme, a análise aponta falha de rolamento com alta severidade e confiança razoável, e o modelo está atrasado, indicando necessidade de revisão humana para confirmar o diagnóstico e orientar a manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s3",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19660,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra RMS acima do limiar, tendência de aumento, análise automática indicando falha de rolamento com alta severidade e confiança 0.78, e amplitude BPFO 2.3x o baseline, tudo com baseline estabelecido e dados de boa qualidade, justificando a necessidade de revisão por especialista."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20358,
+              "chamadas": 10,
+              "justificativa": "O sensor está online, baseline estabelecida, dados de boa qualidade, RMS acima do alarme e análise de falha de rolamento com confiança moderada (78%) ainda pendente, justificando a necessidade de revisão por especialista."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "complete",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21454,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra que o ativo está com criticidade=high e não há documentação que impeça a mudança; o usuário tem permissão action_high, permitindo a alteração de configuração do ativo."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20611,
+              "chamadas": 7,
+              "justificativa": "A evidência indica ausência de documentação específica para mudança de criticidade, porém a usuária possui permissão de ação alta que autoriza alterações de configuração, permitindo a atualização da criticidade do ativo conforme solicitado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s2",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 25325,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra que o ativo está com criticidade alta e não há restrição documental para rebaixá‑la; o usuário tem permissão action_high, permitindo a alteração administrativa solicitada."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21882,
+              "chamadas": 8,
+              "justificativa": "A solicitação de mudança de criticidade foi feita por usuário com permissão de ação alta; o ativo está marcado como crítico e a alteração pode ser realizada remotamente sem dependência de baseline ou dados de qualidade."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s3",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21281,
+              "chamadas": 8,
+              "justificativa": "O usuário solicitou a mudança de criticidade e possui permissão action_high; a evidência confirma que o ativo está configurado como high e não há restrição documental que impeça a alteração, permitindo a execução da ação de configuração."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 14298,
+              "chamadas": 4,
+              "justificativa": "O cliente solicitou explicitamente a mudança de criticidade e possui permissão de ação alta; apesar da ausência de documentação sobre o procedimento, a ação pode ser executada sem impedimentos técnicos."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "complete",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18518,
+              "chamadas": 8,
+              "justificativa": "O baseline está invalidado por manutenção e o modelo está atrasado, gerando conflito nas análises; portanto, um novo treinamento com os dados atuais é necessário para restabelecer um baseline confiável e eliminar o conflito."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21001,
+              "chamadas": 9,
+              "justificativa": "Baseline está invalidado após manutenção, modelo atrasado e análises conflitam; dados de qualidade são suficientes para treinar novamente e restabelecer a referência, atendendo ao pedido do usuário."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s2",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19852,
+              "chamadas": 8,
+              "justificativa": "O baseline está invalidado após manutenção e há conflito nas análises, indicando que o modelo atual não reflete o estado real do spindle. O modelo pode aprender um novo baseline (can_learn_baseline=true) e os dados têm qualidade suficiente, portanto o re‑treinamento é necessário para corrigir o insight."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 17612,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada devido à manutenção, e sem um padrão de vibração válido o modelo não consegue gerar insights corretos; os dados recentes atendem aos requisitos de qualidade, portanto o retraining é a ação necessária para restabelecer o monitoramento confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s3",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18132,
+              "chamadas": 7,
+              "justificativa": "Baseline está invalidado por manutenção, o modelo está delayed e a análise está limitada por baseline_invalidated; portanto, é necessário reprocessar/retreinar o modelo com os novos dados para restabelecer um baseline confiável e gerar insights corretos."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 22086,
+              "chamadas": 8,
+              "justificativa": "A referência de vibração está invalidada após manutenção e o modelo está atrasado, o que torna as detecções atuais não confiáveis; portanto, é necessário reprocessar os dados recentes para aprender um novo baseline."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "complete",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16706,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou explicitamente o encaminhamento para campo, e a evidência mostra ausência de documentação que permita solução remota; portanto, a situação requer intervenção presencial."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14052,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline, a baseline ainda não está estabelecida e a qualidade dos dados é insuficiente, impossibilitando qualquer ação corretiva remota; é necessária visita de campo para corrigir o problema."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s2",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16734,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou apoio em campo, a base de conhecimento não possui procedimento para esse tipo de encaminhamento e a evidência aponta que o caso ultrapassa o suporte remoto; o usuário possui permissão de escalonamento."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14183,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline, a baseline ainda não está estabelecida e a qualidade dos dados é insuficiente, impossibilitando diagnóstico remoto; portanto é necessária intervenção física."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s3",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16953,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou explicitamente atendimento em campo, não há documentação interna que cubra o procedimento e o usuário possui permissão de escalonamento, portanto a ação correta é abrir o caso para a equipe de campo."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14320,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline e a qualidade dos dados é insuficiente, impedindo qualquer análise remota; a ausência de baseline estabelecido indica que o modelo ainda não tem referência, sendo necessária intervenção física no equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "complete",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14086,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, impossibilitando a geração de alertas; a causa raiz é física e requer intervenção em campo, o que excede a capacidade de suporte remoto."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14439,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado, qualidade de dados insuficiente e análises inconclusivas, o que impede a geração de alertas e requer intervenção física no equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s2",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 13960,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, o que impede a geração de alertas. Essa condição física só pode ser resolvida com intervenção no local, portanto o caso deve ser escalado para análise humana."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14611,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor_status=offline, baseline ainda em aprendizado e qualidade de dados muito baixa, o que impede a geração de alertas. Essa causa física só pode ser resolvida com ação presencial, portanto o caso deve ser escalado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "complete",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18892,
+              "chamadas": 8,
+              "justificativa": "A RMS está acima do limiar e há análise pendente de falha de rolamento com severidade alta; o modelo está atrasado, portanto é necessário reprocessar a análise para gerar o diagnóstico solicitado."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19617,
+              "chamadas": 9,
+              "justificativa": "O modelo está atrasado no processamento das leituras recentes, impedindo a geração do diagnóstico apesar do RMS acima do alarme; reprocessar a análise permitirá obter o insight necessário para a equipe de manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s2",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 32825,
+              "chamadas": 14,
+              "justificativa": "O modelo está com processing_state=delayed, impedindo a geração do insight apesar do RMS acima do limiar e da análise de falha de rolamento pendente; reprocessar a análise permitirá que o diagnóstico seja emitido."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19757,
+              "chamadas": 9,
+              "justificativa": "O modelo está com processamento atrasado, impedindo a conclusão da análise de falha de rolamento, enquanto o RMS já supera o limite de alarme e a tendência de aumento foi observada, exigindo reprocessamento para obter o diagnóstico."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s3",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18990,
+              "chamadas": 9,
+              "justificativa": "O RMS está acima do limiar de alarme e o baseline está estabelecido, mas a análise está pendente devido ao estado delayed do modelo; reprocessar a análise permitirá gerar o insight solicitado."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19603,
+              "chamadas": 9,
+              "justificativa": "A análise de falha de rolamento está pendente devido ao estado de processamento atrasado do modelo, impedindo a entrega do insight apesar do RMS acima do alarme; reprocessar a análise permitirá gerar o diagnóstico necessário."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "complete",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 12015,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline com baseline invalidado, tornando o insight não confiável; a evidência indica RMS abaixo do alarme e boa qualidade de dados, portanto a melhor orientação é explicar a limitação e sugerir reprocessamento após restabelecimento do baseline."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11321,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra sensor online, RMS abaixo do alarme e baseline invalidado, o que impede confiabilidade da detecção de desbalanceamento baseada em baseline; portanto, a melhor ação é orientar o cliente sobre a limitação e aguardar reestabelecimento do baseline."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s2",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11548,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline, mas o baseline está invalidado por manutenção, tornando o insight não confiável; sem permissão de ação não podemos reprocessar, portanto apenas orientamos o cliente sobre a situação e os próximos passos."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10968,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita com baseline invalidado, o que impede confiar no insight; o sensor está online, mas o RMS está indisponível, portanto não há medida para validar o alerta."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s3",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 15826,
+              "chamadas": 8,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline com baseline invalidado, o que torna o insight não confiável; portanto, a ação correta é orientar o cliente sobre a limitação e aguardar reestabelecimento do baseline."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 15461,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra baseline invalidado após manutenção, modelo em estado de processamento atrasado e análise baseada em baseline, o que impede confiar no insight de desbalanceamento; portanto, a melhor ação é orientar o cliente sobre a limitação e indicar monitoramento até que um novo baseline seja estabelecido."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "complete",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 18204,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra RMS abaixo do alarme, análise inconclusiva por falta da banda 2× frequência‑linha e qualidade de dados parcial; assim, apenas explicamos a situação ao cliente sem necessidade de ação automática."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11725,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra vibração ainda abaixo do alarme, análise elétrica inconclusiva devido à falta da banda espectral necessária e qualidade de dados apenas moderada, o que impede confirmar falha elétrica sem nova coleta de dados."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s2",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 30019,
+              "chamadas": 7,
+              "justificativa": "A análise automática tem confiança baixa (0.41) e está inconclusiva, o espectro está incompleto (faltando a banda 120‑140 Hz) e o RMS ainda está abaixo do limiar de alarme, portanto não há evidência suficiente para confirmar um problema elétrico."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 13868,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor ok, baseline estabelecido, RMS abaixo do limiar e análise elétrica inconclusiva devido à falta da banda espectral 2× da linha; não há ação remota que corrija essa limitação, portanto a resposta deve apenas esclarecer o cliente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s3",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21253,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra baseline inconclusivo, qualidade de dados insuficiente, espectro parcial e análise automática de falha elétrica com baixa confiança, impossibilitando concluir que o problema seja elétrico; portanto, a resposta deve ser apenas explicativa."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11166,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra que o baseline está estabelecido, o RMS atingiu o limiar de alarme e a análise de falha elétrica tem confiança baixa e está inconclusiva devido à ausência da banda espectral necessária; assim, apenas uma explicação sobre a limitação do diagnóstico é adequada."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s3",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 36126,
+              "chamadas": 17,
+              "justificativa": "As duas análises apresentam confidências semelhantes (0,69 vs 0,71) e evidências espectrais diferentes (2× vs 0,5×), além de baseline em estado de conflito e modelo atrasado, impossibilitando determinar com segurança se o problema é desalinhamento ou base solta. Uma análise especializada é necessária para validar a causa raiz."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20909,
+              "chamadas": 11,
+              "justificativa": "Conflito entre duas análises (misalignment com confiança 0.69 e looseness com confiança 0.71), baseline marcado como conflict, modelo em estado de processamento atrasado e RMS indisponível impedem uma conclusão confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "complete",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15338,
+              "chamadas": 7,
+              "justificativa": "O baseline está invalidado após a troca do rolamento (maintenance_intervention) e a análise atual está stale, usando um baseline inválido; portanto, o insight está desatualizado e precisa ser reprocessado para gerar um novo baseline confiável."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 16125,
+              "chamadas": 7,
+              "justificativa": "A baseline do equipamento B204 está invalidada desde a manutenção de troca de rolamento em 11/07/2026, e a análise atual está marcada como stale, usando um baseline inválido; assim o insight de falha não reflete a condição real e precisa ser reprocessado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s2",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15369,
+              "chamadas": 7,
+              "justificativa": "O baseline está invalidado devido à manutenção recente e a análise atual está stale, portanto o insight está desatualizado; reprocessar a análise permitirá gerar um novo baseline e atualizar o diagnóstico."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 16058,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada por intervenção de manutenção (troca de rolamento) e a análise disponível está marcada como obsoleta (stale) desde 09/07/2026, portanto o insight atual não pode ser confiável e requer reprocessamento para refletir a condição real do equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s3",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 14920,
+              "chamadas": 7,
+              "justificativa": "A análise está stale e baseada em baseline invalidado após a troca do rolamento (baseline_state=invalidated, analysis.baseline_state_at_detection=invalidated). Dados de RMS ausentes e qualidade de dados em conflito impedem a confiabilidade do insight atual, exigindo reprocessamento para gerar um novo baseline."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15762,
+              "chamadas": 7,
+              "justificativa": "A análise está marcada como desatualizada (stale) e foi feita com modo baseline, porém o baseline foi invalidado após a troca do rolamento. Além disso, as amostras de RMS estão ausentes e a qualidade dos dados apresenta conflito, indicando que o diagnóstico atual não é confiável e precisa ser reprocessado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "complete",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 16005,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor_status degradado, qualidade de dados (completeness 0,62 e SNR 8,4 dB) abaixo dos requisitos mínimos (0,80 e 12 dB), e a análise indica limitação de baixa qualidade de sinal, impossibilitando confiança no insight."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 17901,
+              "chamadas": 8,
+              "justificativa": "A evidência demonstra sensor degradado, qualidade de dados insuficiente (completude 0,62 e SNR 8,4 dB) e modelo atrasado, o que invalida a confiança no insight gerado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s2",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 29265,
+              "chamadas": 13,
+              "justificativa": "A evidência mostra sensor degradado, baixa completude, SNR insuficiente, flag de desatualização e modelo atrasado, tornando o insight de desequilíbrio não confiável; portanto, apenas orientamos o cliente sobre a falta de confiabilidade."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 14372,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor degradado, qualidade de dados insuficiente, modelo atrasado e limitação de baixa qualidade do sinal na análise, indicando que o insight não é confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s3",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 16374,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor_status degradado, qualidade de dados abaixo dos requisitos (completeness 0.62 < 0.8, SNR 8.4 dB < 12 dB) e modelo em estado delayed, indicando que o insight não é confiável."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 17983,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor degradado, dados incompletos e SNR insuficiente, modelo atrasado e insight marcado com limitação de baixa qualidade de sinal, indicando que a confiança no diagnóstico está comprometida e requer explicação ao cliente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "complete",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 20418,
+              "chamadas": 9,
+              "justificativa": "A evidência mostra que o modelo tem cobertura para motor_dc (supported=true) mas não pode aprender baseline (can_learn_baseline=false), limitando a detecção a sintomas. Essa informação responde diretamente à pergunta do cliente sobre a adequação do modelo ao motor antigo."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 10836,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o modelo tem suporte para motor DC, mas a capacidade de aprender baseline está desativada, indicando que a análise será apenas sintomática."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s2",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 21083,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra que o modelo tem suporte ao tipo motor_dc (model.supported=true), porém não pode aprender baseline (can_learn_baseline=false) e o baseline está em learning, o que impede detecção por desvio confiável; apenas a detecção sintomática funciona, e os dados de RMS e qualidade estão indisponíveis."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 12335,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o modelo tem cobertura para motores de corrente contínua e está marcado como suportado, porém a capacidade de aprender baseline está desativada, indicando que só a detecção sintomática está disponível para esse equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s3",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 11827,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra suporte ao motor DC (supported=true) mas incapacidade de aprender baseline (can_learn_baseline=false, baseline.state=learning, baseline.learnable=false). Como a pergunta do cliente é apenas sobre cobertura do modelo, basta esclarecer essa informação sem necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 11302,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o ativo é um motor de corrente contínua e que o sensor está online, e a cobertura do modelo inclui esse tipo de equipamento, embora os detalhes estejam incompletos; assim, podemos informar que o modelo pode monitorar o motor, mas não há necessidade de ação adicional."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "complete",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10689,
+              "chamadas": 3,
+              "justificativa": "A evidência indica que a detecção de falta de lubrificação é sintomática e não requer baseline estabelecido, portanto não há necessidade de ação na plataforma; basta esclarecer ao cliente como o algoritmo funciona."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10380,
+              "chamadas": 3,
+              "justificativa": "A documentação indica que a detecção de lubrificação é sintomática e opera sem necessidade de baseline estabelecido, o que confirma que o alerta é confiável mesmo para um motor recém‑instalado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s2",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10662,
+              "chamadas": 3,
+              "justificativa": "A evidência da documentação kb_guid_002 confirma que falhas sintomáticas, como falta de lubrificação, são detectadas independentemente do estado do baseline, tornando o alerta válido mesmo sem histórico prévio."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10274,
+              "chamadas": 3,
+              "justificativa": "A documentação indica que a detecção de lubrificação é sintomática e opera independentemente do estado do baseline, permitindo que o alerta seja confiável mesmo com o motor recém‑instalado e sem histórico suficiente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s3",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10820,
+              "chamadas": 3,
+              "justificativa": "A evidência documental mostra que a detecção sintomática de falta de lubrificação não requer baseline, logo a explicação ao cliente resolve a dúvida sem necessidade de ação ou escalonamento."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10249,
+              "chamadas": 3,
+              "justificativa": "A evidência indica que a detecção de falta de lubrificação é sintomática e não requer baseline estabelecido, permitindo confiar no alerta mesmo sem histórico suficiente."
+            },
+            "efeito": "igual"
+          }
+        ],
+        "total": 51,
+        "corrigiu": 0,
+        "regrediu": 3,
+        "mudou": 3,
+        "acertos_a": 48,
+        "acertos_b": 45,
+        "tokens_a": 18730,
+        "tokens_b": 15825,
+        "delta_tokens": -15.5
+      },
+      "explorador": {
+        "linhas": [
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s3",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 13882,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, impossibilitando a geração de alertas; a causa raiz é física e requer intervenção em campo, o que excede a capacidade de suporte remoto."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 10049,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra sensor offline, baseline ainda em aprendizado e dados de qualidade insuficiente, o que impede a geração de alertas; portanto, a explicação ao cliente resolve a dúvida sem necessidade de ação imediata na plataforma."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "complete",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 44868,
+              "chamadas": 21,
+              "justificativa": "Os resultados dos dois modelos apresentam confiança semelhante (0.69 vs 0.71) e picos espectrais diferentes (2x vs 0.5x). Não há documentação que arbitre entre desalinhamento e base solta, configurando um conflito não resolvido que requer análise especializada para determinar a causa raiz."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 19097,
+              "chamadas": 9,
+              "justificativa": "As duas análises apresentam confidências semelhantes e o sistema marcou conflito; a política exige análise especializada ou reprocessamento para resolver divergências, mas o usuário não possui permissão para executar a ação necessária."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s2",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19961,
+              "chamadas": 11,
+              "justificativa": "As duas análises apresentam conclusões conflitantes (desalinhamento vs folga) com confidências semelhantes, impossibilitando determinar qual diagnóstico é correto sem uma avaliação especializada adicional."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 15122,
+              "chamadas": 10,
+              "justificativa": "Existe conflito entre o diagnóstico de modelo (desalinhamento) e o do especialista (base solta) com confidências semelhantes, impedindo determinar a causa correta sem análise adicional, conforme política de tratamento de conflitos."
+            },
+            "efeito": "regrediu"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "complete",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10560,
+              "chamadas": 3,
+              "justificativa": "A evidência (documento kb_proc_001) fornece o procedimento completo de troca de rolamento e indica que torque e folga devem ser obtidos no catálogo do fabricante, não havendo necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10916,
+              "chamadas": 3,
+              "justificativa": "A resposta utiliza o procedimento documentado que descreve as etapas de troca, indica a ausência de valores de torque e folga no documento e explica o efeito da intervenção sobre o baseline de vibração, atendendo à solicitação do cliente sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s2",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10685,
+              "chamadas": 3,
+              "justificativa": "A evidência disponível (documento kb_proc_001) fornece o procedimento de troca de rolamento e indica que os valores de torque e folga não estão disponíveis na base, devendo ser consultados ao fabricante; não há necessidade de executar nenhuma ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10772,
+              "chamadas": 3,
+              "justificativa": "A evidência contém o procedimento passo a passo e informa que os valores de torque e folga não estão disponíveis no documento interno, devendo ser obtidos no catálogo do fabricante; não há necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_01",
+            "seed": "s3",
+            "ticket": "Qual o procedimento pra trocar o rolamento do motor principal da forja? Tem alguma orientação de间隙 e torque?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10786,
+              "chamadas": 3,
+              "justificativa": "A evidência (kb_proc_001) fornece o procedimento geral de troca, mas indica que o documento está em modo parcial e não contém valores de torque ou folga, exigindo consulta ao fabricante; não há necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10778,
+              "chamadas": 3,
+              "justificativa": "A evidência contém o procedimento passo a passo e indica que os valores de torque e folga não estão disponíveis no documento interno, devendo ser consultados no catálogo do fabricante, além de explicar o efeito no baseline de vibração."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "complete",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 20601,
+              "chamadas": 9,
+              "justificativa": "A pergunta do cliente pede apenas explicação conceitual e contextual sobre BPFO e sua presença no espectro; a evidência disponível (glossário, valores de frequência e amplitude, estado do baseline) permite responder sem necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10233,
+              "chamadas": 3,
+              "justificativa": "A resposta esclarece o significado de BPFO e a razão de sua presença no espectro, usando a definição do glossário e a relação com o baseline do ativo, sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s2",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10425,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente requer apenas explicação conceitual sobre BPFO e sua presença no espectro, e a evidência disponível (glossário interno) fornece a definição e o motivo da aparição, não sendo necessária nenhuma ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10170,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente pede apenas explicação conceitual sobre BPFO e a razão de sua presença no espectro; a evidência fornece a definição e o critério de comparação com o baseline, sem necessidade de ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_02",
+            "seed": "s3",
+            "ticket": "O relatório fala em BPFO. O que é isso? E por que aparece no meu espectro?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10409,
+              "chamadas": 3,
+              "justificativa": "A resposta esclarece o significado de BPFO e a razão de sua presença no espectro, usando o glossário interno como evidência, atendendo ao pedido do cliente sem necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10025,
+              "chamadas": 3,
+              "justificativa": "A pergunta do cliente solicita apenas a definição de BPFO e a razão de sua presença no espectro; a evidência já contém a explicação necessária, não sendo necessária nenhuma alteração ou ação na plataforma."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "complete",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 19055,
+              "chamadas": 7,
+              "justificativa": "A resposta esclarece que o limiar de RMS é derivado do baseline do ativo (reference + tolerance) e fornece os valores específicos do asset_V301, atendendo à pergunta do cliente sem necessidade de ação adicional na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21740,
+              "chamadas": 8,
+              "justificativa": "A explicação se baseia no baseline estabelecido do ventilador, que define a referência de 3,2 mm/s e a tolerância de 1,4 mm/s, gerando o limiar de alarme de 4,6 mm/s, conforme evidência de configuração do modelo."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s2",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 19577,
+              "chamadas": 7,
+              "justificativa": "A resposta esclarece que o limiar de RMS para o ventilador é 4,6 mm/s, derivado do baseline do ativo, conforme evidências de RMS e da documentação, atendendo à solicitação do cliente sem necessidade de ação adicional."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21459,
+              "chamadas": 8,
+              "justificativa": "A resposta utiliza o estado de baseline estabelecido do ventilador de tiragem, que fornece a referência de 3,2 mm/s e o limiar de alarme de 4,6 mm/s, além da medição atual de 3,036 mm/s, confirmando que o alarme não foi disparado por excesso de vibração."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_ctx_03",
+            "seed": "s3",
+            "ticket": "O sistema marcou alarme no ventilador. A partir de qual valor de RMS vocês consideram alarme? É uma tabela fixa?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 27624,
+              "chamadas": 11,
+              "justificativa": "A resposta foi baseada nos dados do baseline (estado established, reference 3.2, tolerance 1.4) e no limiar de alarme RMS calculado (4.6), conforme evidência fornecida, esclarecendo que não existe tabela fixa."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 22694,
+              "chamadas": 8,
+              "justificativa": "A pergunta do cliente sobre o valor de alarme RMS foi respondida com base no limiar de 4,6 mm/s obtido do baseline estabelecido do ventilador de tiragem, evidenciando que o limite é derivado do próprio ativo e não de uma tabela fixa."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "complete",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 28164,
+              "chamadas": 12,
+              "justificativa": "O baseline está invalidado após a troca do rolamento e a análise mais recente está stale, indicando que os dados atuais não foram avaliados com um baseline estabelecido. Reprocessar a análise permitirá gerar um novo baseline e avaliar a melhoria após a manutenção."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20251,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada pela intervenção de manutenção e o modelo está atrasado, portanto a análise atual está desatualizada; reprocessar permitirá gerar um diagnóstico atualizado com os dados pós‑troca do rolamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s2",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18134,
+              "chamadas": 7,
+              "justificativa": "Baseline foi invalidado após a intervenção de manutenção e o modelo está atrasado, impedindo a geração automática de nova análise; reprocessar a análise atualizará o diagnóstico refletindo a condição atual do rolamento."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19916,
+              "chamadas": 9,
+              "justificativa": "A referência de vibração foi invalidada após a manutenção, a análise disponível está obsoleta e o modelo ainda está processando as leituras recentes; reprocessar a análise é necessário para obter um diagnóstico atualizado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_12",
+            "seed": "s3",
+            "ticket": "Troquei o rolamento da bomba. Reprocessa a análise pra ver se melhorou.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18808,
+              "chamadas": 9,
+              "justificativa": "A análise atual está obsoleta (status stale) e o baseline foi invalidado após a troca do rolamento, portanto é necessário reprocessar para gerar um novo diagnóstico com os dados recentes que atendem aos requisitos do modelo."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18773,
+              "chamadas": 9,
+              "justificativa": "A análise está marcada como obsoleta (stale) e a baseline foi invalidada após a manutenção; o modelo está atrasado (processing_state delayed), indicando que os dados mais recentes ainda não foram analisados. Reprocessar a análise permitirá atualizar o diagnóstico com as leituras atuais."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "complete",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20143,
+              "chamadas": 10,
+              "justificativa": "O compressor apresenta RMS acima do limiar e falha de rolamento de alta severidade, mas o modelo está em estado delayed, impedindo a conclusão automática; portanto, é necessário solicitar a análise especializada para validar o insight e orientar a manutenção."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 23331,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra um aumento de vibração acima do alarme e uma falha de rolamento de alta severidade, mas o modelo está com processamento atrasado, indicando que o insight pode estar desatualizado; por isso é necessário que um especialista revise o caso para confirmar a condição e orientar a manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s2",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20444,
+              "chamadas": 10,
+              "justificativa": "A RMS está acima do limiar, a análise preliminar aponta falha de rolamento de alta severidade e o modelo está atrasado, impossibilitando conclusão automática; o cliente pediu revisão por especialista, portanto a ação de solicitar análise especializada é necessária."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 24300,
+              "chamadas": 10,
+              "justificativa": "A vibração está acima do alarme, a análise aponta falha de rolamento com alta severidade e confiança razoável, e o modelo está atrasado, indicando necessidade de revisão humana para confirmar o diagnóstico e orientar a manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_13",
+            "seed": "s3",
+            "ticket": "Esse compressor tá com comportamento estranho e o insight não convence. Quero que um especialista da Tractian veja.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19660,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra RMS acima do limiar, tendência de aumento, análise automática indicando falha de rolamento com alta severidade e confiança 0.78, e amplitude BPFO 2.3x o baseline, tudo com baseline estabelecido e dados de boa qualidade, justificando a necessidade de revisão por especialista."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20358,
+              "chamadas": 10,
+              "justificativa": "O sensor está online, baseline estabelecida, dados de boa qualidade, RMS acima do alarme e análise de falha de rolamento com confiança moderada (78%) ainda pendente, justificando a necessidade de revisão por especialista."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "complete",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21454,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra que o ativo está com criticidade=high e não há documentação que impeça a mudança; o usuário tem permissão action_high, permitindo a alteração de configuração do ativo."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20611,
+              "chamadas": 7,
+              "justificativa": "A evidência indica ausência de documentação específica para mudança de criticidade, porém a usuária possui permissão de ação alta que autoriza alterações de configuração, permitindo a atualização da criticidade do ativo conforme solicitado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s2",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 25325,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra que o ativo está com criticidade alta e não há restrição documental para rebaixá‑la; o usuário tem permissão action_high, permitindo a alteração administrativa solicitada."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21882,
+              "chamadas": 8,
+              "justificativa": "A solicitação de mudança de criticidade foi feita por usuário com permissão de ação alta; o ativo está marcado como crítico e a alteração pode ser realizada remotamente sem dependência de baseline ou dados de qualidade."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_14",
+            "seed": "s3",
+            "ticket": "Esse ventilador não é mais crítico pra produção. Muda a criticidade pra média.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21281,
+              "chamadas": 8,
+              "justificativa": "O usuário solicitou a mudança de criticidade e possui permissão action_high; a evidência confirma que o ativo está configurado como high e não há restrição documental que impeça a alteração, permitindo a execução da ação de configuração."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 14298,
+              "chamadas": 4,
+              "justificativa": "O cliente solicitou explicitamente a mudança de criticidade e possui permissão de ação alta; apesar da ausência de documentação sobre o procedimento, a ação pode ser executada sem impedimentos técnicos."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "complete",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18518,
+              "chamadas": 8,
+              "justificativa": "O baseline está invalidado por manutenção e o modelo está atrasado, gerando conflito nas análises; portanto, um novo treinamento com os dados atuais é necessário para restabelecer um baseline confiável e eliminar o conflito."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 21001,
+              "chamadas": 9,
+              "justificativa": "Baseline está invalidado após manutenção, modelo atrasado e análises conflitam; dados de qualidade são suficientes para treinar novamente e restabelecer a referência, atendendo ao pedido do usuário."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s2",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19852,
+              "chamadas": 8,
+              "justificativa": "O baseline está invalidado após manutenção e há conflito nas análises, indicando que o modelo atual não reflete o estado real do spindle. O modelo pode aprender um novo baseline (can_learn_baseline=true) e os dados têm qualidade suficiente, portanto o re‑treinamento é necessário para corrigir o insight."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 17612,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada devido à manutenção, e sem um padrão de vibração válido o modelo não consegue gerar insights corretos; os dados recentes atendem aos requisitos de qualidade, portanto o retraining é a ação necessária para restabelecer o monitoramento confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_15",
+            "seed": "s3",
+            "ticket": "Esse insight nunca acerta pro spindle de alta rotação. Treina de novo com os dados daqui.",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18132,
+              "chamadas": 7,
+              "justificativa": "Baseline está invalidado por manutenção, o modelo está delayed e a análise está limitada por baseline_invalidated; portanto, é necessário reprocessar/retreinar o modelo com os novos dados para restabelecer um baseline confiável e gerar insights corretos."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 22086,
+              "chamadas": 8,
+              "justificativa": "A referência de vibração está invalidada após manutenção e o modelo está atrasado, o que torna as detecções atuais não confiáveis; portanto, é necessário reprocessar os dados recentes para aprender um novo baseline."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "complete",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16706,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou explicitamente o encaminhamento para campo, e a evidência mostra ausência de documentação que permita solução remota; portanto, a situação requer intervenção presencial."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14052,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline, a baseline ainda não está estabelecida e a qualidade dos dados é insuficiente, impossibilitando qualquer ação corretiva remota; é necessária visita de campo para corrigir o problema."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s2",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16734,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou apoio em campo, a base de conhecimento não possui procedimento para esse tipo de encaminhamento e a evidência aponta que o caso ultrapassa o suporte remoto; o usuário possui permissão de escalonamento."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14183,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline, a baseline ainda não está estabelecida e a qualidade dos dados é insuficiente, impossibilitando diagnóstico remoto; portanto é necessária intervenção física."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_exe_16",
+            "seed": "s3",
+            "ticket": "Isso aqui ultrapassa o suporte remoto — preciso de campo. Encaminha pra alguém.",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 16953,
+              "chamadas": 6,
+              "justificativa": "O cliente solicitou explicitamente atendimento em campo, não há documentação interna que cubra o procedimento e o usuário possui permissão de escalonamento, portanto a ação correta é abrir o caso para a equipe de campo."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14320,
+              "chamadas": 6,
+              "justificativa": "O sensor está offline e a qualidade dos dados é insuficiente, impedindo qualquer análise remota; a ausência de baseline estabelecido indica que o modelo ainda não tem referência, sendo necessária intervenção física no equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "complete",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14086,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, impossibilitando a geração de alertas; a causa raiz é física e requer intervenção em campo, o que excede a capacidade de suporte remoto."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14439,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado, qualidade de dados insuficiente e análises inconclusivas, o que impede a geração de alertas e requer intervenção física no equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_04",
+            "seed": "s2",
+            "ticket": "O redutor da correia transportadora quebrou ontem e eu não recebi nenhum aviso. Por quê?",
+            "esperado": [
+              "escalar"
+            ],
+            "a": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 13960,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor offline, baseline em aprendizado e dados de baixa qualidade, o que impede a geração de alertas. Essa condição física só pode ser resolvida com intervenção no local, portanto o caso deve ser escalado para análise humana."
+            },
+            "b": {
+              "decisao": "escalar",
+              "acertou": true,
+              "tokens": 14611,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor_status=offline, baseline ainda em aprendizado e qualidade de dados muito baixa, o que impede a geração de alertas. Essa causa física só pode ser resolvida com ação presencial, portanto o caso deve ser escalado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "complete",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18892,
+              "chamadas": 8,
+              "justificativa": "A RMS está acima do limiar e há análise pendente de falha de rolamento com severidade alta; o modelo está atrasado, portanto é necessário reprocessar a análise para gerar o diagnóstico solicitado."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19617,
+              "chamadas": 9,
+              "justificativa": "O modelo está atrasado no processamento das leituras recentes, impedindo a geração do diagnóstico apesar do RMS acima do alarme; reprocessar a análise permitirá obter o insight necessário para a equipe de manutenção."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s2",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 32825,
+              "chamadas": 14,
+              "justificativa": "O modelo está com processing_state=delayed, impedindo a geração do insight apesar do RMS acima do limiar e da análise de falha de rolamento pendente; reprocessar a análise permitirá que o diagnóstico seja emitido."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19757,
+              "chamadas": 9,
+              "justificativa": "O modelo está com processamento atrasado, impedindo a conclusão da análise de falha de rolamento, enquanto o RMS já supera o limite de alarme e a tendência de aumento foi observada, exigindo reprocessamento para obter o diagnóstico."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_05",
+            "seed": "s3",
+            "ticket": "Tô vendo o RMS do compressor subindo há duas semanas, mas não recebi insight nenhum. Cadê o diagnóstico?",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 18990,
+              "chamadas": 9,
+              "justificativa": "O RMS está acima do limiar de alarme e o baseline está estabelecido, mas a análise está pendente devido ao estado delayed do modelo; reprocessar a análise permitirá gerar o insight solicitado."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 19603,
+              "chamadas": 9,
+              "justificativa": "A análise de falha de rolamento está pendente devido ao estado de processamento atrasado do modelo, impedindo a entrega do insight apesar do RMS acima do alarme; reprocessar a análise permitirá gerar o diagnóstico necessário."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "complete",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 12015,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline com baseline invalidado, tornando o insight não confiável; a evidência indica RMS abaixo do alarme e boa qualidade de dados, portanto a melhor orientação é explicar a limitação e sugerir reprocessamento após restabelecimento do baseline."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11321,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra sensor online, RMS abaixo do alarme e baseline invalidado, o que impede confiabilidade da detecção de desbalanceamento baseada em baseline; portanto, a melhor ação é orientar o cliente sobre a limitação e aguardar reestabelecimento do baseline."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s2",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11548,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline, mas o baseline está invalidado por manutenção, tornando o insight não confiável; sem permissão de ação não podemos reprocessar, portanto apenas orientamos o cliente sobre a situação e os próximos passos."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10968,
+              "chamadas": 6,
+              "justificativa": "A análise de desbalanceamento foi feita com baseline invalidado, o que impede confiar no insight; o sensor está online, mas o RMS está indisponível, portanto não há medida para validar o alerta."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_06",
+            "seed": "s3",
+            "ticket": "Recebi um insight dizendo desbalanceamento no spindle, mas a máquina tá rodando lisa. Isso não é nada.",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 15826,
+              "chamadas": 8,
+              "justificativa": "A análise de desbalanceamento foi feita em modo baseline com baseline invalidado, o que torna o insight não confiável; portanto, a ação correta é orientar o cliente sobre a limitação e aguardar reestabelecimento do baseline."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 15461,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra baseline invalidado após manutenção, modelo em estado de processamento atrasado e análise baseada em baseline, o que impede confiar no insight de desbalanceamento; portanto, a melhor ação é orientar o cliente sobre a limitação e indicar monitoramento até que um novo baseline seja estabelecido."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "complete",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 18204,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra RMS abaixo do alarme, análise inconclusiva por falta da banda 2× frequência‑linha e qualidade de dados parcial; assim, apenas explicamos a situação ao cliente sem necessidade de ação automática."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11725,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra vibração ainda abaixo do alarme, análise elétrica inconclusiva devido à falta da banda espectral necessária e qualidade de dados apenas moderada, o que impede confirmar falha elétrica sem nova coleta de dados."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s2",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 30019,
+              "chamadas": 7,
+              "justificativa": "A análise automática tem confiança baixa (0.41) e está inconclusiva, o espectro está incompleto (faltando a banda 120‑140 Hz) e o RMS ainda está abaixo do limiar de alarme, portanto não há evidência suficiente para confirmar um problema elétrico."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 13868,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor ok, baseline estabelecido, RMS abaixo do limiar e análise elétrica inconclusiva devido à falta da banda espectral 2× da linha; não há ação remota que corrija essa limitação, portanto a resposta deve apenas esclarecer o cliente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_07",
+            "seed": "s3",
+            "ticket": "A vibração do motor subiu de uma hora pra outra. Pode ser problema elétrico?",
+            "esperado": [
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 21253,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra baseline inconclusivo, qualidade de dados insuficiente, espectro parcial e análise automática de falha elétrica com baixa confiança, impossibilitando concluir que o problema seja elétrico; portanto, a resposta deve ser apenas explicativa."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 11166,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra que o baseline está estabelecido, o RMS atingiu o limiar de alarme e a análise de falha elétrica tem confiança baixa e está inconclusiva devido à ausência da banda espectral necessária; assim, apenas uma explicação sobre a limitação do diagnóstico é adequada."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_08",
+            "seed": "s3",
+            "ticket": "O sistema falou desalinhamento, mas o relatório do especialista diz base solta. Em quem eu acredito?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 36126,
+              "chamadas": 17,
+              "justificativa": "As duas análises apresentam confidências semelhantes (0,69 vs 0,71) e evidências espectrais diferentes (2× vs 0,5×), além de baseline em estado de conflito e modelo atrasado, impossibilitando determinar com segurança se o problema é desalinhamento ou base solta. Uma análise especializada é necessária para validar a causa raiz."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 20909,
+              "chamadas": 11,
+              "justificativa": "Conflito entre duas análises (misalignment com confiança 0.69 e looseness com confiança 0.71), baseline marcado como conflict, modelo em estado de processamento atrasado e RMS indisponível impedem uma conclusão confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "complete",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15338,
+              "chamadas": 7,
+              "justificativa": "O baseline está invalidado após a troca do rolamento (maintenance_intervention) e a análise atual está stale, usando um baseline inválido; portanto, o insight está desatualizado e precisa ser reprocessado para gerar um novo baseline confiável."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 16125,
+              "chamadas": 7,
+              "justificativa": "A baseline do equipamento B204 está invalidada desde a manutenção de troca de rolamento em 11/07/2026, e a análise atual está marcada como stale, usando um baseline inválido; assim o insight de falha não reflete a condição real e precisa ser reprocessado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s2",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15369,
+              "chamadas": 7,
+              "justificativa": "O baseline está invalidado devido à manutenção recente e a análise atual está stale, portanto o insight está desatualizado; reprocessar a análise permitirá gerar um novo baseline e atualizar o diagnóstico."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 16058,
+              "chamadas": 7,
+              "justificativa": "A baseline foi invalidada por intervenção de manutenção (troca de rolamento) e a análise disponível está marcada como obsoleta (stale) desde 09/07/2026, portanto o insight atual não pode ser confiável e requer reprocessamento para refletir a condição real do equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_09",
+            "seed": "s3",
+            "ticket": "Já troquei o rolamento faz três dias, mas o insight continua dizendo falha. Tá desatualizado.",
+            "esperado": [
+              "agir"
+            ],
+            "a": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 14920,
+              "chamadas": 7,
+              "justificativa": "A análise está stale e baseada em baseline invalidado após a troca do rolamento (baseline_state=invalidated, analysis.baseline_state_at_detection=invalidated). Dados de RMS ausentes e qualidade de dados em conflito impedem a confiabilidade do insight atual, exigindo reprocessamento para gerar um novo baseline."
+            },
+            "b": {
+              "decisao": "agir",
+              "acertou": true,
+              "tokens": 15762,
+              "chamadas": 7,
+              "justificativa": "A análise está marcada como desatualizada (stale) e foi feita com modo baseline, porém o baseline foi invalidado após a troca do rolamento. Além disso, as amostras de RMS estão ausentes e a qualidade dos dados apresenta conflito, indicando que o diagnóstico atual não é confiável e precisa ser reprocessado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "complete",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 16005,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor_status degradado, qualidade de dados (completeness 0,62 e SNR 8,4 dB) abaixo dos requisitos mínimos (0,80 e 12 dB), e a análise indica limitação de baixa qualidade de sinal, impossibilitando confiança no insight."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 17901,
+              "chamadas": 8,
+              "justificativa": "A evidência demonstra sensor degradado, qualidade de dados insuficiente (completude 0,62 e SNR 8,4 dB) e modelo atrasado, o que invalida a confiança no insight gerado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s2",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 29265,
+              "chamadas": 13,
+              "justificativa": "A evidência mostra sensor degradado, baixa completude, SNR insuficiente, flag de desatualização e modelo atrasado, tornando o insight de desequilíbrio não confiável; portanto, apenas orientamos o cliente sobre a falta de confiabilidade."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 14372,
+              "chamadas": 7,
+              "justificativa": "A evidência mostra sensor degradado, qualidade de dados insuficiente, modelo atrasado e limitação de baixa qualidade do sinal na análise, indicando que o insight não é confiável."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_10",
+            "seed": "s3",
+            "ticket": "A qualidade do sinal do sensor do ventilador tá péssima. Posso confiar no insight?",
+            "esperado": [
+              "escalar",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 16374,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor_status degradado, qualidade de dados abaixo dos requisitos (completeness 0.62 < 0.8, SNR 8.4 dB < 12 dB) e modelo em estado delayed, indicando que o insight não é confiável."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 17983,
+              "chamadas": 8,
+              "justificativa": "A evidência mostra sensor degradado, dados incompletos e SNR insuficiente, modelo atrasado e insight marcado com limitação de baixa qualidade de sinal, indicando que a confiança no diagnóstico está comprometida e requer explicação ao cliente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "complete",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 20418,
+              "chamadas": 9,
+              "justificativa": "A evidência mostra que o modelo tem cobertura para motor_dc (supported=true) mas não pode aprender baseline (can_learn_baseline=false), limitando a detecção a sintomas. Essa informação responde diretamente à pergunta do cliente sobre a adequação do modelo ao motor antigo."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 10836,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o modelo tem suporte para motor DC, mas a capacidade de aprender baseline está desativada, indicando que a análise será apenas sintomática."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s2",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 21083,
+              "chamadas": 10,
+              "justificativa": "A evidência mostra que o modelo tem suporte ao tipo motor_dc (model.supported=true), porém não pode aprender baseline (can_learn_baseline=false) e o baseline está em learning, o que impede detecção por desvio confiável; apenas a detecção sintomática funciona, e os dados de RMS e qualidade estão indisponíveis."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 12335,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o modelo tem cobertura para motores de corrente contínua e está marcado como suportado, porém a capacidade de aprender baseline está desativada, indicando que só a detecção sintomática está disponível para esse equipamento."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11",
+            "seed": "s3",
+            "ticket": "Esse motor de corrente contínua é antigo. O modelo de vocês atende esse tipo?",
+            "esperado": [
+              "agir",
+              "escalar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 11827,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra suporte ao motor DC (supported=true) mas incapacidade de aprender baseline (can_learn_baseline=false, baseline.state=learning, baseline.learnable=false). Como a pergunta do cliente é apenas sobre cobertura do modelo, basta esclarecer essa informação sem necessidade de ação na plataforma."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": false,
+              "tokens": 11302,
+              "chamadas": 6,
+              "justificativa": "A evidência mostra que o ativo é um motor de corrente contínua e que o sensor está online, e a cobertura do modelo inclui esse tipo de equipamento, embora os detalhes estejam incompletos; assim, podemos informar que o modelo pode monitorar o motor, mas não há necessidade de ação adicional."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "complete",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10689,
+              "chamadas": 3,
+              "justificativa": "A evidência indica que a detecção de falta de lubrificação é sintomática e não requer baseline estabelecido, portanto não há necessidade de ação na plataforma; basta esclarecer ao cliente como o algoritmo funciona."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10380,
+              "chamadas": 3,
+              "justificativa": "A documentação indica que a detecção de lubrificação é sintomática e opera sem necessidade de baseline estabelecido, o que confirma que o alerta é confiável mesmo para um motor recém‑instalado."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s2",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10662,
+              "chamadas": 3,
+              "justificativa": "A evidência da documentação kb_guid_002 confirma que falhas sintomáticas, como falta de lubrificação, são detectadas independentemente do estado do baseline, tornando o alerta válido mesmo sem histórico prévio."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10274,
+              "chamadas": 3,
+              "justificativa": "A documentação indica que a detecção de lubrificação é sintomática e opera independentemente do estado do baseline, permitindo que o alerta seja confiável mesmo com o motor recém‑instalado e sem histórico suficiente."
+            },
+            "efeito": "igual"
+          },
+          {
+            "caso": "case_tkt_inv_11b",
+            "seed": "s3",
+            "ticket": "O sistema apontou falta de lubrificação no motor, mas a gente instalou ele semana passada — ainda nem tem histórico. Como detecta sem baseline?",
+            "esperado": [
+              "agir",
+              "orientar"
+            ],
+            "a": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10820,
+              "chamadas": 3,
+              "justificativa": "A evidência documental mostra que a detecção sintomática de falta de lubrificação não requer baseline, logo a explicação ao cliente resolve a dúvida sem necessidade de ação ou escalonamento."
+            },
+            "b": {
+              "decisao": "orientar",
+              "acertou": true,
+              "tokens": 10249,
+              "chamadas": 3,
+              "justificativa": "A evidência indica que a detecção de falta de lubrificação é sintomática e não requer baseline estabelecido, permitindo confiar no alerta mesmo sem histórico suficiente."
+            },
+            "efeito": "igual"
+          }
+        ],
+        "total": 51,
+        "corrigiu": 0,
+        "regrediu": 3,
+        "mudou": 3,
+        "acertos_a": 48,
+        "acertos_b": 45,
+        "tokens_a": 18730,
+        "tokens_b": 15825,
+        "delta_tokens": -15.5
       }
     }
   ]

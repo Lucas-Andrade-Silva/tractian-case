@@ -4,10 +4,14 @@ Documentação técnica da minha solução para o Challenge TRACTIAN × Inteli. 
 parceiro está em [`STUDENT-GUIDE.md`](../tractian/STUDENT-GUIDE.md); este documento cobre o que eu
 construí.
 
-> **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
-> modelo real, em duas fases, e quatro experimentos registrados em
-> [`docs/experimentos/`](./docs/experimentos/). O comitê de juízes está parcial (35/102,
-> 2026-09-05), retomável, bloqueado por cota diária — ver [Pendências](#9-pendências).
+> **Estado atual:** agente, avaliação e painel implementados; **204 execuções** com
+> modelo real, em quatro fases, e sete experimentos registrados em
+> [`docs/EXPERIMENTOS.md`](./docs/EXPERIMENTOS.md). O comitê de juízes está parcial (35/204,
+> 2026-09-05, todas de `baseline`), retomável, bloqueado por cota diária — ver
+> [Pendências](#9-pendências).
+>
+> ⚠️ A fase em produção é a `fixed-atual`, e ela **decide pior que a anterior**: 45/51 contra
+> 48/51, com 15,5% menos tokens. O EXP-07 mede a troca; a decisão de reverter está aberta.
 
 ## 1. Problema e recorte
 
@@ -84,7 +88,7 @@ inteli-tractian-project/
 │   ├── api/ · data/ · agent-input/ · eval/
 │   └── docs/                                  contrato, chamados, cenários
 └── solution/                                  MINHA
-    ├── SOLUTION.md · docs/ (adr, experimentos)
+    ├── SOLUTION.md · docs/ (ARCHITECTURE.md, EXPERIMENTOS.md)
     ├── agent/ · evaluation/ · painel/
     └── .run/                                  traces e CSVs das baterias
 ```
@@ -137,7 +141,7 @@ comparar dois no experimento, é mudar `.env` sem tocar em mais nada. Suportados
 | Papel | Provedor | Modelo | Por quê |
 | :--- | :--- | :--- | :--- |
 | Agente | groq | `openai/gpt-oss-120b` | Maior modelo disponível na conta com tool calling + structured output, ambos exigidos pelo grafo |
-| Juiz (camada 2) | groq | `qwen/qwen3.8-27b` | **Família diferente** do agente, para evitar viés de auto-preferência (ADR 0005) |
+| Juiz (camada 2) | groq | `qwen/qwen3.8-27b` | **Família diferente** do agente, para evitar viés de auto-preferência (ver ARCHITECTURE.md §3.6) |
 
 Ambos validados por smoke test: structured output e tool calling confirmados contra a API
 da Groq antes de qualquer execução de caso.
@@ -153,13 +157,13 @@ execuções, e variação amostral do decoder seria confundida com instabilidade
 
 ## 6. Metodologia experimental
 
-Os experimentos estão em [`docs/experimentos/`](./docs/experimentos/), cada um no formato
+Os experimentos estão em [`docs/EXPERIMENTOS.md`](./docs/EXPERIMENTOS.md), cada um no formato
 da seção 8 do guia: hipótese → método → execução → análise → limitações.
 
 **Hipótese central do projeto:** *nomear explicitamente na política de decisão **quando
 orientar não basta** — em vez de descrever só as três categorias — aumenta a acurácia de
 decisão do agente.* É a de
-[EXP-01](./docs/experimentos/EXP-01-politica-de-decisao.md), a única testada com a bateria
+[EXP-01](./docs/EXPERIMENTOS.md#exp-01-política-de-decisão-tornar-explícito-quando-orientar-não-basta), a única testada com a bateria
 inteira (51 pares, as duas fases) e a que motivou a correção de política que separa o
 baseline da fase `pos-correcao`.
 
@@ -171,36 +175,51 @@ antes da coleta. A seção 8 trata do que isso custa em força de inferência.
 
 | # | Hipótese | n | Veredito |
 | :--- | :--- | ---: | :--- |
-| [01](./docs/experimentos/EXP-01-politica-de-decisao.md) | Nomear *quando orientar não basta* aumenta a acurácia | 51 pares | **sustentada** — 86,3% → 94,1%, 4 correções e 0 regressões, mas p ≈ 0,125 |
-| [02](./docs/experimentos/EXP-02-politica-de-evidencia.md) | Apurar sempre os 4 pilares decide melhor | 6 pares | **refutada** — decisão idêntica par a par, custo 8% maior |
-| [03](./docs/experimentos/EXP-03-enforcement-de-permissoes.md) | Deixar a API recusar é honesto e seguro | 5 × 403 | **sustentada** — 5/5 relataram a recusa, 0/5 insistiram |
-| [04](./docs/experimentos/EXP-04-decisor-sem-tools.md) | Decidir sem tools custa 1 chamada, constante | 102 exec. | **sustentada** — 1,00/execução, 0 chamadas de API |
+| [01](./docs/EXPERIMENTOS.md#exp-01-política-de-decisão-tornar-explícito-quando-orientar-não-basta) | Nomear *quando orientar não basta* aumenta a acurácia | 51 pares | **sustentada** — 86,3% → 94,1%, 4 correções e 0 regressões, mas p ≈ 0,125 |
+| [02](./docs/EXPERIMENTOS.md#exp-02-política-de-evidência-apurar-sempre-vs-apurar-sob-demanda) | Apurar sempre os 4 pilares decide melhor | 6 pares | **refutada** — decisão idêntica par a par, custo 8% maior |
+| [03](./docs/EXPERIMENTOS.md#exp-03-enforcement-de-permissão-deixar-a-api-recusar) | Deixar a API recusar é honesto e seguro | 5 × 403 | **sustentada** — 5/5 relataram a recusa, 0/5 insistiram |
+| [04](./docs/EXPERIMENTOS.md#exp-04-o-decisor-sem-tools) | Decidir sem tools custa 1 chamada, constante | 102 exec. | **sustentada** — 1,00/execução, 0 chamadas de API |
+| [05](./docs/EXPERIMENTOS.md#exp-05-política-de-evidência-segunda-medição) | `conditional` economiza tokens | 18 pares | **refutada** — gastou 13% a 25% **mais**, sem mudar desfecho |
+| [06](./docs/EXPERIMENTOS.md#exp-06-sensibilidade-à-evidência) | A decisão vem do dado, não do enunciado | 12 (4 trios) | **sustentada** — 3/4 no primário, 0/4 no placebo |
+| [07](./docs/EXPERIMENTOS.md#exp-07-enxugar-o-prompt-do-supervisor-a-economia-que-custou-decisão) | Cortar o brief do Supervisor reduz custo sem custar decisão | 51 pares | **refutada** — −15,5% tokens, mas 3 regressões e 0 correções |
 
-Bateria executada: **102 execuções** (17 cenários × 3 seeds × 2 fases), sem falha de
-execução. Estabilidade entre seeds passou de 13/17 para **17/17** casos após a correção da
-política de decisão.
+Bateria executada: **204 execuções** (17 cenários × 3 seeds × 4 fases). As fases `baseline`,
+`pos-correcao` e `fixed-atual` rodaram completas sem falha; a `conditional` tem 18 de 51
+concluídas (33 falhas de cota 429).
+
+Estabilidade entre seeds: 13/17 na `baseline`, **17/17** após a correção da política de
+decisão — e **15/17** na `fixed-atual`, a fase em produção. O ganho não se reproduziu sob a
+mudança de prompt do EXP-07, e os dois casos que voltaram a oscilar são os mesmos que
+produziram as três regressões de decisão.
 
 O que está verificado por teste, e não por execução:
 
 | Verificação | Status |
 | :--- | :--- |
 | Testes da API do parceiro (não quebrei nada) | 39 passando |
-| Suíte do agente (integração, grafo, orçamentos, ADR 0002/0003) | 49 passando |
+| Suíte do agente (integração, grafo, orçamentos, decisões §3.3/§3.4) | 49 passando |
 | Camadas 1 e 3 da avaliação + relatório | 55 passando |
 | Holdout: integridade, disjunção e auditoria | 9 passando |
 | Auditoria mecânica do holdout contra a API real | 41/41 asserções, 8/8 cenários |
 
 ## 8. Limitações
 
-- **A camada 2 está parcial.** 35/102 execuções elegíveis julgadas pelo comitê em
-  2026-09-05 (cota diária gratuita do OpenRouter esgotada, retomável). Toda afirmação de
-  resultado das seções 6–7 é sobre decisão, trajetória e custo; qualidade textual —
-  honestidade, causa-raiz, justificativa — só tem cobertura parcial até aqui.
-- **Hipóteses formuladas após a coleta**, em EXP-01, 03 e 04 — inclusive a central. É
-  HARKing, está declarado no topo de cada documento, e reduz a força da inferência: trate
+- **A camada 2 está parcial.** 35/204 execuções julgadas pelo comitê em 2026-09-05, **todas
+  da fase `baseline`** (cota diária gratuita do OpenRouter esgotada, retomável). Toda
+  afirmação de resultado das seções 6–7 é sobre decisão, trajetória e custo; qualidade
+  textual — honestidade, causa-raiz, justificativa — não tem cobertura na fase em produção.
+  Isso pesa especialmente no EXP-07: o bloco de prompt que ele avalia foi escrito para
+  melhorar a legibilidade da resposta, que é exatamente o que nenhuma métrica atual mede.
+- **Hipóteses formuladas após a coleta**, em EXP-01, 03, 04, 05 e 07 — inclusive a central.
+  É HARKing, está declarado no topo de cada documento, e reduz a força da inferência: trate
   como evidência sugestiva, não confirmatória.
-- **A arquitetura multiagente não foi comparada com um agente único.** A ADR 0001 é uma
-  decisão de desenho justificada por argumento, não por experimento: nenhum dado deste
+- **A configuração em produção não é a de melhor acurácia.** A fase `fixed-atual` decide
+  45/51 contra os 48/51 da `pos-correcao`, e perdeu a estabilidade 17/17. Está em produção
+  porque é a mais recente, não porque mediu melhor — e a mudança que causou isso agregou
+  duas alterações de prompt num commit só, o que impede saber qual delas custou as três
+  decisões. Ver EXP-07 §7.6.
+- **A arquitetura multiagente não foi comparada com um agente único.** A decisão §3.1 é de
+  desenho, justificada por argumento, não por experimento: nenhum dado deste
   projeto mostra que separar papéis decide melhor do que um agente único com as mesmas
   tools. Ver [Possibilidades de evolução](#10-possibilidades-de-evolução).
 - **n pequeno e não independente.** Três seeds do mesmo caso não são três observações
@@ -216,7 +235,7 @@ O que está verificado por teste, e não por execução:
 - **Camada 2 depende de LLM** — juízes LLM têm variância e viés próprios; a rubrica e o
   `temperature=0` mitigam, não eliminam.
 - **Holdout desbalanceado** (5 orientar · 2 agir · 1 escalar): os ativos livres nos
-  parquets são majoritariamente saudáveis e o ADR 0006 proíbe estendê-los. A acurácia de
+  parquets são majoritariamente saudáveis e a decisão §3.7 proíbe estendê-los. A acurácia de
   decisão no holdout não deve ser lida isoladamente — detalhes e mitigação em
   [`evaluation/holdout/README.md`](./evaluation/holdout/README.md).
 - **Escalonamento bem-sucedido não é testável no holdout**: a API valida permissão antes
@@ -226,20 +245,25 @@ O que está verificado por teste, e não por execução:
 
 ## 9. Pendências
 
-1. **Rodar o comitê de juízes sobre `pos-correcao`** (`make painel-julgar`) — 51
+1. **Separar as duas mudanças de prompt do EXP-07** — a pendência mais urgente, porque a
+   configuração em produção decide pior que a anterior e não se sabe qual das duas alterações
+   causou isso. Braço A devolve o `DOMAIN_BRIEF` ao Supervisor mantendo o `_VOZ_AO_CLIENTE`;
+   braço B faz o inverso. 51 pares cada, mesma bateria. Ver EXP-07 §7.6.
+2. **Rodar o comitê de juízes sobre a fase em produção** (`make painel-julgar`) — 51
    pendentes. As 35 já julgadas são **todas de `baseline`**, a versão anterior do agente:
    `julgar.py` não filtrava fase e servia a fila na ordem do bundle, onde `baseline` vem
    primeiro. O padrão agora é a fase de produção; `--fase baseline` é explícito. A fase
-   `conditional` não precisa de juiz — o EXP-06 mede custo por contador. Retomar em lotes
+   `conditional` não precisa de juiz — o EXP-05 mede custo por contador. Retomar em lotes
    de 3–5 (`python solution/painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
    travaram sem erro nem progresso numa sessão de teste.
-2. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias. O veredito
+3. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias. O veredito
    humano da página de leitura (⚙ Configuração → Retorno humano) grava exatamente esse
-   rótulo, e é gratuito em tokens.
-3. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
-4. Gravar `fase` no trace (`agent/app/trace.py`) — hoje a fase é recuperada por junção de
-   tokens, garantia empírica e não estrutural (ver `painel/README.md`).
-5. Corrigir os defeitos abertos de EXP-01 §4.4, ainda presentes na fase `pos-correcao`:
+   rótulo, e é gratuito em tokens. Pesa mais agora: o EXP-07 mexeu num prompt escrito para
+   melhorar a legibilidade da resposta, e nenhuma métrica atual sabe medir isso.
+4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
+5. Completar a bateria `conditional` — 18 de 51 concluídas, 33 falhas de cota 429. Sem ela,
+   o EXP-05 continua indicativo.
+6. Corrigir os defeitos abertos de EXP-01 §4.4, ainda presentes nas fases posteriores:
    ação exigida não executada (TKT-EXE-12, seeds `complete` e `s2`), `model_id` vazio na
    URL (TKT-EXE-15/s2) e ação não prevista nas três seeds de TKT-INV-05.
 
@@ -248,7 +272,7 @@ O que está verificado por teste, e não por execução:
 Distinto da seção anterior: ali estão tarefas do escopo atual que ficaram por fazer; aqui,
 extensões que o projeto não tentou.
 
-- **Comparar a arquitetura com um agente único.** A ADR 0001 escolheu multiagente por
+- **Comparar a arquitetura com um agente único.** A decisão §3.1 escolheu multiagente por
   argumento, e nenhuma medição deste projeto a confronta com o desenho alternativo mais
   óbvio: um agente só, com as mesmas tools e a mesma política de decisão. É o experimento
   mais informativo que falta, porque o resultado pode refutar a decisão de arquitetura

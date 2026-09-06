@@ -18,7 +18,7 @@ resposta pela incoerência, não pelo campo. Cada bundle move junto todos os cam
 gabarito nomeia para o caso, para um estado internamente consistente.
 
 O desenho completo, com as previsões congeladas antes da coleta, está em
-`solution/docs/experimentos/EXP-07-sensibilidade-a-evidencia.md`.
+`solution/docs/EXPERIMENTOS.md` (EXP-06 — Sensibilidade à evidência).
 """
 from __future__ import annotations
 

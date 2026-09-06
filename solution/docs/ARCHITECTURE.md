@@ -430,7 +430,17 @@ documentação de propaganda.
 apoia em argumento. Um agente único com as mesmas ferramentas poderia decidir igual ou melhor,
 mais barato. Não sei — não medi.
 
-**Hipóteses formuladas depois dos dados.** Três dos quatro experimentos, incluindo o central,
+**A qualidade da decisão depende do texto dos prompts mais do que o desenho sugere.** O EXP-07
+cortou o brief de domínio do prompt do Supervisor — um papel que só roteia e não interpreta
+dado, onde o corte parecia seguro. O custo caiu 15,5% e **três decisões voltaram ao atrator
+`orientar`**, junto com a instabilidade entre seeds que a política de decisão tinha eliminado.
+Nas três, toda a evidência havia sido apurada (recall 1,00): não foi falta de dado, foi a
+decisão mudando. Isso significa que as garantias estruturais deste documento — a transição fixa
+Decisor → Executor, a separação de papéis — protegem contra a **ordem** das ações, não contra a
+**qualidade** do julgamento. Essa continua dependendo de prompt, e é frágil a mudanças que
+parecem inofensivas.
+
+**Hipóteses formuladas depois dos dados.** Cinco dos sete experimentos, incluindo o central,
 foram escritos sobre execuções que já existiam. Isso tem nome (HARKing) e está declarado no topo
 de cada documento. Trate como evidência sugestiva, não confirmatória.
 
