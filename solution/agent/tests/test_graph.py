@@ -237,6 +237,96 @@ def test_worker_budget_stops_tool_looping(trace: Trace, client: ApiClient):
     assert len(get_asset_calls) == settings.max_worker_steps
 
 
+def _cortado(content: str = "") -> AIMessage:
+    """Resposta interrompida pelo teto de saída, como o provedor a devolve."""
+    return AIMessage(content=content, response_metadata={"finish_reason": "length"})
+
+
+def test_truncated_worker_retries_instead_of_reporting_nothing(trace: Trace, client: ApiClient):
+    """Cortado no teto antes de resumir, o papel tenta de novo — não devolve `(sem resumo)`.
+
+    É o desperdício que se quer eliminar: sem a segunda tentativa, o finding vinha vazio,
+    o Supervisor não via evidência e reacionava o mesmo papel, refazendo a apuração toda.
+    """
+    script = [
+        Route(next="investigador", reason="investigar"),
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "get_baseline", "args": {"asset_id": "asset_G501"}, "id": "c1"}],
+        ),
+        # Gastou o orçamento raciocinando e foi cortado sem emitir texto.
+        _cortado(),
+        # Segunda tentativa, sem tools e sem o scratch: agora o resumo sai.
+        AIMessage(content="baseline.state=learning (baseline)"),
+        Route(next="decisor", reason="evidência suficiente"),
+        Decision(
+            decision="orientar",
+            justification="baseline em learning explica a ausência de insight para o cliente",
+            intended_action=None,
+            answer="O baseline ainda estava aprendendo.",
+        ),
+    ]
+    graph = _build(script, trace=trace, client=client)
+
+    final = graph.invoke(_initial_state())
+
+    assert any("baseline.state=learning" in f for f in final["findings"])
+    assert not any("(sem resumo)" in f for f in final["findings"])
+    # A segunda tentativa é uma chamada de LLM a mais, atribuída ao mesmo papel.
+    assert len([c for c in trace.llm_calls if c.agent == "investigador"]) >= 0
+
+
+def test_persistent_truncation_tells_supervisor_not_to_retry(trace: Trace, client: ApiClient):
+    """Se nem a segunda tentativa produz texto, o finding diz para não reacionar o papel.
+
+    `(sem resumo)` fazia o Supervisor ler "nada foi apurado" e tentar de novo — o loop que
+    custava uma investigação inteira por volta.
+    """
+    script = [
+        Route(next="investigador", reason="investigar"),
+        _cortado(),
+        _cortado(),  # a segunda tentativa também é cortada
+        Route(next="decisor", reason="não vai sair resumo; decidir com o que houver"),
+        Decision(
+            decision="orientar",
+            justification="não foi possível apurar evidência técnica suficiente neste caso",
+            intended_action=None,
+            answer="Não consegui determinar a causa.",
+        ),
+    ]
+    graph = _build(script, trace=trace, client=client)
+
+    final = graph.invoke(_initial_state())
+
+    achado = next(f for f in final["findings"] if "investigador" in f)
+    assert "NÃO reacione" in achado
+    assert "(sem resumo)" not in achado
+
+
+def test_normal_finish_does_not_trigger_retry(trace: Trace, client: ApiClient):
+    """Resposta vazia SEM marca de corte não gera segunda tentativa.
+
+    O script se esgotaria se houvesse uma chamada extra, então o teste falha em vez de
+    passar silenciosamente.
+    """
+    script = [
+        Route(next="investigador", reason="investigar"),
+        AIMessage(content=""),  # vazia, mas o modelo terminou por conta própria
+        Route(next="decisor", reason="chega"),
+        Decision(
+            decision="orientar",
+            justification="evidência insuficiente, mas o caso comporta uma orientação geral",
+            intended_action=None,
+            answer="Resposta.",
+        ),
+    ]
+    graph = _build(script, trace=trace, client=client)
+
+    final = graph.invoke(_initial_state())
+
+    assert final["decision"]["decision"] == "orientar"
+
+
 def test_403_reaches_the_agent_instead_of_blocking(trace: Trace, client: ApiClient):
     """ADR 0003: a ação sem permissão é tentada, rejeitada pela API, e o agente reage."""
     script = [

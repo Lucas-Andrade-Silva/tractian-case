@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leitura de Vibração · Agente de Suporte</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="leitura.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="marca-wrap">
+        <span id="marca"></span>
+        <span class="marca-div"></span>
+        <span class="eyebrow">API industrial &middot; dados técnicos e agente</span>
+      </div>
+      <h1>Leitura de Vibração</h1>
+      <p class="sub">O que os endpoints <code class="mono">/rms</code>, <code class="mono">/spectrum</code>, <code class="mono">/baseline</code> e <code class="mono">/data-quality</code> devolvem, desenhado na escala &mdash; nas três seeds da bateria. Abaixo de cada leitura, o que o agente decidiu sobre este mesmo ativo.</p>
+    </div>
+    <div>
+      <div class="switches">
+        <button class="sw" id="sw-exp">🧪 Experimentos</button>
+        <button class="sw" id="sw-eng">⚙ Configuração</button>
+      </div>
+      <div class="src" id="src"></div>
+    </div>
+  </header>
+
+  <div class="cols">
+    <aside class="aside">
+      <div class="list-hd"><span>Ativos</span><span>RMS atual</span></div>
+      <div class="items" id="items" role="list"></div>
+    </aside>
+
+    <main class="panel" id="panel"></main>
+  </div>
+
+  <footer class="foot" id="foot"></footer>
+</div>
+
+<!-- painel de configuração: tema, política de evidência, metodologia -->
+<div class="eng" id="eng" role="dialog" aria-modal="true" aria-labelledby="eng-t">
+  <div class="eng-cx">
+    <div class="eng-hd">
+      <div>
+        <h2 id="eng-t">Configuração</h2>
+        <p>Aparência da página e as escolhas de método que a bateria mediu.</p>
+      </div>
+      <button class="eng-x" id="eng-x" aria-label="Fechar">×</button>
+    </div>
+    <div id="eng-corpo"></div>
+  </div>
+</div>
+
+<!-- experimentos: as cinco hipóteses, com o veredito derivado dos traces em disco -->
+<div class="eng" id="exp" role="dialog" aria-modal="true" aria-labelledby="exp-t">
+  <div class="eng-cx">
+    <div class="eng-hd">
+      <div>
+        <h2 id="exp-t">Experimentos</h2>
+        <p>As cinco hipóteses que este projeto testou, o que cada uma provou e como reproduzi-la.</p>
+      </div>
+      <button class="eng-x" id="exp-x" aria-label="Fechar">×</button>
+    </div>
+    <div id="exp-corpo"></div>
+  </div>
+</div>
+
+<div class="dica" id="dica" role="tooltip" aria-hidden="true"></div>
+
+<script type="module" src="leitura.js"></script>
+</body>
+</html>

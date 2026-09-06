@@ -27,6 +27,7 @@ nunca entra num relatório dos 17 cenários com gabarito real, mesmo por engano.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,17 @@ CONSULTAS_DIR = SOLUTION_DIR / "evaluation" / "results" / "consultas"
 
 # Sinaliza um 403 da API no passo, sem depender da mensagem exata em português.
 _STATUS_NEGADO = 403
+
+# O id de consulta vira nome de arquivo, e chega pela URL (`POST /consultas/{id}/...`).
+# Sem esta trava, `..%2F..%2Fetc` escreveria fora de CONSULTAS_DIR. O formato é o que
+# `_novo_id` produz, e nada além disso é aceito.
+_ID_VALIDO = re.compile(r"^consulta_\d{8}T\d{6}$")
+
+# Um cenário registrado é uma consulta que alguém achou que valia a pena guardar para
+# os outros verem. Continua sendo métrica sintética (ADR 0007): o que muda é a
+# visibilidade, não a classe de evidência. Só um humano escrevendo `expected_path` à
+# mão promoveria isto a caso de referência, e isso não acontece aqui.
+_NOME_MAX = 80
 
 
 def executa_consulta(
@@ -126,6 +138,10 @@ def executa_consulta(
         },
         "gabarito_sintetico": gabarito.to_dict() if gabarito else None,
         "erro_gabarito": erro_gabarito,
+        # Preenchidos depois, por quem registra o cenário e por quem dá o veredito.
+        # Nascem explícitos para que a ausência seja `None`, e não chave faltando.
+        "cenario": None,
+        "veredito_humano": None,
         "trace": dados_trace,
         "avaliacao": {
             # Camada 1 NÃO se aplica: sem trajetória de referência não há o que comparar.
@@ -218,13 +234,22 @@ def salva_consulta(registro: dict[str, Any]) -> Path:
     return destino
 
 
-def lista_consultas() -> list[dict[str, Any]]:
+def lista_consultas(
+    *,
+    asset_id: str | None = None,
+    apenas_registradas: bool = False,
+    resumido: bool = False,
+) -> list[dict[str, Any]]:
     """Consultas já registradas, da mais recente para a mais antiga.
 
     O diretório guarda dois arquivos por consulta: o registro completo escrito aqui e o
     trace bruto que `run_case` grava por conta própria (`<id>__seed-…json`). Ambos casam
     com `consulta_*.json`, então o filtro é pela marca `origem`, não pelo nome — um
     trace não tem esse campo e entraria na lista como item vazio.
+
+    `resumido=True` devolve só o que a interface desenha. O registro completo carrega o
+    trace inteiro; uma lista de vinte cenários registrados com o trace de cada um seria
+    megabytes para preencher um card de cinco linhas.
     """
     if not CONSULTAS_DIR.exists():
         return []
@@ -234,9 +259,118 @@ def lista_consultas() -> list[dict[str, Any]]:
             dados = json.loads(arquivo.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue  # arquivo truncado por execução interrompida: ignora, não quebra
-        if isinstance(dados, dict) and dados.get("origem") == "consulta_livre":
-            registros.append(dados)
+        if not (isinstance(dados, dict) and dados.get("origem") == "consulta_livre"):
+            continue
+        if apenas_registradas and not dados.get("cenario"):
+            continue
+        if asset_id and (dados.get("entrada") or {}).get("asset_id") != asset_id:
+            continue
+        registros.append(resumo_consulta(dados) if resumido else dados)
     return sorted(registros, key=lambda r: r.get("criado_em", ""), reverse=True)
+
+
+def resumo_consulta(registro: dict[str, Any]) -> dict[str, Any]:
+    """A versão leve de um registro: o que um card de cenário registrado mostra."""
+    entrada = registro.get("entrada") or {}
+    trace = registro.get("trace") or {}
+    avaliacao = registro.get("avaliacao") or {}
+    execucao = avaliacao.get("execucao") or {}
+    juizes = avaliacao.get("juizes") or {}
+    notas = {
+        dimensao: veredito.get("score")
+        for dimensao, veredito in juizes.items()
+        if isinstance(veredito, dict) and veredito.get("score") is not None
+    }
+    return {
+        "id": registro.get("id"),
+        "criado_em": registro.get("criado_em"),
+        "cenario": registro.get("cenario"),
+        "veredito_humano": registro.get("veredito_humano"),
+        "asset_id": entrada.get("asset_id"),
+        "user_id": entrada.get("user_id"),
+        "seed": entrada.get("seed"),
+        "mensagem": entrada.get("mensagem"),
+        "decisao": trace.get("decision"),
+        "justificativa": trace.get("justification"),
+        "resposta": trace.get("final_answer"),
+        "chamadas": execucao.get("chamadas"),
+        "tokens": execucao.get("tokens"),
+        "notas_juiz": notas or None,
+        # Repetido aqui, e não deduzido pela interface: a fronteira do ADR 0007 viaja
+        # com o dado. Um cliente que só lê o resumo não pode perdê-la pelo caminho.
+        "comparavel_com_cenarios": False,
+    }
+
+
+def carrega_consulta(consulta_id: str) -> dict[str, Any]:
+    """Lê um registro pelo id, recusando id que não tenha a forma de `_novo_id`."""
+    if not _ID_VALIDO.match(consulta_id or ""):
+        raise ValueError(f"Id de consulta inválido: '{consulta_id}'.")
+    caminho = CONSULTAS_DIR / f"{consulta_id}.json"
+    if not caminho.exists():
+        raise LookupError(f"Consulta '{consulta_id}' não existe.")
+    dados = json.loads(caminho.read_text(encoding="utf-8"))
+    if dados.get("origem") != "consulta_livre":
+        raise LookupError(f"'{consulta_id}' não é um registro de consulta livre.")
+    return dados
+
+
+def registra_cenario(*, consulta_id: str, nome: str) -> dict[str, Any]:
+    """Dá nome a uma consulta e a torna visível para os outros, na página do ativo.
+
+    Não copia nada para `tractian/agent-input/cases.json` nem para `evaluation/results/traces/`:
+    o registro continua morando em `consultas/`, que é o diretório que `cli.py` não lê.
+    Registrar muda quem vê, não em que conjunto a execução entra — é o degrau entre a
+    consulta privada e um caso de referência, e o degrau seguinte (escrever
+    `expected_path` à mão) é trabalho humano que não acontece por um clique.
+    """
+    nome = (nome or "").strip()
+    if not nome:
+        raise ValueError("O cenário precisa de um nome.")
+    if len(nome) > _NOME_MAX:
+        raise ValueError(f"Nome longo demais: máximo de {_NOME_MAX} caracteres.")
+
+    registro = carrega_consulta(consulta_id)
+    registro["cenario"] = {
+        "nome": nome,
+        "registrado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    salva_consulta(registro)
+    return registro
+
+
+def remove_registro(consulta_id: str) -> dict[str, Any]:
+    """Tira o cenário da lista pública. A consulta e o trace continuam gravados.
+
+    Apagar o registro inteiro seria destruir uma execução que custou tokens porque
+    alguém errou o nome. Aqui, desregistrar é reversível: basta registrar de novo.
+    """
+    registro = carrega_consulta(consulta_id)
+    registro["cenario"] = None
+    salva_consulta(registro)
+    return registro
+
+
+def registra_veredito(
+    *, consulta_id: str, decisao_correta: bool, comentario: str | None = None
+) -> dict[str, Any]:
+    """Guarda o julgamento humano sobre a decisão do agente nesta consulta.
+
+    É a única nota deste sistema que não vem de LLM, e por isso é a única que poderia
+    calibrar o comitê: a nota do juiz ordena execuções entre si, mas nada aqui diz se
+    ela concorda com uma pessoa. Um rótulo humano por consulta é o insumo que falta.
+
+    Não realimenta o agente. Se a nota do juiz ou o veredito humano voltassem para
+    dentro do grafo, deixariam de medir o sistema e passariam a fazer parte dele.
+    """
+    registro = carrega_consulta(consulta_id)
+    registro["veredito_humano"] = {
+        "decisao_correta": bool(decisao_correta),
+        "comentario": (comentario or "").strip() or None,
+        "registrado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    salva_consulta(registro)
+    return registro
 
 
 def _gerador_settings() -> Settings:

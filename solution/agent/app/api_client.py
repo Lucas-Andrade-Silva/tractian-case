@@ -11,7 +11,7 @@ eliminaria justamente o comportamento que CEN-14/15/16 avaliam.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -29,11 +29,16 @@ class ApiClient:
         trace: Trace,
         seed: str | None = None,
         timeout_s: float = 30.0,
+        response_hook: Callable[[str, str, Any], Any] | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.user_id = user_id
         self.seed = seed
         self.trace = trace
+        # Reescreve o `data` do envelope antes de o agente ler (EXP-07). Fica aqui, e não
+        # numa subclasse, porque `graph.py` e `tools.py` recebem o client já construído: o
+        # ponto único de injeção é este parâmetro. `None` em execução normal.
+        self._response_hook = response_hook
         # Qual papel está chamando agora; os nós do grafo atualizam antes de agir.
         self.current_agent = "supervisor"
         # Cache de consultas desta execução. O prompt pede que o agente não repita
@@ -123,6 +128,12 @@ class ApiClient:
         latency_ms = int((time.perf_counter() - started) * 1000)
 
         result = self._interpret(status_code, payload, error)
+        # A mutação do EXP-07 entra AQUI, antes do cache: se entrasse depois, um GET
+        # repetido seria servido com o valor íntegro e a evidência ficaria incoerente
+        # dentro da mesma execução — o agente veria o campo mutado na primeira consulta e o
+        # original na segunda.
+        if self._response_hook is not None and result.get("ok"):
+            result = {**result, "data": self._response_hook(method, path, result.get("data"))}
         # Só consultas bem-sucedidas entram no cache: um erro pode ser transitório, e
         # cachear falha impediria o agente de tentar de novo legitimamente.
         if method == "GET" and result.get("ok"):

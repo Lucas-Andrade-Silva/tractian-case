@@ -5,10 +5,9 @@ parceiro está em [`STUDENT-GUIDE.md`](../tractian/STUDENT-GUIDE.md); este docum
 construí.
 
 > **Estado atual:** agente, avaliação e painel implementados; **102 execuções** com
-> modelo real, em duas fases, e cinco experimentos registrados em
-> [`docs/experimentos/`](./docs/experimentos/). Falta a bateria de EXP-05 (a hipótese
-> central, 0/51) e o comitê de juízes está parcial (35/102, 2026-09-05) — ambos
-> retomáveis, bloqueados por cota diária, ver [Pendências](#9-pendências).
+> modelo real, em duas fases, e quatro experimentos registrados em
+> [`docs/experimentos/`](./docs/experimentos/). O comitê de juízes está parcial (35/102,
+> 2026-09-05), retomável, bloqueado por cota diária — ver [Pendências](#9-pendências).
 
 ## 1. Problema e recorte
 
@@ -155,16 +154,16 @@ execuções, e variação amostral do decoder seria confundida com instabilidade
 Os experimentos estão em [`docs/experimentos/`](./docs/experimentos/), cada um no formato
 da seção 8 do guia: hipótese → método → execução → análise → limitações.
 
-**Hipótese central do projeto:** *separar investigação de decisão — o Decisor não tem tools
-e só recebe evidência já apurada — reduz ações de impacto sem fundamento e reduz
-over-escalation, ao custo de mais chamadas por caso.* É a de
-[EXP-05](./docs/experimentos/EXP-05-multiagente-vs-agente-unico.md), o único ainda pendente:
-o braço de agente único está implementado e testado, e falta cota de LLM para rodar as 51
-execuções.
+**Hipótese central do projeto:** *nomear explicitamente na política de decisão **quando
+orientar não basta** — em vez de descrever só as três categorias — aumenta a acurácia de
+decisão do agente.* É a de
+[EXP-01](./docs/experimentos/EXP-01-politica-de-decisao.md), a única testada com a bateria
+inteira (51 pares, as duas fases) e a que motivou a correção de política que separa o
+baseline da fase `pos-correcao`.
 
-Onde a hipótese foi escrita depois dos dados, o documento diz isso no topo. Quatro dos cinco
-experimentos foram reconstruídos sobre execuções que já existiam; só EXP-02 e EXP-05 foram
-desenhados antes da coleta.
+Onde a hipótese foi escrita depois dos dados, o documento diz isso no topo — e é o caso da
+central: EXP-01 foi reconstruído sobre execuções que já existiam. Só EXP-02 foi desenhado
+antes da coleta. A seção 8 trata do que isso custa em força de inferência.
 
 ## 7. Resultados
 
@@ -174,7 +173,6 @@ desenhados antes da coleta.
 | [02](./docs/experimentos/EXP-02-politica-de-evidencia.md) | Apurar sempre os 4 pilares decide melhor | 6 pares | **refutada** — decisão idêntica par a par, custo 8% maior |
 | [03](./docs/experimentos/EXP-03-enforcement-de-permissoes.md) | Deixar a API recusar é honesto e seguro | 5 × 403 | **sustentada** — 5/5 relataram a recusa, 0/5 insistiram |
 | [04](./docs/experimentos/EXP-04-decisor-sem-tools.md) | Decidir sem tools custa 1 chamada, constante | 102 exec. | **sustentada** — 1,00/execução, 0 chamadas de API |
-| [05](./docs/experimentos/EXP-05-multiagente-vs-agente-unico.md) | Separar papéis reduz ação indevida | 0/51 | ⏳ pendente de cota |
 
 Bateria executada: **102 execuções** (17 cenários × 3 seeds × 2 fases), sem falha de
 execução. Estabilidade entre seeds passou de 13/17 para **17/17** casos após a correção da
@@ -185,9 +183,8 @@ O que está verificado por teste, e não por execução:
 | Verificação | Status |
 | :--- | :--- |
 | Testes da API do parceiro (não quebrei nada) | 39 passando |
-| Suíte do agente (integração, grafo, orçamentos, ADR 0002/0003) | 33 passando |
-| Braço de agente único (EXP-05) | 4 passando |
-| Camadas 1 e 3 da avaliação + relatório | 21 passando |
+| Suíte do agente (integração, grafo, orçamentos, ADR 0002/0003) | 49 passando |
+| Camadas 1 e 3 da avaliação + relatório | 55 passando |
 | Holdout: integridade, disjunção e auditoria | 9 passando |
 | Auditoria mecânica do holdout contra a API real | 41/41 asserções, 8/8 cenários |
 
@@ -197,13 +194,17 @@ O que está verificado por teste, e não por execução:
   2026-09-05 (cota diária gratuita do OpenRouter esgotada, retomável). Toda afirmação de
   resultado das seções 6–7 é sobre decisão, trajetória e custo; qualidade textual —
   honestidade, causa-raiz, justificativa — só tem cobertura parcial até aqui.
-- **Hipóteses formuladas após a coleta**, em EXP-01, 03 e 04. É HARKing, está declarado no
-  topo de cada documento, e reduz a força da inferência: trate como evidência sugestiva,
-  não confirmatória.
+- **Hipóteses formuladas após a coleta**, em EXP-01, 03 e 04 — inclusive a central. É
+  HARKing, está declarado no topo de cada documento, e reduz a força da inferência: trate
+  como evidência sugestiva, não confirmatória.
+- **A arquitetura multiagente não foi comparada com um agente único.** A ADR 0001 é uma
+  decisão de desenho justificada por argumento, não por experimento: nenhum dado deste
+  projeto mostra que separar papéis decide melhor do que um agente único com as mesmas
+  tools. Ver [Possibilidades de evolução](#10-possibilidades-de-evolução).
 - **n pequeno e não independente.** Três seeds do mesmo caso não são três observações
   independentes: onde há taxas sobre 51 execuções, o n efetivo está mais perto de 17.
   Nenhum resultado atinge significância a 5% (EXP-01: p ≈ 0,125).
-- **Cota de LLM moldou o desenho.** O n=6 de EXP-02 e a pendência de EXP-05 são
+- **Cota de LLM moldou o desenho.** O n=6 de EXP-02 e a cobertura parcial da camada 2 são
   consequência do limite do plano gratuito, não de escolha metodológica.
 - **Dados sintéticos.** Os 17 casos vêm de material fictício; generalização para
   operação real não está demonstrada.
@@ -223,15 +224,47 @@ O que está verificado por teste, e não por execução:
 
 ## 9. Pendências
 
-1. **Rodar EXP-05** (`make exp05`) — braço de agente único, 51 execuções. Implementado e
-   testado; falta cota. É a hipótese central do projeto. Estado em 2026-09-05: 0/51.
-2. **Rodar o comitê de juízes** (`make painel-julgar`) — 35/102 julgadas em 2026-09-05
-   (cota diária do OpenRouter esgotada para todos os modelos `:free` da conta). Retomar em
-   lotes de 3–5 (`python solution/painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
+1. **Rodar o comitê de juízes sobre `pos-correcao`** (`make painel-julgar`) — 51
+   pendentes. As 35 já julgadas são **todas de `baseline`**, a versão anterior do agente:
+   `julgar.py` não filtrava fase e servia a fila na ordem do bundle, onde `baseline` vem
+   primeiro. O padrão agora é a fase de produção; `--fase baseline` é explícito. A fase
+   `conditional` não precisa de juiz — o EXP-06 mede custo por contador. Retomar em lotes
+   de 3–5 (`python solution/painel/julgar.py --limite 5 --modelo <id>`); lotes de ~20
    travaram sem erro nem progresso numa sessão de teste.
-3. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias.
-4. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
-5. Gravar `fase` no trace (`agent/app/trace.py`) — hoje a fase é recuperada por junção de
+2. Calibrar o comitê: conferir à mão algumas notas antes de confiar nas médias. O veredito
+   humano da página de leitura (⚙ Configuração → Retorno humano) grava exatamente esse
+   rótulo, e é gratuito em tokens.
+3. Rodar o holdout **uma única vez**, ao final, como teste de generalização.
+4. Gravar `fase` no trace (`agent/app/trace.py`) — hoje a fase é recuperada por junção de
    tokens, garantia empírica e não estrutural (ver `painel/README.md`).
-6. Corrigir os dois defeitos abertos de EXP-01 §4.4: ação exigida não executada
-   (TKT-EXE-12/s2) e `model_id` vazio na URL (TKT-EXE-15/s2).
+5. Corrigir os defeitos abertos de EXP-01 §4.4, ainda presentes na fase `pos-correcao`:
+   ação exigida não executada (TKT-EXE-12, seeds `complete` e `s2`), `model_id` vazio na
+   URL (TKT-EXE-15/s2) e ação não prevista nas três seeds de TKT-INV-05.
+
+## 10. Possibilidades de evolução
+
+Distinto da seção anterior: ali estão tarefas do escopo atual que ficaram por fazer; aqui,
+extensões que o projeto não tentou.
+
+- **Comparar a arquitetura com um agente único.** A ADR 0001 escolheu multiagente por
+  argumento, e nenhuma medição deste projeto a confronta com o desenho alternativo mais
+  óbvio: um agente só, com as mesmas tools e a mesma política de decisão. É o experimento
+  mais informativo que falta, porque o resultado pode refutar a decisão de arquitetura
+  central em vez de confirmá-la.
+- **Validar fora do material sintético.** Os 17 casos são fictícios. Sem chamados reais
+  (mesmo anonimizados), nada aqui demonstra transferência para operação — é a limitação
+  que mais restringe as conclusões.
+- **Ampliar o n e a independência.** Três seeds do mesmo caso não são três observações;
+  mais casos distintos valem mais do que mais seeds, e é o que separaria as tendências
+  observadas de resultado com significância.
+- **Human-in-the-loop nas ações de impacto.** O contexto declarado é autônomo com escopo,
+  e o teto é a permissão da API. Uma etapa de confirmação humana antes de `POST` mudaria o
+  perfil de risco e é medível com as mesmas métricas de camada 1.
+- **Medir latência e custo por caso.** Hoje o custo é contado em chamadas e tokens; tempo
+  de resposta e custo monetário são o que decide viabilidade em atendimento real.
+- **Juízes de famílias diferentes, com concordância entre eles.** O comitê atual usa um
+  modelo por rodada. Rodar dois juízes independentes e reportar a concordância diria
+  quanto da nota é sinal e quanto é idiossincrasia do juiz.
+- **Memória entre interações.** O agente atende um caso por execução, sem histórico. O
+  briefing lista memória e contexto entre interações como ponto relevante; atendimento
+  multi-turno é a extensão natural.

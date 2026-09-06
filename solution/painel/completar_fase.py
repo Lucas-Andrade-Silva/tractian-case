@@ -22,6 +22,7 @@ import json
 import re
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 SOLUCAO = Path(__file__).resolve().parent.parent
@@ -36,6 +37,15 @@ DESTINO = {
     "pos-correcao": SOLUCAO / ".run" / "traces_fix_policy2",
     "baseline": SOLUCAO / ".run" / "traces_restantes",
 }
+
+# Fases criadas depois (uma bateria numa política de evidência diferente, por exemplo)
+# gravam junto com a bateria que as originou. A fase agora vive no próprio trace, então
+# o diretório é só organização — não é mais ele que atribui a fase.
+DESTINO_PADRAO = SOLUCAO / "evaluation" / "results" / "traces" / "golden"
+
+
+def destino_de(fase: str) -> Path:
+    return DESTINO.get(fase, DESTINO_PADRAO)
 
 
 def _segundos_sugeridos(erro: str, padrao: int) -> int:
@@ -76,8 +86,15 @@ def faltantes(fase: str, incluir_falhas: bool = True) -> list[tuple[str, str, st
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Completa as execuções faltantes de uma fase")
-    parser.add_argument("--fase", default="pos-correcao", choices=sorted(DESTINO))
+    # Sem `choices`: uma bateria nova traz uma fase que este script nao precisa
+    # conhecer de antemao — a fase vem do CSV e vai gravada no proprio trace.
+    parser.add_argument("--fase", default="pos-correcao")
     parser.add_argument("--listar", action="store_true", help="Só lista o que falta")
+    parser.add_argument(
+        "--politica",
+        help="EVIDENCE_POLICY da reposição (padrão: a do .env, ou o nome da fase quando "
+        "a fase for 'fixed'/'conditional')",
+    )
     parser.add_argument("--limite", type=int, default=0, help="Executa no máximo N (0 = todas)")
     # O limite da Groq no plano gratuito é por MINUTO (8000 TPM no menor modelo), e uma
     # execução consome ~20k tokens somando os papéis. Sem pausa entre execuções a segunda
@@ -106,8 +123,24 @@ def main() -> int:
     from app.runner import load_cases, run_case
 
     settings = load_settings()
+    # A execucao de reposicao pertence a mesma fase que esta completando, e precisa
+    # gravar isso no trace — senao ela reaparece como pendente.
+    settings = replace(settings, run_phase=args.fase)
+
+    # A politica de evidencia TEM de bater com a da fase. Preencher a fase sem preencher
+    # a politica produz o pior resultado possivel: traces rotulados `conditional` que
+    # rodaram `fixed`, misturados na mesma fase e invisíveis na comparação. Aconteceu.
+    if args.politica:
+        settings = replace(settings, evidence_policy=args.politica)
+    elif args.fase in ("fixed", "conditional") and settings.evidence_policy != args.fase:
+        # O nome da fase é o da política: assumir o contrário seria rotular errado.
+        print(
+            f"  ! fase '{args.fase}' nomeia uma política de evidência, mas o .env está em"
+            f" '{settings.evidence_policy}'. Usando '{args.fase}'."
+        )
+        settings = replace(settings, evidence_policy=args.fase)
     casos = {c["id"]: c for c in load_cases(settings)}
-    destino = DESTINO[args.fase]
+    destino = destino_de(args.fase)
 
     print(f"\nGravando em {destino.relative_to(SOLUCAO)}\n")
     concluidas = falhas = 0

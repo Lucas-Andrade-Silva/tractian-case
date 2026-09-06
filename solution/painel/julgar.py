@@ -8,10 +8,24 @@ grava assim que o veredito chega, e nunca refaz o que já está salvo.
 Julgar de a um importa com modelo gratuito: as cotas são baixas, e uma rodada que estoura
 no meio sem gravar nada é o que produziu o estado atual. Aqui, o que foi julgado fica.
 
-    python painel/julgar.py --listar                       # o que ainda não foi julgado
-    python painel/julgar.py --execucao case_tkt_inv_04__complete__baseline
-    python painel/julgar.py --fase baseline --limite 3     # as 3 próximas pendentes
+    python painel/julgar.py --listar                       # o que falta na fase padrão
+    python painel/julgar.py --execucao case_tkt_inv_04__complete__pos-correcao
+    python painel/julgar.py --limite 3                     # as 3 próximas da fase padrão
+    python painel/julgar.py --fase baseline --limite 3     # a fase anterior, explicitamente
+    python painel/julgar.py --fase todas                   # sem filtro de fase
     python painel/julgar.py --modelos                      # modelos gratuitos conhecidos
+
+## Por que a fase padrão é `pos-correcao`
+
+Sem filtro, a fila de pendentes mistura as fases e é servida na ordem do bundle — e como
+`baseline` tem mais pendentes, a cota ia toda para a versão ANTERIOR do agente. Foi assim
+que as 35 execuções já julgadas acabaram todas em `baseline` enquanto a fase que a página
+exibe ficou sem nenhuma nota. O padrão agora é a fase de produção; julgar outra é escolha
+explícita, não default.
+
+As fases válidas são lidas do próprio bundle (`fases_de`), não de uma lista no código: uma
+bateria nova (`RUN_PHASE=conditional make eval-politica`) passa a ser julgável sem editar
+este arquivo. Antes, `--fase conditional` era recusado pelo argparse.
 
 O modelo vem de `JUDGE_MODEL` no `agent/.env` e pode ser trocado com `--modelo`. A chave é
 `JUDGE_API_KEY` (ou `LLM_API_KEY`) — nunca é escrita em arquivo do repositório nem chega ao
@@ -42,6 +56,17 @@ from runner.juiz_modelos import (  # noqa: E402 - depende do sys.path acima
     PADRAO,
     modelos_ao_vivo,
 )
+
+# A mesma função que o build usa para decidir quais fases existem. Importar em vez de
+# repetir a lista é o que impede que uma bateria nova apareça no painel e continue
+# invisível para o juiz.
+from build_bundle import fases_de  # noqa: E402 - idem
+
+# A fase de produção: a que a página de leitura exibe por padrão e sobre a qual as
+# afirmações de resultado são feitas.
+FASE_PADRAO = "pos-correcao"
+# Valor especial de `--fase` que desliga o filtro. Não é nome de fase nenhuma.
+TODAS = "todas"
 
 
 def carrega_notas() -> dict:
@@ -107,11 +132,38 @@ def pendentes(bundle: dict, notas: dict, fase: str | None) -> list[dict]:
     ]
 
 
+def resolve_fase(bundle: dict, escolhida: str) -> str | None:
+    """Traduz `--fase` no filtro de `pendentes`, validando contra o que existe.
+
+    Devolve `None` para "sem filtro". A validação é contra `fases_de(execucoes)` e não
+    contra uma tupla no código: fase é dado da bateria, não constante do programa, e
+    uma lista fixa aqui já deixou `conditional` sem como ser julgada.
+    """
+    disponiveis = fases_de(bundle["execucoes"])
+    if escolhida == TODAS:
+        return None
+    if escolhida not in disponiveis:
+        raise SystemExit(
+            f"Fase '{escolhida}' não existe no bundle.\n"
+            f"Disponíveis: {', '.join(disponiveis)} (ou '{TODAS}' para não filtrar).\n"
+            "Se a bateria é nova, rode antes: python painel/build_bundle.py --verify"
+        )
+    return escolhida
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Comitê de juízes via OpenRouter")
     parser.add_argument("--execucao", help="Id da execução (case__seed__fase)")
-    parser.add_argument("--fase", choices=("baseline", "pos-correcao"))
+    parser.add_argument(
+        "--fase",
+        default=FASE_PADRAO,
+        help=(
+            f"Fase a julgar (padrão: {FASE_PADRAO}, a de produção). "
+            f"'{TODAS}' desliga o filtro. Fases válidas: as presentes no bundle."
+        ),
+    )
     parser.add_argument("--limite", type=int, default=1, help="Quantas julgar (padrão 1)")
     parser.add_argument("--modelo", help=f"Modelo do juiz (padrão: JUDGE_MODEL ou {PADRAO})")
     parser.add_argument("--listar", action="store_true", help="Só lista o que falta julgar")
@@ -132,7 +184,8 @@ def main() -> int:
 
     bundle = carrega_bundle()
     notas = carrega_notas()
-    fila = pendentes(bundle, notas, args.fase)
+    fase = resolve_fase(bundle, args.fase)
+    fila = pendentes(bundle, notas, fase)
 
     if args.execucao:
         alvo = next((e for e in bundle["execucoes"] if e["id"] == args.execucao), None)
@@ -143,8 +196,10 @@ def main() -> int:
         fila = fila[: max(1, args.limite)]
 
     if args.listar:
-        todas = pendentes(bundle, notas, args.fase)
-        print(f"{len(notas['vereditos'])} já julgadas, {len(todas)} pendentes:")
+        todas = pendentes(bundle, notas, fase)
+        escopo = f"fase {fase}" if fase else "todas as fases"
+        print(f"{len(notas['vereditos'])} já julgadas no total.")
+        print(f"{len(todas)} pendentes em {escopo}:")
         for execucao in todas[:30]:
             print(f"  {execucao['id']}")
         if len(todas) > 30:
@@ -152,7 +207,10 @@ def main() -> int:
         return 0
 
     if not fila:
-        print("Nada a julgar: todas as execuções elegíveis já têm veredito.")
+        escopo = f"da fase {fase}" if fase else "de todas as fases"
+        print(f"Nada a julgar: as execuções elegíveis {escopo} já têm veredito.")
+        if fase:
+            print(f"Outra fase: --fase <nome>, ou --fase {TODAS} para não filtrar.")
         return 0
 
     # Carrega o agent/.env antes de ler as variáveis: é lá que a chave mora, e sem isto

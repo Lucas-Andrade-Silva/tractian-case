@@ -241,6 +241,149 @@ def test_lista_ignora_o_trace_bruto_da_propria_consulta(tmp_path, monkeypatch):
     assert listadas[0]["id"] == "consulta_20260101T000000"
 
 
+# -- cenário registrado e veredito humano ----------------------------------
+# Registrar dá visibilidade a uma consulta livre; não muda a classe de evidência dela.
+# É essa distinção que estes testes seguram: no dia em que registrar passar a escrever
+# em `traces/`, ou o resumo perder a marca de não-comparável, o painel começa a somar
+# nota sintética com métrica de gabarito e nada quebra — só a média deixa de significar.
+
+
+def _registro_falso(identificador="consulta_20260101T000000", asset_id="asset_M101"):
+    return {
+        "id": identificador,
+        "criado_em": "2026-01-01T00:00:00+00:00",
+        "origem": "consulta_livre",
+        "entrada": {"asset_id": asset_id, "user_id": "usr_ana", "mensagem": "e aí?"},
+        "trace": {"decision": "orientar", "final_answer": "resposta"},
+        "avaliacao": {"execucao": {"chamadas": 4, "tokens": 1200}, "juizes": None},
+        "cenario": None,
+        "veredito_humano": None,
+    }
+
+
+@pytest.fixture()
+def consultas(tmp_path, monkeypatch):
+    """Um diretório de consultas isolado, com um registro dentro."""
+    import json as _json
+
+    from runner import consulta as mod
+
+    (tmp_path / "consulta_20260101T000000.json").write_text(
+        _json.dumps(_registro_falso()), encoding="utf-8"
+    )
+    monkeypatch.setattr(mod, "CONSULTAS_DIR", tmp_path)
+    return mod
+
+
+def test_registrar_cenario_nao_escreve_fora_do_diretorio_de_consultas(consultas, tmp_path):
+    """O degrau entre consulta e caso de referência não é um clique.
+
+    Registrar torna a consulta visível na página do ativo. Se além disso copiasse o
+    trace para `evaluation/results/traces/`, a execução entraria no relatório dos casos
+    com gabarito — e uma questão que um LLM escreveu passaria a contar como acurácia
+    medida contra gabarito humano.
+    """
+    antes = set(tmp_path.iterdir())
+    consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome="RMS alto")
+
+    assert set(tmp_path.iterdir()) == antes, "registrar criou arquivo novo"
+    assert consultas.CONSULTAS_DIR.name != "traces"
+
+
+def test_cenario_registrado_continua_nao_comparavel(consultas):
+    """A marca do ADR 0007 viaja no resumo, não é deduzida por quem desenha a tela."""
+    registro = consultas.registra_cenario(
+        consulta_id="consulta_20260101T000000", nome="RMS alto"
+    )
+    resumo = consultas.resumo_consulta(registro)
+
+    assert resumo["comparavel_com_cenarios"] is False
+    assert resumo["cenario"]["nome"] == "RMS alto"
+
+
+def test_registrar_e_reversivel_sem_perder_a_execucao(consultas):
+    """Desregistrar tira da lista; não apaga uma execução que custou tokens."""
+    consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome="errado")
+    consultas.remove_registro("consulta_20260101T000000")
+
+    guardado = consultas.carrega_consulta("consulta_20260101T000000")
+    assert guardado["cenario"] is None
+    assert guardado["trace"]["final_answer"] == "resposta"
+
+
+@pytest.mark.parametrize("nome", ["", "   ", "x" * 81])
+def test_nome_de_cenario_invalido_e_recusado(consultas, nome):
+    with pytest.raises(ValueError):
+        consultas.registra_cenario(consulta_id="consulta_20260101T000000", nome=nome)
+
+
+@pytest.mark.parametrize(
+    "identificador",
+    ["../../../etc/passwd", "consulta_20260101T000000/../outro", "qualquer_coisa", ""],
+)
+def test_id_de_consulta_fora_do_formato_nao_chega_ao_disco(consultas, identificador):
+    """O id vira nome de arquivo e chega pela URL (`POST /consultas/{id}/cenario`).
+
+    Sem a trava de formato, um id com `..` escreveria fora de `CONSULTAS_DIR`.
+    """
+    with pytest.raises(ValueError):
+        consultas.carrega_consulta(identificador)
+
+
+def test_veredito_humano_fica_no_registro_e_nao_no_trace(consultas):
+    """O rótulo humano é sobre a execução, não parte dela.
+
+    Se entrasse no trace, a próxima leitura do trace veria um campo que o agente nunca
+    produziu — e uma nota que realimenta o sistema que ela mede deixa de medi-lo.
+    """
+    registro = consultas.registra_veredito(
+        consulta_id="consulta_20260101T000000",
+        decisao_correta=False,
+        comentario="devia ter escalado",
+    )
+
+    assert registro["veredito_humano"]["decisao_correta"] is False
+    assert registro["veredito_humano"]["comentario"] == "devia ter escalado"
+    assert "veredito_humano" not in registro["trace"]
+
+
+def test_comentario_em_branco_vira_ausencia(consultas):
+    """`""` e `"   "` não são um comentário: guardá-los como texto faria a interface
+    desenhar aspas vazias na tela."""
+    registro = consultas.registra_veredito(
+        consulta_id="consulta_20260101T000000", decisao_correta=True, comentario="   "
+    )
+    assert registro["veredito_humano"]["comentario"] is None
+
+
+def test_filtros_da_listagem_separam_ativo_e_registro(consultas, tmp_path):
+    import json as _json
+
+    outro = _registro_falso("consulta_20260101T000001", asset_id="asset_B204")
+    (tmp_path / "consulta_20260101T000001.json").write_text(
+        _json.dumps(outro), encoding="utf-8"
+    )
+    consultas.registra_cenario(consulta_id="consulta_20260101T000001", nome="do B204")
+
+    assert len(consultas.lista_consultas()) == 2
+    assert len(consultas.lista_consultas(apenas_registradas=True)) == 1
+    assert len(consultas.lista_consultas(asset_id="asset_M101")) == 1
+    assert consultas.lista_consultas(asset_id="asset_M101", apenas_registradas=True) == []
+
+
+def test_resumo_nao_carrega_o_trace(consultas):
+    """A lista de cenários registrados desenha cinco linhas por item.
+
+    Devolver o registro completo mandaria o trace inteiro de cada um pela rede para
+    preencher um card — e são traces de execuções com dezenas de passos.
+    """
+    resumo = consultas.resumo_consulta(consultas.carrega_consulta("consulta_20260101T000000"))
+
+    assert "trace" not in resumo
+    assert resumo["decisao"] == "orientar"
+    assert resumo["chamadas"] == 4
+
+
 # -- seleção de modelo do juiz ---------------------------------------------
 def test_juiz_nunca_herda_o_provedor_do_agente(monkeypatch):
     """O juiz é sempre OpenRouter, mesmo com LLM_PROVIDER=groq.

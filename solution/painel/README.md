@@ -9,7 +9,7 @@ chamam a API industrial nem alteram arquivo de dado: leem o bundle gerado por
 make painel            # regenera o bundle, verifica, e serve em :8001 (sem a aba Consulta)
 make consulta          # painel + aba Consulta: sobe o agente como servidor (:8001)
 make painel-completar  # reexecuta o que falta numa fase (FASE=pos-correcao)
-make painel-julgar     # roda o comitê numa execução (N=1, MODELO=<id>)
+make painel-julgar     # comitê numa execução (N=1, FASE=pos-correcao, MODELO=<id>)
 make painel-modelos    # modelos gratuitos do OpenRouter
 ```
 
@@ -149,10 +149,30 @@ gratuito é o que produziu o estado anterior.
 
 ```bash
 python solution/painel/julgar.py --modelos            # consulta a API e lista os :free de agora
-python solution/painel/julgar.py --limite 1           # julga a próxima pendente
+python solution/painel/julgar.py --limite 1           # próxima pendente da fase de produção
+python solution/painel/julgar.py --fase baseline      # a fase anterior, explicitamente
+python solution/painel/julgar.py --fase todas         # sem filtro de fase
 python solution/painel/julgar.py --modelo z-ai/glm-5.2:free
-python solution/painel/julgar.py --execucao case_tkt_inv_04__complete__baseline
+python solution/painel/julgar.py --execucao case_tkt_inv_04__complete__pos-correcao
 ```
+
+### A fase padrão é `pos-correcao`, e isso custou cota para ser aprendido
+
+`--fase` era opcional e, sem ele, a fila de pendentes misturava as fases na ordem do
+bundle. Como `baseline` tinha mais pendentes, `make painel-julgar` drenava a cota julgando
+a versão **anterior** do agente: as 35 execuções com veredito são todas de lá, enquanto a
+fase que a página de leitura exibe ficou sem nota nenhuma. O script rodou certo o tempo
+todo — o default é que estava errado.
+
+Agora o padrão é a fase de produção, e julgar outra é escolha explícita
+(`--fase baseline`, ou `FASE=baseline make painel-julgar`). As fases aceitas vêm de
+`fases_de` sobre o próprio bundle, não de uma tupla no código: antes, `--fase conditional`
+era recusado pelo argparse e a bateria do EXP-06 não tinha como ser julgada, mesmo já
+aparecendo no painel. `tests/test_julgar_fase.py` trava as duas coisas.
+
+Vale a decisão de escopo junto: a fase `conditional` **não precisa** de juiz. O EXP-06 é
+sobre custo e repetição, medidos por contador, e reporta 18/18 decisões idênticas — pagar
+comitê ali é medir uma dimensão que o experimento não usa.
 
 `--modelos` consulta o catálogo do OpenRouter ao vivo, e não uma lista fixa: modelos saem
 do plano gratuito sem aviso (o DeepSeek V3.1 saiu durante este trabalho), e uma lista

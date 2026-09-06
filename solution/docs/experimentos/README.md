@@ -15,13 +15,24 @@ que já se tinha.
 | [02](EXP-02-politica-de-evidencia.md) | Política de evidência | Apurar sempre os 4 pilares decide melhor que apurar sob demanda | 6 pares | **refutada** — decisão idêntica, custo 8% maior |
 | [03](EXP-03-enforcement-de-permissoes.md) | Enforcement de permissão | Deixar a API recusar produz atendimento honesto sem insistência | 5 casos de 403 | **sustentada** (5/5 e 5/5), sem grupo de controle |
 | [04](EXP-04-decisor-sem-tools.md) | Decisor sem tools | Decidir sem tools custa 1 chamada de LLM, constante | 102 execuções | **sustentada** — 1,00/execução, 0 chamadas de API |
-| [05](EXP-05-multiagente-vs-agente-unico.md) | Multiagente × agente único | Separar papéis reduz ação indevida e over-escalation | 0/51 | ⏳ **pendente de cota** |
+| [07](EXP-07-sensibilidade-a-evidencia.md) | Sensibilidade à evidência | A decisão é causada pela evidência, não pelo enunciado do chamado | 12 (4 trios) | **sustentada** — 3/4 no desfecho primário, 0/4 no placebo |
 
 ## Como ler esta tabela
 
-**EXP-05 é o experimento central** — é a hipótese que `SOLUTION.md` declara desde o início.
-Os outros quatro foram reconstruídos sobre execuções que já existiam; só EXP-02 e EXP-05
-foram desenhados como experimento antes da coleta.
+**EXP-01 é o experimento central** — é a hipótese que `SOLUTION.md` declara, e o único
+rodado sobre a bateria inteira (as duas fases, 51 pares). Três dos quatro foram
+reconstruídos sobre execuções que já existiam, a central inclusive; só EXP-02 foi desenhado
+como experimento antes da coleta.
+
+O que **não** está aqui: nenhum experimento compara a arquitetura multiagente com um agente
+único. A ADR 0001 é decisão de desenho por argumento, não por medição — está registrado como
+possibilidade de evolução em `SOLUTION.md` §10. O EXP-07 mede uma consequência dela sem
+comparar arquiteturas: se o resumo em `findings` perde evidência no caminho do Investigador
+para o Decisor. Não perdeu, em 4 de 4.
+
+**EXP-07 é o único pré-registrado.** As previsões foram escritas e commitadas antes da
+coleta, e a análise foi escrita contra elas sem reabrir a seção 5. É também o único que
+separa *o agente acerta* de *o agente acerta pelo motivo certo*.
 
 Dois resultados merecem destaque porque contrariam a expectativa:
 
@@ -33,17 +44,17 @@ Dois resultados merecem destaque porque contrariam a expectativa:
 
 ## Limitações que atravessam todos
 
-Valem para os cinco e não se repetem em cada documento:
+Valem para os quatro e não se repetem em cada documento:
 
 - **Dados sintéticos.** 17 casos de material fictício; nada aqui demonstra generalização para
   operação real.
 - **Um conjunto de modelos.** Toda a bateria roda com a mesma combinação qwen + gpt-oss, a
   `temperature=0`. Efeitos que dependam da capacidade do modelo não se separam da arquitetura.
-- **Camada 2 nunca rodou.** 0 de 81 execuções elegíveis julgadas pelo comitê. Nenhum
-  experimento aqui mede **qualidade textual** — honestidade, causa-raiz, justificativa.
-  Toda afirmação é sobre decisão, trajetória e custo.
+- **Camada 2 é parcial.** 35 de 102 execuções elegíveis julgadas pelo comitê (2026-09-05).
+  Nenhum experimento aqui usa **qualidade textual** — honestidade, causa-raiz,
+  justificativa — como critério: toda afirmação é sobre decisão, trajetória e custo.
 - **Cota de LLM como restrição de desenho.** O plano gratuito da Groq limita por minuto e por
   dia. Isso moldou o tamanho das amostras — n=6 em EXP-02 é consequência de cota, não de
-  escolha metodológica — e é a razão de EXP-05 seguir pendente.
+  escolha metodológica — e é a razão de a camada 2 seguir parcial.
 - **n pequeno e não independente.** Três seeds do mesmo caso não são três observações
   independentes. Onde reportei taxas sobre 51 execuções, o n efetivo está mais perto de 17.
