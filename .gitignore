@@ -48,3 +48,7 @@ _legado/
 
 # Companion visual do impeccable
 .impeccable/
+
+# Material de apoio pessoal (não faz parte da entrega do case)
+solution/docs/ROTEIRO-APRESENTACAO.md
+solution/docs/COMPARATIVO-TESTES.xlsx
