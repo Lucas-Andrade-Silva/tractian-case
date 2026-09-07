@@ -327,6 +327,116 @@ def test_normal_finish_does_not_trigger_retry(trace: Trace, client: ApiClient):
     assert final["decision"]["decision"] == "orientar"
 
 
+def test_reasoning_block_never_reaches_the_findings(trace: Trace, client: ApiClient):
+    """Rascunho de raciocinio no conteudo nao pode virar `finding`.
+
+    Medido no TKT-EXE-13: um bloco `<think>` de ~1.000 tokens entrou no resumo do
+    Investigador e foi reenviado ao Decisor a cada volta, custando +35% no caso. O bloco
+    aparece SEM fechamento quando o corte por `max_tokens` o interrompe no meio — que e
+    exatamente a situacao em que ele vaza.
+    """
+    script = [
+        Route(next="investigador", reason="investigar"),
+        AIMessage(content="<think>vou checar o baseline</think>baseline.state=learning (baseline)"),
+        Route(next="decisor", reason="chega"),
+        Decision(
+            decision="orientar",
+            justification="baseline em learning explica a ausencia de insight ao cliente",
+            intended_action=None,
+            answer="O baseline ainda estava aprendendo.",
+        ),
+    ]
+    graph = _build(script, trace=trace, client=client)
+
+    final = graph.invoke(_initial_state())
+
+    achado = next(f for f in final["findings"] if "investigador" in f)
+    assert "baseline.state=learning" in achado
+    assert "<think>" not in achado and "vou checar" not in achado
+
+
+def test_unterminated_reasoning_block_is_treated_as_empty(trace: Trace, client: ApiClient):
+    """Cortado dentro do `<think>`, nao ha resposta — e o retry precisa disparar.
+
+    Sem isso o rascunho inteiro seria gravado como se fosse o resumo.
+    """
+    script = [
+        Route(next="investigador", reason="investigar"),
+        AIMessage(
+            content="<think>Here's a thinking process: 1. Analyze the user input",
+            response_metadata={"finish_reason": "length"},
+        ),
+        AIMessage(content="baseline.state=established (baseline)"),
+        Route(next="decisor", reason="chega"),
+        Decision(
+            decision="orientar",
+            justification="evidencia suficiente para orientar o cliente sobre o baseline",
+            intended_action=None,
+            answer="Resposta.",
+        ),
+    ]
+    graph = _build(script, trace=trace, client=client)
+
+    final = graph.invoke(_initial_state())
+
+    achado = next(f for f in final["findings"] if "investigador" in f)
+    assert achado.endswith("baseline.state=established (baseline)")
+    assert "thinking process" not in achado
+
+
+def test_retry_uses_the_transcription_client(trace: Trace, client: ApiClient):
+    """O retry pede o cliente SEM raciocinio, nao o do papel.
+
+    Com o raciocinio ligado a segunda tentativa gasta o mesmo orcamento pensando e e
+    cortada igual — o defeito que o TKT-EXE-13 expos.
+    """
+    pedidos: list[str] = []
+
+    class ModelsQueRegistra:
+        def __init__(self, llm):
+            self._llm = llm
+
+        def for_role(self, role):
+            pedidos.append(f"role:{role}")
+            return self._llm
+
+        def for_transcription(self, role):
+            pedidos.append(f"transcricao:{role}")
+            return self._llm
+
+    settings = load_settings()
+    scripted = ScriptedLLM(
+        [
+            Route(next="investigador", reason="investigar"),
+            AIMessage(content="", response_metadata={"finish_reason": "length"}),
+            AIMessage(content="baseline.state=learning (baseline)"),
+            Route(next="decisor", reason="chega"),
+            Decision(
+                decision="orientar",
+                justification="evidencia suficiente para orientar o cliente neste caso",
+                intended_action=None,
+                answer="Resposta.",
+            ),
+        ]
+    )
+    graph = build_graph(
+        models=ModelsQueRegistra(scripted),
+        client=client,
+        settings=settings,
+        case=CASE,
+        trace=trace,
+        investigation_tools=investigation_tools(client),
+        knowledge_tools=knowledge_tools(client),
+        action_tools=action_tools(client, CASE["id"]),
+    )
+
+    graph.invoke(_initial_state())
+
+    assert "transcricao:investigador" in pedidos, (
+        f"o retry deveria usar o cliente de transcricao; pedidos={pedidos}"
+    )
+
+
 def test_403_reaches_the_agent_instead_of_blocking(trace: Trace, client: ApiClient):
     """ADR 0003: a ação sem permissão é tentada, rejeitada pela API, e o agente reage."""
     script = [

@@ -111,7 +111,7 @@ def settings_juiz(modelo: str) -> Settings:
     if not chave:
         raise ChaveDeJuizAusente(
             "O juiz roda no OpenRouter e não há chave configurada. Defina "
-            "JUDGE_API_KEY (ou OPENROUTER_API_KEY) em agent/.env — crie uma gratuita "
+            "JUDGE_API_KEY (ou OPENROUTER_API_KEY) em .env — crie uma gratuita "
             "em https://openrouter.ai/keys"
         )
     return Settings(

@@ -289,7 +289,7 @@ function cardRms(a, seeds, i) {
       ${r.alarm != null ? `<span><i class="key dash" style="border-top-color:var(--crit)"></i>Alarme ${num(r.alarm)} mm/s</span>` : ""}
     </div>`;
     if (r.alarm == null) {
-      html += `<p class="note">Baseline em <b>${esc(ESTADO[r.state] || r.state)}</b>: sem <code>reference + tolerance</code>, a API não devolve <code>alarm_threshold</code> e o gráfico não desenha linha de alarme. A série sozinha não diz se está alta.</p>`;
+      html += `<p class="note">Baseline em <b>${esc(ESTADO[r.state] || r.state)}</b>: sem limiar derivado, o gráfico não desenha linha de alarme.</p>`;
     } else if (ultimo >= r.alarm) {
       html += `<p class="note">Última leitura <b>${num(ultimo)} mm/s</b> cruzou o limiar de <b>${num(r.alarm)}</b> &mdash; ${num(((ultimo / r.alarm) - 1) * 100, 0)}% acima.</p>`;
     }
@@ -602,10 +602,8 @@ function secaoAgente(a) {
   let html = `<div class="divider">A solução &mdash; agente de suporte${
     experimento ? ` <span class="fase-tag">fase ${esc(m.fase)}</span>` : ""}</div>`;
   if (experimento) {
-    html += `<p class="fase-aviso">Esta página está exibindo a bateria
-      <code>${esc(m.fase)}</code>, não a produção. Os deltas de custo comparam contra
-      <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.
-      Rode <code>make leitura-dados</code> sem variáveis para voltar ao padrão.</p>`;
+    html += `<p class="fase-aviso">Bateria <code>${esc(m.fase)}</code>, não a produção. Deltas contra
+      <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.</p>`;
   }
 
   if (!cenarios.length) {
@@ -633,24 +631,25 @@ function secaoAgente(a) {
     <div class="chips"><span class="chip ${degradou.length ? "warn" : ""}">${
       degradou.length ? `${degradou.length} de 4 recursos degradam` : "dado idêntico nas 3 seeds"}</span></div></div>
     <p class="cen-q">${degradou.length
-      ? `Neste ativo, a API entrega <b>${degradou.map((r) => NOME_REC[r]).join(", ")}</b> em modos
-         diferentes conforme a seed &mdash; o agente enfrentou dados distintos em cada execução.
-         Quando as três decisões coincidem, é estabilidade sob degradação, não repetição:
-         as execuções são independentes (custo e trajetória variam entre elas).`
-      : `Neste ativo os quatro recursos vêm no mesmo modo nas três seeds, então as três
-         execuções viram o mesmo dado. A repetição aqui mede variação do próprio modelo,
-         não robustez a dado faltante.`}</p>
-    <p class="note">Os <b>valores</b> de RMS nunca mudam por seed &mdash; vêm do histórico do ativo.
-      A seed decide a <b>disponibilidade</b>: completo, parcial, inconclusivo ou indisponível.
-      Por isso seeds que caem no mesmo modo devolvem a mesma série &mdash; e a página as junta
-      num card só, com as seeds no título, em vez de repetir o gráfico. Onde a leitura
-      difere, o card se separa e diz o que aquela seed entregou.</p>
+      ? `A API entrega <b>${degradou.map((r) => NOME_REC[r]).join(", ")}</b> em modos diferentes
+         conforme a seed: cada execução viu um dado distinto. Decisões iguais aqui são
+         estabilidade, não repetição.`
+      : `Os quatro recursos vêm no mesmo modo nas três seeds. A repetição mede variação do
+         modelo, não robustez a dado faltante.`}</p>
+    <p class="note">A seed muda a <b>disponibilidade</b>, nunca os valores. Seeds no mesmo
+      modo dividem um card só.</p>
   </section>`;
 
-  for (const cen of cenarios) {
+  /* Um ativo com quatro cenarios rendia oito cards abertos de uma vez, e a tela virava
+     um rolo onde nada se acha. Cada cenario agora nasce fechado atras do proprio
+     cabecalho — que continua sendo o mesmo cabecalho de antes, so que clicavel — e
+     abrir um fecha o que estava aberto: um cenario por vez, sempre. */
+  html += `<div class="cens">`;
+  cenarios.forEach((cen, i) => {
     const ref = cen.por_seed.complete || Object.values(cen.por_seed)[0];
-    html += `<section class="card">
-      <div class="cen-hd">
+    const id = `cen-${a.id}-${i}`;
+    html += `<section class="card cen" data-cen="${id}">
+      <button class="cen-hd cen-tg" type="button" aria-expanded="false" aria-controls="${id}">
         <div>
           <h3>${esc(cen.cenario)} &middot; ${esc(cen.ticket)}</h3>
           ${cen.questao ? `<p class="cen-q">${esc(cen.questao)}</p>` : ""}
@@ -658,25 +657,26 @@ function secaoAgente(a) {
         <div class="chips">
           <span class="chip">esperado: ${cen.aceitas.map((d) => esc(DECISAO[d] || d)).join(" ou ") || "—"}</span>
           ${cen.ambiguo ? `<span class="chip warn"><span class="dot"></span>ambíguo</span>` : ""}
+          <span class="cen-caret" aria-hidden="true"></span>
         </div>
+      </button>
+      <div class="cen-body" id="${id}" hidden>
+        ${ref?.mensagem ? `<blockquote class="msg">${esc(ref.mensagem)}<cite>${esc(quemPediu(ref.solicitante))}</cite></blockquote>` : ""}
+        ${colunasSeeds(cen)}
+        ${barraConcordancia(cen)}
+        ${ref ? `<div class="cen-traj">
+          <div class="card-hd"><h2>Trajetória &middot; ${esc(cen.cenario)}</h2>
+          <div class="chips"><span class="chip">seed complete</span>
+          <span class="chip">${ref.avaliacao.gets_feitos ?? "—"} consultas feitas</span>
+          <span class="chip ${veredito(ref).cls}"><span class="dot"></span>${esc(veredito(ref).rotulo)}</span></div></div>
+          ${trajetoria(cen, ref)}
+          ${papeis(ref)}
+          ${ref.resposta ? `<div class="answer">${textoRico(ref.resposta)}</div>` : ""}
+        </div>` : ""}
       </div>
-      ${ref?.mensagem ? `<blockquote class="msg">${esc(ref.mensagem)}<cite>${esc(quemPediu(ref.solicitante))}</cite></blockquote>` : ""}
-      ${colunasSeeds(cen)}
-      ${barraConcordancia(cen)}
     </section>`;
-
-    if (ref) {
-      html += `<section class="card">
-        <div class="card-hd"><h2>Trajetória &middot; ${esc(cen.cenario)}</h2>
-        <div class="chips"><span class="chip">seed complete</span>
-        <span class="chip">${ref.avaliacao.gets_feitos ?? "—"} consultas feitas</span>
-        <span class="chip ${veredito(ref).cls}"><span class="dot"></span>${esc(veredito(ref).rotulo)}</span></div></div>
-        ${trajetoria(cen, ref)}
-        ${papeis(ref)}
-        ${ref.resposta ? `<div class="answer">${textoRico(ref.resposta)}</div>` : ""}
-      </section>`;
-    }
-  }
+  });
+  html += `</div>`;
   return html + cardConsulta(a);
 }
 
@@ -728,9 +728,7 @@ function vereditoAoVivo(r) {
       <span>${esc(DIMENSAO[dim] || dim)}</span>
       <span class="juiz-n">${v.score}<small>/5</small></span>
     </div>`).join("")}
-    <p class="juiz-nota">Média ${num(media, 1)}/5 contra um gabarito que um LLM escreveu a
-      partir desta mensagem &mdash; não contra gabarito humano. Nunca entra nas métricas dos
-      ${AGENTE.cobertura?.casos_total ?? 17} casos (ADR 0007).</p>
+    <p class="note">Média ${num(media, 1)}/5 contra gabarito de LLM, não humano (ADR 0007).</p>
   </div>`;
 }
 
@@ -738,8 +736,7 @@ function cardConsulta(a) {
   return `<section class="card" id="consulta">
     <div class="card-hd"><h2>Perguntar ao agente sobre este ativo</h2>
     <div class="chips"><span class="chip">execução ao vivo</span></div></div>
-    <p class="cen-q">O mesmo grafo dos cenários da bateria, sobre a API real.
-      Medido nas execuções já registradas: <b>mediana de ~75 s</b>, e uma em cada dez passa de 3 minutos.</p>
+    <p class="cen-q">O mesmo grafo da bateria, sobre a API real. Mediana de ~75&nbsp;s.</p>
     <div class="ask">
       <input id="q" type="text" placeholder="O que você observou neste ativo?" aria-label="Pergunta sobre ${esc(a.name)}">
       <select id="quem" aria-label="Quem está perguntando"></select>
@@ -749,7 +746,7 @@ function cardConsulta(a) {
       <span>Julgar a resposta com o comitê <b>·</b> soma ~30 s e três chamadas de LLM</span></label>
     <div class="hints">${sugestoes(a).map((s) => `<button class="hint" type="button">${esc(s)}</button>`).join("")}</div>
     <div id="saida"></div>
-    <p class="synth">A resposta desta consulta é avaliada como <b>sintética</b> (ADR 0007) e nunca entra nas métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos da bateria &mdash; um caso tem gabarito escrito à mão, uma pergunta livre não.</p>
+    <p class="synth">Avaliação <b>sintética</b> (ADR 0007): fora das métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos.</p>
   </section>`;
 }
 
@@ -795,9 +792,7 @@ function desenhaRegistrados(a, lista) {
     <div class="card-hd"><h2>Cenários registrados neste ativo</h2>
       <div class="chips"><span class="chip">${lista.length} ${lista.length === 1 ? "registrado" : "registrados"}</span>
         <span class="chip warn"><span class="dot"></span>sintético</span></div></div>
-    <p class="cen-q">Consultas livres que alguém nomeou para ficarem visíveis aqui. Não têm
-      <code>expected_path</code> escrito à mão, então <b>não entram</b> nas métricas dos
-      ${AGENTE.cobertura?.casos_total ?? 17} casos da bateria (ADR 0007).</p>
+    <p class="cen-q">Consultas livres marcadas para ficar visíveis. Fora das métricas dos ${AGENTE.cobertura.casos_total ?? 17} casos (ADR 0007).</p>
     ${lista.map((c) => cartaoRegistrado(c)).join("")}`;
 
   alvo.querySelectorAll("[data-desreg]").forEach((el) => {
@@ -888,10 +883,7 @@ function blocoVeredito() {
       <button class="btn ghost" data-vh="0">Não</button>
       <input id="vh-txt" type="text" maxlength="600" placeholder="Por quê? (opcional)" aria-label="Justificativa do veredito">
     </div>
-    <p class="note">É a única nota deste sistema que não vem de um LLM &mdash; e por isso a
-      única que poderia calibrar o comitê, que hoje ordena execuções sem estar aferido
-      contra anotação humana. <b>Não volta para o agente</b>: uma nota que realimenta o
-      sistema que ela mede deixa de medi-lo.</p>
+    <p class="note">Única nota que não vem de um LLM. Não volta para o agente.</p>
   </div>`;
 }
 
@@ -1239,6 +1231,23 @@ function desenhar() {
   if (go) go.addEventListener("click", () => consultar(a));
   const q = document.getElementById("q");
   if (q) q.addEventListener("keydown", (e) => { if (e.key === "Enter") consultar(a); });
+  /* Acordeao dos cenarios: um aberto por vez. Os graficos das seeds sao desenhados
+     em SVG que ja esta no DOM mesmo escondido, e o tooltip mede o
+     getBoundingClientRect() so no hover — abrir nao exige redesenhar nada. */
+  panel.querySelectorAll(".cen-tg").forEach((tg) => {
+    tg.addEventListener("click", () => {
+      const corpo = document.getElementById(tg.getAttribute("aria-controls"));
+      const abrindo = tg.getAttribute("aria-expanded") !== "true";
+      panel.querySelectorAll(".cen-tg[aria-expanded=\"true\"]").forEach((o) => {
+        o.setAttribute("aria-expanded", "false");
+        const c = document.getElementById(o.getAttribute("aria-controls"));
+        if (c) c.hidden = true;
+      });
+      tg.setAttribute("aria-expanded", String(abrindo));
+      if (corpo) corpo.hidden = !abrindo;
+    });
+  });
+
   panel.querySelectorAll(".hint").forEach((h) => {
     h.addEventListener("click", () => {
       document.getElementById("q").value = h.textContent;
@@ -1299,6 +1308,12 @@ function aplicaTema() {
 function blocoExperimento() {
   const pos = AGENTE.agregados || {};
   const base = AGENTE.agregados_baseline || {};
+  // Os rótulos das colunas seguem a fase de fato exibida — `AGENTE.fase_anterior` é o
+  // nome real de `agregados_baseline` (nem sempre é a bateria "baseline" literal: numa
+  // bateria de política, por exemplo, `fase_anterior` é `pos-correcao`). Rótulo fixo
+  // aqui já produziu números certos sob nome errado quando a página trocava de fase.
+  const nomeAnterior = AGENTE.fase_anterior || "baseline";
+  const nomeAtual = (AGENTE.meta || {}).fase || "pos-correcao";
   const linha = (k, a, d, dec = 1, menorMelhor = true, suf = "") => {
     if (a == null || d == null) return "";
     const dif = d - a;
@@ -1311,8 +1326,8 @@ function blocoExperimento() {
   return `<div class="exp">
     <div class="exp-l first">
       <span class="exp-k" style="color:var(--ink-3);font-size:10px;letter-spacing:.08em;text-transform:uppercase">métrica</span>
-      <span class="exp-a">baseline</span><span></span><span class="exp-s"></span>
-      <span class="exp-d" style="font-size:11px">pós-correção</span>
+      <span class="exp-a">${esc(nomeAnterior)}</span><span></span><span class="exp-s"></span>
+      <span class="exp-d" style="font-size:11px">${esc(nomeAtual)}</span>
     </div>
     ${linha("acurácia de decisão", (base.acuracia_decisao ?? 0) * 100, (pos.acuracia_decisao ?? 0) * 100, 1, false, "%")}
     ${linha("tokens por execução", base.tokens_medio, pos.tokens_medio, 0)}
@@ -1328,16 +1343,79 @@ function blocoExperimento() {
 async function trocaFase(nome, aoTerminar) {
   const entrada = FASES.fases.find((f) => f.nome === nome);
   if (!entrada || nome === AGENTE.meta?.fase) return;
+  /* O indice de uma fase tem ~330 KB. Sem esqueleto, a tela fica congelada na fase
+     anterior durante a troca: quem clicou ve os numeros velhos e nao sabe se o clique
+     pegou. Aqui o painel se esvazia primeiro — o vazio e o sinal de que trocou. */
+  esqueleto();
   try {
     AGENTE = await fetch(`../dados/${entrada.arquivo}`).then((r) => r.json());
     guarda.escrever("fase", nome);
+    fimDoEsqueleto();
     atualizaProcedencia();
     lista();
     desenhar();
     aoTerminar?.();
   } catch (e) {
     console.error("não foi possível carregar a fase", nome, e);
+    /* A fase pedida nao veio, mas `AGENTE` ainda tem a anterior intacta: redesenhar
+       devolve a tela que estava no ar, em vez de deixar o esqueleto pulsando. */
+    fimDoEsqueleto();
+    lista();
+    desenhar();
   }
+}
+
+/* Seletor do modelo que julga. O catalogo vem do OpenRouter ao vivo (`/juiz/modelos`),
+   com fallback para a lista local quando a API nao responde — por isso a carga e
+   assincrona e o bloco nasce num estado de espera.
+
+   Um modelo para as tres dimensoes, nao tres seletores: a escolha por dimensao existe no
+   backend (`JUDGE_MODEL_<DIMENSAO>`) e serve para fixar um resultado ja testado, nao para
+   ser mexida a cada execucao. Tres controles aqui sugeririam que variar por dimensao e
+   rotina, quando o uso normal e comparar o mesmo juiz entre execucoes. */
+function corpoJuizModelo() {
+  if (!JUIZ.carregado) {
+    return `<p class="eng-esp">carregando os modelos disponíveis no OpenRouter…</p>`;
+  }
+  if (!JUIZ.chaveOk) {
+    return `<p>Sem <code>JUDGE_API_KEY</code> no <code>.env</code>: o comitê não roda.</p>`;
+  }
+  if (!JUIZ.modelos.length) {
+    return `<p>Nenhum modelo gratuito disponível agora; vale o padrão do <code>.env</code>.</p>`;
+  }
+
+  const padrao = (JUIZ.dimensoes[0] || {}).padrao || "";
+  const opcoes = JUIZ.modelos.map((m) => `<option value="${esc(m.id)}"${
+    m.id === JUIZ.escolhido ? " selected" : ""}>${esc(m.id)}${
+    m.descricao ? ` — ${esc(m.descricao)}` : ""}</option>`).join("");
+
+  return `<p>Quem julga a resposta nas três dimensões. Só modelos <code>:free</code> com
+      saída estruturada.</p>
+    <div class="eng-lin">
+      <select class="juiz-sel" id="sel-juiz">
+        <option value=""${JUIZ.escolhido ? "" : " selected"}>padrão do .env — ${esc(padrao)}</option>
+        ${opcoes}
+      </select>
+    </div>
+    <p class="eng-esp">Modelo menor: mais rápido, julga pior. Trocar entre execuções torna
+      as notas incomparáveis.</p>`;
+}
+
+/* Busca o catalogo uma vez por sessao. A chamada ao OpenRouter leva alguns segundos e o
+   resultado nao muda no meio de uma sessao de uso. */
+async function carregaJuizModelos(aoTerminar) {
+  if (JUIZ.carregado) return;
+  try {
+    const r = await fetch(`${API_AGENTE}/juiz/modelos`).then((x) => x.json());
+    JUIZ.modelos = r.modelos || [];
+    JUIZ.dimensoes = r.dimensoes || [];
+    JUIZ.chaveOk = r.chave_configurada !== false;
+  } catch {
+    /* Sem o agente no ar o seletor nao tem o que oferecer; o estado vazio ja diz isso. */
+    JUIZ.modelos = [];
+  }
+  JUIZ.carregado = true;
+  aoTerminar?.();
 }
 
 function corpoConfiguracao() {
@@ -1359,14 +1437,15 @@ function corpoConfiguracao() {
     </div>
 
     <div class="eng-s">
+      <h3>Modelo do comitê de juízes</h3>
+      ${corpoJuizModelo()}
+    </div>
+
+    <div class="eng-s">
       <h3>Retorno humano</h3>
-      <p>Depois de cada consulta ao vivo, perguntar se a decisão do agente estava certa.
-        A resposta fica gravada com a consulta e <b>não volta para o agente</b> &mdash;
-        uma nota que realimenta o sistema que ela mede deixa de medi-lo.</p>
-      <p>Serve a quem está usando a página para avaliar, não a quem só quer a leitura do
-        ativo. Por isso é uma escolha, e vem desligada. É também o único rótulo não-LLM
-        deste sistema: sem ele, o comitê de juízes continua ordenando execuções sem estar
-        aferido contra ninguém.</p>
+      <p>Pergunta, depois de cada consulta, se a decisão estava certa. A resposta fica
+        gravada e <b>não volta para o agente</b>.</p>
+      <p>Único rótulo não-LLM do sistema. Vem desligado.</p>
       <div class="eng-lin">
         <button class="sw" id="sw-retorno" aria-pressed="${retorno}">${retorno ? "Pedindo veredito" : "Pedir veredito nas consultas"}</button>
       </div>
@@ -1374,8 +1453,7 @@ function corpoConfiguracao() {
 
     <div class="eng-s">
       <h3>Política de evidência</h3>
-      <p>O que o Investigador apura antes de encerrar. É variável de experimento: as duas
-        são defensáveis, e qual rende melhor recall por token é medição, não opinião.</p>
+      <p>O que o Investigador apura antes de encerrar.</p>
       <div class="pol">${["fixed", "conditional"].map((pol, i) => {
         // A fase que roda esta política. `baseline` e `pos-correcao` rodam as duas
         // `fixed`; o card deve levar à produção, não à versão anterior do agente.
@@ -1407,36 +1485,26 @@ function corpoConfiguracao() {
           ${rodape}
         </div>`;
       }).join("")}</div>
-      <p style="margin-top:9px"><b>Duas medições, sinais opostos de custo</b>. O EXP-02
-        (6 pares) viu <code>conditional</code> gastando 8% <i>menos</i>; o EXP-06 (18 pares,
-        as três famílias de caso) vê <b>13% mais</b> — e mais chamadas, mais GETs, em todas
-        as famílias, inclusive a conceitual, que era onde ela deveria economizar.</p>
-      <p>A repetição de chamadas sai de <b>zero</b> em <code>fixed</code> para 3,4%: sem a
-        lista fixa dos quatro pilares, o Investigador perde o critério de parada e reconsulta
-        para decidir que terminou.</p>
-      <p><b>A decisão não muda</b> — 18/18 nos dois braços, zero divergências par a par. É o
-        achado que se repete nos dois experimentos: a política afeta custo, não desfecho.
-        Detalhes e limitações em <code>solution/docs/experimentos/EXP-06-*.md</code>.</p>
+      <p style="margin-top:9px"><b>Sinais opostos.</b> O EXP-02 (6 pares) viu
+        <code>conditional</code> 8% <i>mais barata</i>; o EXP-06 (18 pares) viu <b>13% mais
+        cara</b>, em todas as famílias.</p>
+      <p>A decisão não muda: 18/18 nos dois braços. A política afeta custo, não desfecho.</p>
     </div>
 
     <div class="eng-s">
       <h3>Metodologia</h3>
-      <p><b>Três camadas.</b> A camada 1 mede a trajetória contra o <code>expected_path</code>
-        escrito à mão; a camada 2 compara a decisão com as <code>decisoes_aceitas</code>;
-        a camada 3 mede estabilidade entre as três seeds da mesma execução.</p>
-      <p><b>Duas fases.</b> <code>baseline</code> e <code>pos-correcao</code> rodaram os mesmos
-        ${AGENTE.agregados?.execucoes ?? 51} pares caso × seed, com a mesma configuração de
-        modelos &mdash; o que mudou foram os prompts. A tabela abaixo é sempre essa comparação,
-        independente da bateria exibida.</p>
+      <p><b>Três camadas.</b> Trajetória contra <code>expected_path</code>; decisão contra
+        <code>decisoes_aceitas</code>; estabilidade entre as três seeds.</p>
+      <p><b>Fases.</b> Mesmos ${AGENTE.agregados?.execucoes ?? 51} pares caso × seed, mesma
+        configuração de modelos; mudaram os prompts. Abaixo,
+        <code>${esc((AGENTE.meta || {}).fase || "pos-correcao")}</code> contra
+        <code>${esc(AGENTE.fase_anterior || "pos-correcao")}</code>.</p>
       ${blocoExperimento()}
-      <p style="margin-top:10px"><b>Comitê de juízes.</b> ${jm.julgadas ?? 0} de
-        ${jm.elegiveis ?? 0} execuções julgadas, todas da fase <code>baseline</code>, por
-        <code>${esc(jm.modelo || "—")}</code> no OpenRouter. O juiz roda sempre em provedor
-        diferente do gerador do gabarito, para que nenhum modelo julgue a si mesmo.
-        Não é calibrado contra anotação humana: ordena execuções, não mede acerto.</p>
-      <p><b>Fronteira sintética (ADR 0007).</b> Consultas livres nunca entram nas métricas
-        dos ${AGENTE.cobertura?.casos_total ?? 17} casos: um caso tem gabarito escrito à mão,
-        uma pergunta livre tem uma questão de referência que um LLM escreveu depois.</p>
+      <p style="margin-top:10px"><b>Comitê.</b> ${jm.julgadas ?? 0} de ${jm.elegiveis ?? 0}
+        execuções julgadas por <code>${esc(jm.modelo || "—")}</code>, todas da fase
+        <code>baseline</code>. Sem calibração humana.</p>
+      <p><b>Fronteira sintética (ADR 0007).</b> Consulta livre não entra nas métricas dos
+        ${AGENTE.cobertura?.casos_total ?? 17} casos: gabarito à mão de um lado, LLM do outro.</p>
     </div>`;
 }
 
@@ -1456,39 +1524,231 @@ function marcaNivel(passou, rotulo) {
   return `<span class="xp-lv ${passou ? "ok" : "no"}">${passou ? "✔" : "✘"} ${rotulo}</span>`;
 }
 
-/* Os quatro casos do EXP-07, cada um com o critério que o julgou. Mostrar o veredito sem o
-   critério ao lado obrigaria o leitor a acreditar; com ele, dá para discordar. */
-function casosExp07(d) {
-  return `<div class="xp-c">${d.casos.map((c) => {
-    const falhou = !c.nivel2;
-    const dec = c.bracos?.decisivo || {};
-    return `<div class="xp-cl${falhou ? " fail" : ""}">
-      <div class="xp-ch">
-        <span class="xp-cn">${esc(c.letra)}</span>
-        <span class="xp-ct">${esc(c.titulo)}</span>
-        <span class="xp-cb">
-          ${marcaNivel(c.nivel1, "leu")}
-          ${marcaNivel(c.nivel2, "usou")}
-          ${marcaNivel(!c.placebo_mudou, "placebo")}
-        </span>
-      </div>
-      <p class="xp-cm"><b>Mutação:</b> ${esc(c.mutacao)} &middot; <i>${esc(c.pressao)}</i></p>
-      <p class="xp-cm" style="color:var(--ink-3)">Decisor, braço mutado:
-        &ldquo;${esc((dec.justificativa || "").slice(0, 210))}${(dec.justificativa || "").length > 210 ? "…" : ""}&rdquo;</p>
-    </div>`;
-  }).join("")}</div>`;
+/* Estado dos exploradores: qual amostra cada experimento mostra, e se o bloco de método
+   está aberto. Vive fora do DOM porque a aba é redesenhada inteira a cada interação —
+   guardar a posição no HTML significaria perdê-la a cada clique. */
+const XP_ABERTO = {};   // id do experimento -> índice da amostra em foco
+const XP_METODO = {};   // id do experimento -> método/limitações expandidos
+const XP_FILTRO = {};   // EXP-04 -> fase selecionada
+
+const corta = (s, n) => {
+  const t = String(s || "");
+  return esc(t.length > n ? `${t.slice(0, n)}…` : t);
+};
+
+/* Um experimento não é um parágrafo com um número no fim: é uma afirmação e as execuções
+   que a produziram. Cada explorador desenha o placar recontado do JSON e deixa abrir as
+   amostras uma a uma. Nenhum número é escrito aqui — todos vêm de dados/experimentos.json,
+   derivado dos traces em disco. */
+
+/* Placar: as caixas de número no topo do explorador. `fail` pinta de vermelho o que
+   contraria a hipótese — é como o EXP-06 mostra sozinho que 1 dos 4 casos falhou. */
+function placar(itens) {
+  return `<dl class="xp-sc">${itens.map((i) => `
+    <div class="${i.fail ? "fail" : ""}"><dt>${esc(i.k)}</dt>
+      <dd>${esc(i.v)}${i.de ? `<small> / ${esc(i.de)}</small>` : ""}</dd></div>`).join("")}</dl>`;
 }
 
-function blocoExp07(d) {
-  const falhou = d.n2 < d.total;
-  return `
-    <dl class="xp-sc">
-      <div><dt>Investigador leu o campo</dt><dd>${d.n1}<small> / ${d.total}</small></dd></div>
-      <div class="${falhou ? "fail" : ""}"><dt>Decisor usou como critério</dt><dd>${d.n2}<small> / ${d.total}</small></dd></div>
-      <div><dt>Placebo mudou a conclusão</dt><dd>${d.placebo}<small> / ${d.total}</small></dd></div>
-    </dl>
-    ${casosExp07(d)}`;
+/* Navegação das amostras. O contador diz onde o leitor está em quantos: um "próximo" sem
+   denominador esconderia o tamanho da amostra, que aqui é metade do argumento. */
+function navegador(id, i, total, rotulo) {
+  return `<div class="xp-nav">
+    <button class="xp-nb" data-xp-ir="${id}:${i - 1}" ${i <= 0 ? "disabled" : ""}
+      aria-label="Amostra anterior">←</button>
+    <span class="xp-np">${esc(rotulo)} <b>${i + 1}</b> de ${total}</span>
+    <button class="xp-nb" data-xp-ir="${id}:${i + 1}" ${i >= total - 1 ? "disabled" : ""}
+      aria-label="Próxima amostra">→</button>
+  </div>`;
 }
+
+/* Duas execuções lado a lado — o formato dos EXP-01 e EXP-02, que são pareados. Entre eles
+   muda só o rótulo das colunas e se o custo importa para a hipótese. */
+function parLadoALado(a, b, rot, mostraCusto) {
+  const cel = (x, r) => `
+    <div class="xp-br">
+      <div class="xp-brt">${esc(r)}</div>
+      <div class="xp-brd ${x.acertou ? "ok" : "no"}">${esc(x.decisao || "—")}
+        <span class="xp-brm">${x.acertou ? "✔ esperada" : "✘ diferente"}</span></div>
+      ${mostraCusto ? `<div class="xp-brc">${(x.tokens || 0).toLocaleString("pt-BR")} tokens ·
+        ${x.chamadas ?? "—"} chamadas</div>` : ""}
+      <p class="xp-brj">${corta(x.justificativa, 300)}</p>
+    </div>`;
+  return `<div class="xp-par">${cel(a, rot[0])}${cel(b, rot[1])}</div>`;
+}
+
+function exploradorPar(e, id, rot, mostraCusto) {
+  const d = e.explorador;
+  if (!d || !d.linhas?.length) return "";
+  const i = Math.min(XP_ABERTO[id] ?? 0, d.linhas.length - 1);
+  const ln = d.linhas[i];
+  const pct = (x) => `${x > 0 ? "+" : ""}${String(x).replace(".", ",")}%`;
+  // Cada experimento pareado tem um placar próprio porque mede coisa diferente: o EXP-01
+  // compra decisão, o EXP-02 compra custo, e o EXP-07 é o único que troca uma pela outra —
+  // mostrar só um dos dois lados dele contaria metade do resultado.
+  const itens = id === "EXP-01"
+    ? [{ k: "pares", v: d.total },
+       { k: "decisão corrigida", v: d.corrigiu },
+       { k: "regressões", v: d.regrediu, fail: d.regrediu > 0 }]
+    : id === "EXP-07"
+    ? [{ k: "pares", v: d.total },
+       { k: "regressões", v: d.regrediu, fail: d.regrediu > 0 },
+       { k: "correções", v: d.corrigiu },
+       { k: "acerto", v: `${d.acertos_a}/${d.total} → ${d.acertos_b}/${d.total}`,
+         fail: d.acertos_b < d.acertos_a },
+       { k: "custo em tokens", v: pct(d.delta_tokens) }]
+    : [{ k: "pares", v: d.total },
+       { k: "decisões divergentes", v: d.divergiu, fail: d.divergiu > 0 },
+       { k: "custo em tokens", v: pct(d.delta_tokens) }];
+  return `
+    ${placar(itens)}
+    ${navegador(id, i, d.linhas.length, "par")}
+    <div class="xp-am">
+      <div class="xp-amh">
+        <code class="xp-amc">${esc(ln.caso)}</code>
+        <span class="xp-ams">seed ${esc(ln.seed)}</span>
+        <span class="xp-ame ${esc(ln.efeito)}">${esc(ln.efeito)}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(ln.ticket, 200)}&rdquo;</p>
+      ${parLadoALado(ln.a, ln.b, rot, mostraCusto)}
+    </div>`;
+}
+
+/* EXP-03: os encontros com 403. As duas afirmações do experimento — não insistiu, explicou
+   — aparecem como contagem medida ao lado da execução que dá para conferir. */
+function exploradorExp03(e) {
+  const d = e.explorador;
+  if (!d || !d.casos?.length) return "";
+  const i = Math.min(XP_ABERTO["EXP-03"] ?? 0, d.casos.length - 1);
+  const c = d.casos[i];
+  return `
+    ${placar([
+      { k: "recusas 403", v: d.total },
+      { k: "sem insistir", v: d.sem_insistir, de: d.total, fail: d.sem_insistir < d.total },
+      { k: "explicaram ao usuário", v: d.explicaram, de: d.total, fail: d.explicaram < d.total },
+    ])}
+    ${navegador("EXP-03", i, d.casos.length, "recusa")}
+    <div class="xp-am">
+      <div class="xp-amh">
+        <code class="xp-amc">${esc(c.caso)}</code>
+        <span class="xp-ams">seed ${esc(c.seed)} · ${esc(c.fase)}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(c.ticket, 170)}&rdquo;</p>
+      <div class="xp-403">
+        <div class="xp-4l"><span class="xp-4k">quem pediu</span>
+          <span>${esc(c.usuario)} · <i>${esc(c.papel)}</i> · ${esc((c.permissoes || []).join(", "))}</span></div>
+        <div class="xp-4l"><span class="xp-4k">a API recusou</span>
+          <span><code>${esc(c.rota)}</code> <b class="xp-4n">403</b>
+            exige <code>${esc(c.exigida)}</code></span></div>
+        <div class="xp-4l"><span class="xp-4k">tentou de novo</span>
+          <span class="${c.tentou_de_novo ? "xp-4r" : "xp-4g"}">${c.tentou_de_novo === 0
+            ? "não — nenhuma repetição da rota recusada"
+            : `sim, ${c.tentou_de_novo}×`}</span></div>
+      </div>
+      <p class="xp-brj"><b>Resposta ao usuário:</b> ${corta(c.resposta, 420)}</p>
+    </div>`;
+}
+
+/* EXP-04: a hipótese é uma constante, então o explorador é a lista ordenada pelo pior caso.
+   Se alguma execução tivesse 2 chamadas, ela seria a primeira linha — a ordenação é o
+   teste, não a decoração. */
+function exploradorExp04(e) {
+  const d = e.explorador;
+  if (!d || !d.linhas?.length) return "";
+  const fases = ["todas", ...new Set(d.linhas.map((l) => l.fase))];
+  const f = XP_FILTRO["EXP-04"] || "todas";
+  const linhas = f === "todas" ? d.linhas : d.linhas.filter((l) => l.fase === f);
+  const max = linhas.reduce((m, l) => Math.max(m, l.decisor), 0);
+  const api = linhas.reduce((s, l) => s + l.api_decisor, 0);
+  const mostradas = Math.min(6, linhas.length);
+  return `
+    ${placar([
+      { k: "execuções", v: linhas.length },
+      { k: "máx. de chamadas do Decisor", v: max, fail: max !== 1 },
+      { k: "consultas de API do Decisor", v: api, fail: api > 0 },
+    ])}
+    <div class="xp-fil">${fases.map((x) => `<button class="xp-fb${x === f ? " on" : ""}"
+      data-xp-f="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    <div class="xp-tb">
+      <div class="xp-tr xp-th">
+        <span>execução</span><span>Decisor · LLM</span>
+        <span>Decisor · API</span><span>LLM na execução</span>
+      </div>
+      ${linhas.slice(0, 6).map((l) => `<div class="xp-tr">
+        <span><code>${esc(l.caso)}</code> <i>${esc(l.seed)}</i></span>
+        <span class="${l.decisor === 1 ? "xp-4g" : "xp-4r"}">${l.decisor}</span>
+        <span class="${l.api_decisor === 0 ? "xp-4g" : "xp-4r"}">${l.api_decisor}</span>
+        <span class="xp-tm">${l.total_llm}</span>
+      </div>`).join("")}
+    </div>
+    <p class="xp-nota">Ordenado pela maior contagem do Decisor: um contraexemplo apareceria
+      na primeira linha. Mostrando ${mostradas} de ${linhas.length}.</p>`;
+}
+
+/* EXP-06: três braços da mesma execução. O placebo é a coluna que faz o experimento valer —
+   sem ela, "mudou junto com a mutação" não se separa de "muda com qualquer coisa". */
+function exploradorExp07(e) {
+  const d = e.derivado;
+  if (!d || !d.casos?.length) return "";
+  const i = Math.min(XP_ABERTO["EXP-06"] ?? 0, d.casos.length - 1);
+  const c = d.casos[i];
+  const braco = (k, rot, nota) => {
+    const b = c.bracos?.[k] || {};
+    return `<div class="xp-br">
+      <div class="xp-brt">${esc(rot)}<span class="xp-brn">${esc(nota)}</span></div>
+      <div class="xp-brd">${esc(b.decisao || "—")}</div>
+      <p class="xp-brj">${corta(b.justificativa, 260)}</p>
+    </div>`;
+  };
+  return `
+    ${placar([
+      { k: "Investigador leu o campo", v: d.n1, de: d.total },
+      { k: "Decisor usou como critério", v: d.n2, de: d.total, fail: d.n2 < d.total },
+      { k: "Placebo mudou a conclusão", v: d.placebo, de: d.total, fail: d.placebo > 0 },
+    ])}
+    ${navegador("EXP-06", i, d.casos.length, "caso")}
+    <div class="xp-am${!c.nivel2 ? " fail" : ""}">
+      <div class="xp-amh">
+        <span class="xp-cn">${esc(c.letra)}</span>
+        <span class="xp-ct">${esc(c.titulo)}</span>
+        <span class="xp-cb">${marcaNivel(c.nivel1, "leu")}${marcaNivel(c.nivel2, "usou")}${marcaNivel(!c.placebo_mudou, "placebo")}</span>
+      </div>
+      <p class="xp-amt">&ldquo;${corta(c.ticket, 170)}&rdquo; <i>— ${esc(c.pressao)}</i></p>
+      <p class="xp-cm"><b>O que foi mutado:</b> ${esc(c.mutacao)}</p>
+      <div class="xp-par tres">
+        ${braco("controle", "controle", "sem mutação")}
+        ${braco("decisivo", "mutado", "campo decisivo alterado")}
+        ${braco("placebo", "placebo", "campo irrelevante alterado")}
+      </div>
+    </div>`;
+}
+
+function explorador(e) {
+  if (e.id === "EXP-01") return exploradorPar(e, "EXP-01", ["baseline", "pós-correção"], false);
+  if (e.id === "EXP-02") return exploradorPar(e, "EXP-02", ["fixed · 4 pilares", "conditional · sob demanda"], true);
+  if (e.id === "EXP-03") return exploradorExp03(e);
+  if (e.id === "EXP-04") return exploradorExp04(e);
+  if (e.id === "EXP-06") return exploradorExp07(e);
+  // Mesmo explorador pareado do EXP-01, de propósito: as duas medições são a mesma
+  // comparação de decisão, e a simetria é o que deixa ver 4 correções de um lado contra
+  // 3 regressões do outro. `true` mostra a coluna de custo — aqui ela é metade do achado.
+  if (e.id === "EXP-07") return exploradorPar(e, "EXP-07", ["pós-correção", "fixed-atual · prompt enxuto"], true);
+  return "";
+}
+
+/* A pergunta que o experimento responde, e a resposta em uma linha. Substitui o parágrafo
+   de resumo: quem quer o método clica em "como isso foi medido". O texto é editorial e não
+   carrega número — os números estão no placar, que vem do JSON. */
+const PERGUNTA = {
+  "EXP-01": ["Dizer ao Decisor <i>quando orientar não basta</i> melhora a decisão?", "Sim."],
+  "EXP-02": ["Apurar sempre os 4 pilares decide melhor que apurar sob demanda?",
+             "Não — muda o custo, não o desfecho."],
+  "EXP-03": ["Deixar a API recusar com 403 basta para o agente parar e ser honesto?", "Sim."],
+  "EXP-04": ["Um Decisor sem tools custa sempre 1 chamada de LLM?", "Sim, em toda a bateria."],
+  "EXP-06": ["A decisão vem da evidência apurada ou do que o chamado afirma?",
+             "Da evidência — com uma falha em quatro."],
+  "EXP-07": ["Cortar o brief do Supervisor economiza sem custar decisão?",
+             "Não — economizou 15%, e devolveu 3 decisões ao <i>orientar</i>."],
+};
 
 function corpoExperimentos() {
   if (!EXPERIMENTOS) {
@@ -1499,50 +1759,520 @@ function corpoExperimentos() {
 
   const itens = EXPERIMENTOS.experimentos.map((e) => {
     const [cls, rotulo] = VEREDITO[e.veredito] || VEREDITO.parcial;
-    const d = e.derivado;
-    const derivado = e.fonte === "derivado";
+    const [pergunta, resposta] = PERGUNTA[e.id] || [e.hipotese, ""];
+    const aberto = XP_METODO[e.id];
     return `<div class="xp-i">
       <div class="xp-hd">
         <span class="xp-id">${esc(e.id)}</span>
         <h3 class="xp-t">${esc(e.titulo)}</h3>
         <span class="xp-n"><span class="xp-v ${cls}">${rotulo}</span> &middot; n = ${esc(e.n)}</span>
       </div>
-      <p class="xp-h">${e.hipotese}</p>
-      ${e.id === "EXP-04" && d ? `<p class="xp-r"><b>${d.chamadas_por_execucao}</b>
-        chamadas de LLM por execução em ${d.execucoes} execuções, e
-        <b>${d.consultas_api}</b> consultas de API pelo Decisor.</p>` : ""}
-      <p class="xp-r">${esc(e.resumo)}</p>
-      <p class="xp-go"><b>Nesta página:</b> ${esc(e.na_pagina)}</p>
-      ${/* O detalhe do EXP-07 vem depois da prosa: o texto anuncia "os quatro casos
-            abaixo", e com o bloco antes a referência apontaria para trás. */ ""}
-      ${e.id === "EXP-07" && d ? blocoExp07(d) : ""}
-      <p class="xp-r" style="font-size:11px; color:var(--ink-3)">
-        Documento: <code>solution/docs/experimentos/${esc(e.arquivo)}</code> &middot;
-        ${derivado ? "números derivados dos traces em disco" : "veredito transcrito do documento"}
-      </p>
+      <p class="xp-q">${pergunta} <b>${esc(resposta)}</b></p>
+      ${explorador(e)}
+      <button class="xp-mais" data-xp-m="${esc(e.id)}" aria-expanded="${aberto ? "true" : "false"}">
+        ${aberto ? "▾" : "▸"} como isso foi medido</button>
+      ${aberto ? `<div class="xp-det">
+        <p><b>Hipótese registrada.</b> ${e.hipotese}</p>
+        <p><b>Resultado.</b> ${esc(e.resumo)}</p>
+        <p><b>Nesta página.</b> ${esc(e.na_pagina)}</p>
+        <p class="xp-fonte">${esc(e.estado)}<br>
+          Documento: <code>solution/docs/${esc(e.arquivo)}</code> ·
+          ${e.fonte === "derivado" ? "números derivados dos traces em disco"
+            : "veredito do documento; a amostra acima é recontada do bundle"}</p>
+      </div>` : ""}
     </div>`;
   }).join("");
 
   return `
-    <div class="eng-s">
-      <h3>Como ler</h3>
-      <p>Cada experimento declara <b>hipótese → método → veredito → limitações</b>. Um
-        experimento refutado vale tanto quanto um sustentado: o EXP-02 derrubou a intuição
-        de que investigar mais é sempre mais seguro, e está aqui do mesmo jeito.</p>
-      <p><b>Só o EXP-07 foi pré-registrado.</b> As previsões foram escritas e commitadas
-        antes da coleta, e a análise foi feita contra elas sem reabrir a previsão. Os outros
-        quatro foram reconstruídos sobre execuções que já existiam, o que é mais fraco e
-        está dito em cada documento.</p>
+    <div class="eng-s xp-topo">
+      <p>Placares recontados dos traces em disco.</p>
     </div>
     <div class="eng-s"><div class="xp">${itens}</div></div>
     <div class="eng-s">
       <h3>O que nenhum deles prova</h3>
-      <p>Dados sintéticos, 17 casos de material fictício. Um único conjunto de modelos, a
-        <code>temperature=0</code>: efeitos que dependam da capacidade do modelo não se
-        separam da arquitetura. E as amostras são pequenas — o EXP-01 convive com
-        p&nbsp;≈&nbsp;0,125, e o EXP-07 tem quatro casos. São demonstrações de mecanismo,
-        não estimativas de taxa.</p>
+      <p>Dados sintéticos, amostras pequenas (o EXP-01 convive com p&nbsp;≈&nbsp;0,125).
+        Demonstram mecanismo, não estimam taxa. Só o EXP-06 foi pré-registrado.</p>
     </div>`;
+}
+
+/* ================= holdout ao vivo =================
+ * Os 8 cenarios reservados para o teste final, resolvidos na frente de quem assiste.
+ *
+ * A regra que da sentido a aba: o gabarito NAO vem junto da lista. O endpoint
+ * `/holdout/cenarios` devolve so o que o agente ve — mensagem e ativo. O
+ * `expected_path` e as decisoes aceitas chegam no ultimo evento do streaming, depois de
+ * o agente ter escolhido. Servir tudo de uma vez deixaria a resposta certa a um F12 de
+ * distancia, e a demonstracao viraria encenacao.
+ *
+ * O transporte e SSE (`EventSource`): o servidor empurra um evento por passo — cada
+ * consulta a API industrial, cada troca de papel, cada achado — e a tela desenha
+ * conforme chega. Sem polling do lado do navegador.
+ */
+const HOLD = { cenarios: [], atual: null, fonte: null, feitos: {}, julgar: guarda.ler("hold-julgar") === "on" };
+
+/* Modelo do comite, escolhido na aba Configuracao. Vazio = o padrao do `.env`
+   (`JUDGE_MODEL_<DIMENSAO>` ou `JUDGE_MODEL`), que continua valendo quando a
+   interface nao escolhe nada. */
+const JUIZ = { modelos: [], dimensoes: [], escolhido: guarda.ler("juiz-modelo") || "", carregado: false, chaveOk: true };
+
+const HOLD_ICONE = { consulta: "→", papel: "◆", achado: "✓", llm: "·", erro: "✕" };
+
+/* Uma linha do log. `classe` colore o fundo por natureza do evento. */
+function holdLinha(icone, texto, direita = "", classe = "") {
+  return `<div class="hd-l ${classe}"><span class="hd-l-ic">${icone}</span>
+    <span class="hd-l-tx">${texto}</span>
+    <span class="hd-l-rt">${direita}</span></div>`;
+}
+
+function holdEventoHtml(ev) {
+  if (ev.tipo === "consulta") {
+    const erro = !ev.ok;
+    const modo = ev.mode ? `<span class="mode ${esc(ev.mode)}">${esc(ev.mode)}</span>` : "";
+    const status = erro ? `<span class="st-err">${ev.status}</span>` : `${ev.status}`;
+    const cache = ev.do_cache ? ` <span class="mode">cache</span>` : "";
+    return holdLinha(
+      HOLD_ICONE.consulta,
+      `<code>${esc(ev.step || "")}</code> ${modo}${cache}`,
+      `${esc(ev.agente || "")} · ${status}`,
+      erro ? "erro" : ""
+    );
+  }
+  if (ev.tipo === "papel") {
+    return holdLinha(HOLD_ICONE.papel, `assume o <b>${esc(ev.para || "")}</b>`,
+      ev.turno ? `turno ${ev.turno}` : "", "papel");
+  }
+  if (ev.tipo === "achado") {
+    /* O resumo do papel pode ter varias linhas de `campo=valor`. Vira uma linha so:
+       o log e cronologia, nao relatorio — o texto inteiro esta no trace. */
+    const resumo = String(ev.resumo || "").replace(/\s+/g, " ").trim();
+    return holdLinha(HOLD_ICONE.achado,
+      `<b>${esc(ev.agente || "")}</b> resumiu: ${esc(resumo.slice(0, 180))}${resumo.length > 180 ? "…" : ""}`,
+      "", "achado");
+  }
+  if (ev.tipo === "llm") {
+    return holdLinha(HOLD_ICONE.llm, `<span style="color:var(--ink-3)">${esc(ev.agente || "")} pensou</span>`,
+      `${(ev.total || 0).toLocaleString("pt-BR")} tok`);
+  }
+  if (ev.tipo === "erro") {
+    return holdLinha(HOLD_ICONE.erro, esc(ev.mensagem || "falhou"), "", "erro");
+  }
+  return "";
+}
+
+/* As notas do comite (camada 2). Mede o que a comparacao de trajetoria nao ve: se a
+   resposta e honesta sobre o que ficou indeterminado, se a causa raiz esta certa, e se a
+   justificativa sustenta a decisao. Nota de 1 a 5 por dimensao. */
+const HOLD_DIM = {
+  honestidade: "Honestidade sob incerteza",
+  causa_raiz: "Acerto de causa raiz",
+  justificativa: "Qualidade da justificativa",
+};
+
+function holdJuizes(vereditos, modelos) {
+  const dims = Object.entries(vereditos || {});
+  if (!dims.length) return "";
+
+  const notas = dims.map(([chave, v]) => {
+    const n = v.score;
+    /* Sem nota quando a execucao falhou — o comite nao julga o que nao tem resposta. */
+    const cls = n == null ? "" : n >= 4 ? "ok" : n >= 3 ? "med" : "no";
+    return `<div class="hd-jz-d">
+      <div class="hd-jz-h">
+        <span class="hd-jz-t">${esc(HOLD_DIM[chave] || chave)}</span>
+        <span class="hd-jz-n ${cls}">${n == null ? "—" : `${n}/5`}</span>
+      </div>
+      <p class="hd-jz-r">${esc(v.reasoning || "")}</p>
+      ${v.modelo ? `<p class="hd-jz-m">${esc(v.modelo)}</p>` : ""}
+    </div>`;
+  }).join("");
+
+  const validas = dims.map(([, v]) => v.score).filter((n) => typeof n === "number");
+  const media = validas.length
+    ? (validas.reduce((a, b) => a + b, 0) / validas.length).toFixed(1) : null;
+
+  return `<div class="hd-jz">
+    <div class="hd-ver-h">
+      <h4>Comitê de juízes</h4>
+      ${media ? `<span class="hd-selo ${media >= 4 ? "ok" : media >= 3 ? "med" : "no"}">${media}/5</span>` : ""}
+      <span class="hd-caso-meta">camada 2</span>
+    </div>
+    <div class="hd-ver-b">
+      ${notas}
+      <p class="hd-jz-av">Ordena execuções; não mede acerto. Sem calibração humana.</p>
+    </div>
+  </div>`;
+}
+
+/* Acoes de impacto: o que o cenario exigia que fosse EXECUTADO na plataforma, e o que
+   o agente de fato executou. Tres dos oito cenarios (HOLD-06, 07, 08) so passam com
+   acao — sem este bloco, a tela mostrava recall de consulta e silenciava a parte que
+   decide o veredito deles. Omitido quando nao ha acao exigida nem executada, que e o
+   caso dos cenarios de `orientar`. */
+function holdAcoes(v) {
+  const exigidas = v.acoes_exigidas || [];
+  const executadas = v.acoes_executadas || [];
+  const faltantes = new Set(v.acoes_faltantes || []);
+  const naoPrevistas = new Set(v.acoes_nao_previstas || []);
+  if (!exigidas.length && !executadas.length) return "";
+
+  const linhas = exigidas.map((a) => {
+    const feita = !faltantes.has(a);
+    return `<div class="hd-q">
+      <span class="hd-q-m ${feita ? "hit" : "miss"}">${feita ? "✓" : "✕"}</span>
+      <span><code>${esc(a)}</code>${feita ? "" : `<span class="hd-q-n">não foi executada</span>`}</span>
+    </div>`;
+  }).join("");
+
+  /* Acao executada fora do previsto é o caso grave: o agente alterou estado na
+     plataforma industrial que o cenario nao pedia. Merece destaque proprio, nao uma
+     linha discreta como a consulta extra. */
+  const extras = executadas.filter((a) => naoPrevistas.has(a));
+
+  return `<p style="margin:11px 0 5px"><b>Ação na plataforma:</b>${
+    exigidas.length ? "" : " o cenário não exige nenhuma."}</p>
+    ${linhas}
+    ${extras.length
+      ? `<p style="margin-top:7px; color:var(--crit)"><b>Executou sem previsão:</b>
+         <code>${extras.map(esc).join("</code>, <code>")}</code> &mdash; alteração de estado
+         que o cenário não pedia.</p>`
+      : ""}
+    ${!exigidas.length && executadas.length && !extras.length
+      ? `<p style="color:var(--ink-3)">Executou <code>${executadas.map(esc).join("</code>, <code>")}</code>,
+         dentro do que o cenário permite.</p>`
+      : ""}`;
+}
+
+/* O veredito: a unica parte que mostra gabarito, e so depois de o agente responder. */
+function holdVeredito(v) {
+  if (v.erro) return `<div class="hd-ver"><div class="hd-ver-b"><p>${esc(v.erro)}</p></div></div>`;
+  const ok = v.passou;
+  const consultas = (v.consultas_esperadas || []).map((q) => `
+    <div class="hd-q">
+      <span class="hd-q-m ${q.feita ? "hit" : "miss"}">${q.feita ? "✓" : "✕"}</span>
+      <span><code>${esc(q.step)}</code>
+        ${q.nota ? `<span class="hd-q-n">${esc(q.nota)}</span>` : ""}</span>
+    </div>`).join("");
+
+  /* Escalonamento com 404 nao e erro do agente: nenhum caso do holdout existe em
+     `data/cases.parquet`, entao `POST /cases/{id}/escalate` responde 404 mesmo para
+     quem tem a permissao. Esta ressalva ja esta no README do holdout; repeti-la aqui
+     evita que quem assiste leia a linha vermelha como falha de decisao. */
+  const escalou404 = (v.acoes_executadas || []).some((a) => a.includes("/escalate"));
+
+  return `<div class="hd-ver">
+    <div class="hd-ver-h">
+      <h4>Gabarito do holdout</h4>
+      <span class="hd-selo ${ok ? "ok" : "no"}">${ok ? "PASSOU" : "NÃO PASSOU"}</span>
+      <span class="hd-caso-meta">${esc(v.ticket_id || "")}</span>
+    </div>
+    <div class="hd-ver-b">
+      <p><b>O que o cenário cobra:</b> ${esc(v.pergunta_raiz || "—")}</p>
+      ${v.faceta ? `<p style="color:var(--ink-3)">${esc(v.faceta)}</p>` : ""}
+      <p><b>Resolução:</b> o agente decidiu <code>${esc(v.decisao || "—")}</code>;
+        o cenário aceita <code>${(v.decisoes_aceitas || []).map(esc).join("</code>, <code>")}</code>
+        &mdash; ${v.decisao_correta ? "bate" : `<b style="color:var(--crit)">não bate</b>`}${
+          v.cenario_ambiguo ? " (cenário admite mais de um desfecho)" : ""}.</p>
+      ${consultas ? `<p style="margin-bottom:5px"><b>Evidência que o cenário exige:</b></p>${consultas}` : ""}
+      ${(v.consultas_extras || []).length
+        ? `<p style="margin-top:9px; color:var(--ink-3)">Além do gabarito:
+           <code>${v.consultas_extras.map(esc).join("</code>, <code>")}</code></p>` : ""}
+      ${holdAcoes(v)}
+      ${escalou404
+        ? `<p style="margin-top:9px; color:var(--ink-3)">O <code>404</code> é do ambiente:
+           nenhum cenário do holdout existe em <code>cases.parquet</code>.</p>`
+        : ""}
+      <div class="hd-mets">
+        <div class="hd-met"><b>${((v.recall_evidencia ?? 0) * 100).toFixed(0)}%</b>recall de evidência</div>
+        <div class="hd-met"><b>${v.chamadas ?? 0}</b>chamadas</div>
+        <div class="hd-met"><b>${v.repeticoes ?? 0}</b>repetidas</div>
+        <div class="hd-met"><b>${v.erros_http ?? 0}</b>erros HTTP</div>
+        ${v.justificativa_len
+          ? `<div class="hd-met"><b>${v.justificativa_len}</b>caracteres de justificativa</div>` : ""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function holdCorpo() {
+  const cards = HOLD.cenarios.map((c) => {
+    const feito = HOLD.feitos[c.id];
+    const sel = HOLD.atual === c.id;
+    return `<button class="hd-c" data-caso="${esc(c.id)}" aria-current="${sel}"
+        ${HOLD.fonte ? "disabled" : ""}>
+      <span class="hd-c-t"><span class="hd-c-id">${esc(c.ticket_id || c.id)}</span>
+        <span class="hd-c-a">${esc(c.asset_id || "—")}</span></span>
+      <span class="hd-c-m">${esc(c.message || "")}</span>
+      ${feito ? `<span class="hd-c-v ${feito.passou ? "ok" : "no"}">${
+        feito.passou ? "✓ passou" : "✕ não passou"} · ${esc(feito.decisao || "")}</span>` : ""}
+    </button>`;
+  }).join("");
+
+  return `<div class="eng-s">
+    <p class="hd-intro">Oito cenários reservados para o teste final &mdash; o agente nunca os
+      viu. Cada consulta à API aparece enquanto acontece; o gabarito, só no fim.</p>
+    <div class="hd-grid">
+      <div class="hd-cen">${cards}</div>
+      <div class="hd-pal" id="hd-pal">${holdPainel()}</div>
+    </div>
+  </div>`;
+}
+
+/* O painel direito quando ninguem esta rodando nada: ou o convite, ou a previa do
+   cenario escolhido com o botao de executar. Selecionar e executar sao dois gestos
+   separados de proposito — o segundo gasta uma chamada de LLM, e a cota e finita. */
+function holdPainel() {
+  if (!HOLD.atual) return `<div class="hd-vazio">Escolha um cenário</div>`;
+  const c = HOLD.cenarios.find((x) => x.id === HOLD.atual);
+  if (!c) return `<div class="hd-vazio">cenário não encontrado</div>`;
+  const feito = HOLD.feitos[c.id];
+
+  return `<div class="hd-prev">
+    <div class="hd-prev-h">
+      <span class="hd-prev-id">${esc(c.ticket_id || "")} · ${esc(c.id)}</span>
+      <span class="hd-caso-meta">${esc(c.asset_id || "—")} · ${esc(c.user_id || "")}</span>
+    </div>
+    <p class="hd-prev-m">“${esc(c.message || "")}”</p>
+    <div class="hd-acoes">
+      <button class="hd-go" id="hd-go" type="button">
+        <span class="go-i">▶</span> ${feito ? "Executar de novo" : "Executar o agente"}
+      </button>
+      <label class="hd-chk"><input type="checkbox" id="hd-julgar"${HOLD.julgar ? " checked" : ""}>
+        <span>avaliar também com o comitê de juízes${
+          HOLD.julgar && JUIZ.escolhido ? ` <code class="hd-chk-m">${esc(JUIZ.escolhido)}</code>` : ""}</span></label>
+    </div>
+    <p class="hd-prev-n">Execução real: consulta a API e gasta cota.${
+        feito ? " Rodar de novo sobrescreve o resultado." : ""}</p>
+  </div>`;
+}
+
+/* Redesenha o painel direito e religa o botao. Usado ao trocar de cenario. */
+function holdMostraPrevia() {
+  const pal = document.getElementById("hd-pal");
+  if (!pal) return;
+  pal.innerHTML = holdPainel();
+  const go = document.getElementById("hd-go");
+  if (go) go.addEventListener("click", () => holdRoda(HOLD.atual));
+  const chk = document.getElementById("hd-julgar");
+  if (chk) chk.addEventListener("change", () => {
+    HOLD.julgar = chk.checked;
+    /* A escolha persiste: quem liga o comitê costuma querer nas execuções seguintes. */
+    guarda.escrever("hold-julgar", chk.checked ? "on" : "");
+    /* Redesenha para o nome do modelo aparecer (ou sumir) ao lado da caixa: sem isto o
+       rótulo fica dizendo o contrário do que a próxima execução vai usar. */
+    holdMostraPrevia();
+  });
+}
+
+/* Roda um cenario, desenhando cada evento assim que chega. */
+function holdRoda(caseId) {
+  if (HOLD.fonte || !caseId) return;            // uma execucao por vez: cota e finita
+  HOLD.atual = caseId;
+  /* Trava a lista enquanto roda, sem redesenhar o corpo: `holdCorpo()` aqui recriaria
+     os cards e derrubaria o painel que esta prestes a receber o log. */
+  document.querySelectorAll(".hd-c").forEach((b) => b.setAttribute("disabled", ""));
+
+  const pal = document.getElementById("hd-pal");
+  pal.innerHTML = `<div class="hd-bar"><span class="hd-pulse"></span>
+      <span class="hd-st" id="hd-st">conectando…</span>
+      <span class="hd-tk" id="hd-tk"></span></div>
+    <div class="hd-log" id="hd-log"></div>`;
+
+  const log = document.getElementById("hd-log");
+  const st = document.getElementById("hd-st");
+  const tk = document.getElementById("hd-tk");
+  let tokens = 0;
+
+  const params = new URLSearchParams();
+  if (HOLD.julgar) params.set("julgar", "true");
+  if (HOLD.julgar && JUIZ.escolhido) params.set("modelo_juiz", JUIZ.escolhido);
+  const qs = params.toString();
+  const fonte = new EventSource(
+    `${API_AGENTE}/holdout/executar/${encodeURIComponent(caseId)}${qs ? `?${qs}` : ""}`
+  );
+  HOLD.fonte = fonte;
+
+  const encerra = () => {
+    fonte.close();
+    HOLD.fonte = null;
+    /* Reabilita os cards sem redesenhar o painel: `holdCorpo()` aqui apagaria o log
+       que a pessoa acabou de ver rolar. */
+    document.querySelectorAll(".hd-c").forEach((b) => b.removeAttribute("disabled"));
+    /* Um botao no fim do log devolve o gesto de executar sem exigir que a pessoa
+       reselecione o cenario — o log e o veredito continuam na tela. */
+    if (!document.getElementById("hd-again")) {
+      log.insertAdjacentHTML("beforeend",
+        `<div style="padding:11px 2px 3px"><button class="hd-go" id="hd-again" type="button">
+          <span class="go-i">▶</span> Executar outra vez</button></div>`);
+      document.getElementById("hd-again").addEventListener("click", () => {
+        const alvo = HOLD.atual;
+        holdMostraPrevia();
+        holdRoda(alvo);
+      });
+      log.scrollTop = log.scrollHeight;
+    }
+  };
+
+  fonte.onmessage = (msg) => {
+    let ev;
+    try { ev = JSON.parse(msg.data); } catch { return; }
+
+    if (ev.tipo === "inicio") {
+      st.textContent = "o agente está trabalhando…";
+      pal.insertAdjacentHTML("afterbegin", `<div class="hd-caso">
+        <div class="hd-caso-h">
+          <span class="hd-caso-id">${esc(ev.ticket_id || "")} · ${esc(ev.case_id || "")}</span>
+          <span class="hd-caso-meta">${esc(ev.asset_id || "—")} · ${esc(ev.user_id || "")} · seed ${esc(ev.seed || "")}</span>
+        </div>
+        <p class="hd-caso-m">“${esc(ev.mensagem || "")}”</p>
+      </div>`);
+      return;
+    }
+
+    if (ev.tipo === "llm") { tokens += ev.total || 0; tk.textContent = `${tokens.toLocaleString("pt-BR")} tokens`; }
+
+    if (ev.tipo === "resposta") {
+      st.textContent = "respondeu — comparando com o gabarito…";
+      log.insertAdjacentHTML("beforeend", `<div class="hd-resp">
+        <span class="hd-dec">${esc(ev.decisao || "—")}</span>
+        <h4>Resposta ao cliente</h4>
+        <p>${esc(ev.resposta || "(sem resposta)")}</p>
+      </div>`);
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+
+    if (ev.tipo === "veredito") {
+      HOLD.feitos[ev.case_id] = { passou: ev.passou, decisao: ev.decisao };
+      log.insertAdjacentHTML("beforeend", holdVeredito(ev));
+      log.scrollTop = log.scrollHeight;
+      /* Com o comitê ligado o fluxo continua: `juizes` (ou `juizes_erro`) ainda vem.
+         Encerrar aqui fecharia o SSE antes das notas chegarem. */
+      if (HOLD.julgar) { st.textContent = "julgando a resposta…"; return; }
+      document.querySelector(".hd-bar")?.remove();
+      encerra();
+      /* Atualiza o selo no card da esquerda, agora que o resultado existe. */
+      const alvo = document.querySelector(`.hd-c[data-caso="${CSS.escape(ev.case_id)}"]`);
+      if (alvo && !alvo.querySelector(".hd-c-v")) {
+        alvo.insertAdjacentHTML("beforeend", `<span class="hd-c-v ${ev.passou ? "ok" : "no"}">${
+          ev.passou ? "✓ passou" : "✕ não passou"} · ${esc(ev.decisao || "")}</span>`);
+      }
+      return;
+    }
+
+    if (ev.tipo === "juizes_iniciou") {
+      log.insertAdjacentHTML("beforeend",
+        `<div class="hd-jz-wait" id="hd-jz-wait">comitê avaliando a resposta em
+         ${(ev.dimensoes || []).length} dimensões…</div>`);
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+
+    if (ev.tipo === "juizes") {
+      document.getElementById("hd-jz-wait")?.remove();
+      document.querySelector(".hd-bar")?.remove();
+      log.insertAdjacentHTML("beforeend", holdJuizes(ev.vereditos, ev.modelos));
+      log.scrollTop = log.scrollHeight;
+      encerra();
+      return;
+    }
+
+    if (ev.tipo === "juizes_erro") {
+      document.getElementById("hd-jz-wait")?.remove();
+      document.querySelector(".hd-bar")?.remove();
+      /* O comitê é opcional: falhar nele não invalida a camada 1, que já está na tela. */
+      log.insertAdjacentHTML("beforeend", `<div class="hd-jz-erro">
+        Não foi possível julgar: ${esc(ev.mensagem || "")}</div>`);
+      log.scrollTop = log.scrollHeight;
+      encerra();
+      return;
+    }
+
+    if (ev.tipo === "erro") {
+      st.textContent = "a execução falhou";
+      document.querySelector(".hd-pulse")?.remove();
+      log.insertAdjacentHTML("beforeend", holdEventoHtml(ev));
+      encerra();
+      return;
+    }
+
+    const html = holdEventoHtml(ev);
+    if (html) { log.insertAdjacentHTML("beforeend", html); log.scrollTop = log.scrollHeight; }
+  };
+
+  /* `EventSource` reconecta sozinho por padrao — o que aqui significaria rodar o
+     cenario de novo, gastando cota. Fechar na primeira falha e o comportamento certo. */
+  fonte.onerror = () => {
+    if (HOLD.fonte) {
+      st.textContent = "conexão interrompida";
+      document.querySelector(".hd-pulse")?.remove();
+      encerra();
+    }
+  };
+}
+
+function holdLigaCards() {
+  document.querySelectorAll(".hd-c").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (HOLD.fonte) return;                   // execucao em curso: nao troca de caso
+      /* Clicar no card SELECIONA. Quem executa e o botao da previa: assim ninguem
+         dispara uma chamada de LLM so por explorar a lista. */
+      HOLD.atual = b.dataset.caso;
+      document.querySelectorAll(".hd-c").forEach((o) => {
+        o.setAttribute("aria-current", String(o === b));
+      });
+      holdMostraPrevia();
+    });
+  });
+}
+
+function ligarHoldout() {
+  const cx = document.getElementById("hold");
+  const corpo = document.getElementById("hold-corpo");
+  const abrir = document.getElementById("sw-hold");
+
+  let antes = null;
+  const abre = async () => {
+    antes = document.activeElement;
+    cx.setAttribute("open", "");
+    document.getElementById("hold-x").focus();
+
+    if (!HOLD.cenarios.length) {
+      corpo.innerHTML = `<div class="hd-vazio">carregando os cenários…</div>`;
+      try {
+        const r = await fetch(`${API_AGENTE}/holdout/cenarios`).then((x) => x.json());
+        HOLD.cenarios = r.cenarios || [];
+      } catch {
+        /* Sem o agente no ar nao ha o que rodar — a aba inteira depende dele, ao
+           contrario da leitura por ativo, que e estatica. */
+        corpo.innerHTML = `<div class="hd-vazio">
+          <b>O agente não está no ar.</b><br>
+          Esta aba executa o agente de verdade, então precisa de <code>make consulta</code>
+          com a API industrial rodando (<code>make up</code>).</div>`;
+        return;
+      }
+    }
+    corpo.innerHTML = holdCorpo();
+    holdLigaCards();
+    holdMostraPrevia();
+  };
+  const fecha = () => {
+    /* Fechar no meio de uma execucao encerraria o streaming e perderia o resultado de
+       uma chamada de LLM que ja foi paga. O trace fica em disco de qualquer forma, mas
+       a tela nao teria como reconstruir o log. */
+    if (HOLD.fonte && !confirm("Uma execução está em andamento. Fechar mesmo assim?")) return;
+    if (HOLD.fonte) { HOLD.fonte.close(); HOLD.fonte = null; }
+    cx.removeAttribute("open");
+    if (antes) antes.focus();
+  };
+
+  ligaDica(abrir, `<span class="dica-t">holdout ao vivo</span>
+    <p>Oito cenários que o agente nunca viu, resolvidos na sua frente.</p>`);
+  abrir.addEventListener("click", abre);
+  document.getElementById("hold-x").addEventListener("click", fecha);
+  cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && cx.hasAttribute("open")) fecha();
+  });
 }
 
 function ligarExperimentos() {
@@ -1551,21 +2281,69 @@ function ligarExperimentos() {
   const abrir = document.getElementById("sw-exp");
 
   let antes = null;
-  const abre = () => {
-    antes = document.activeElement;
+  /* Redesenha a aba inteira preservando o scroll: os exploradores ficam no meio de um
+     modal longo, e repintar do zero jogaria o leitor para o topo a cada seta clicada. */
+  const redesenha = () => {
+    const y = cx.scrollTop;
     corpo.innerHTML = corpoExperimentos();
     ligarDicas(corpo);
+    cx.scrollTop = y;
+  };
+  const abre = () => {
+    antes = document.activeElement;
+    redesenha();
     cx.setAttribute("open", "");
     document.getElementById("exp-x").focus();
   };
+
+  /* Um só ouvinte para todos os exploradores: navegar amostras, filtrar por fase e abrir
+     o método. Delegação porque o corpo é substituído a cada clique — ouvintes presos aos
+     botões morreriam junto com eles. */
+  corpo.addEventListener("click", (ev) => {
+    const alvo = ev.target.closest("[data-xp-ir],[data-xp-m],[data-xp-f]");
+    if (!alvo) return;
+    const ir = alvo.dataset.xpIr;
+    // Qual seta foi clicada, para devolver o foco à seta equivalente depois do redesenho:
+    // o `data-xp-ir` do botão muda de valor junto com o índice, então buscá-lo de volta
+    // pelo valor antigo não acharia nada.
+    let alvoId = null, direcao = 0;
+    if (ir) {
+      const [id, i] = ir.split(":");
+      direcao = Number(i) > (XP_ABERTO[id] ?? 0) ? 1 : -1;
+      alvoId = id;
+      XP_ABERTO[id] = Number(i);
+    } else if (alvo.dataset.xpM) {
+      const id = alvo.dataset.xpM;
+      XP_METODO[id] = !XP_METODO[id];
+    } else {
+      XP_FILTRO["EXP-04"] = alvo.dataset.xpF;
+    }
+    redesenha();
+    // O foco volta para o mesmo botão: sem isso, quem navega por teclado é devolvido ao
+    // topo do modal a cada passo da amostra.
+    let volta = null;
+    if (alvoId) {
+      const i = XP_ABERTO[alvoId];
+      volta = corpo.querySelector(`[data-xp-ir="${alvoId}:${i + direcao}"]`);
+    } else if (alvo.dataset.xpM) {
+      volta = corpo.querySelector(`[data-xp-m="${alvo.dataset.xpM}"]`);
+    } else {
+      volta = corpo.querySelector(`[data-xp-f="${alvo.dataset.xpF}"]`);
+    }
+    // Na ponta da lista a seta clicada fica desabilitada; o foco vai para a oposta, que é
+    // o único movimento ainda possível.
+    if (volta?.disabled && alvoId) {
+      volta = corpo.querySelector(`[data-xp-ir="${alvoId}:${XP_ABERTO[alvoId] - direcao}"]`);
+    }
+    if (volta && !volta.disabled) volta.focus();
+  });
   const fecha = () => {
     cx.removeAttribute("open");
     if (antes) antes.focus();
   };
 
   ligaDica(abrir, `<span class="dica-t">experimentos</span>
-    <p>As cinco hipóteses testadas, com o veredito de cada uma e como reproduzi-la nesta
-    página. Os números vêm dos traces em disco, não do texto dos documentos.</p>`);
+    <p>Cinco hipóteses com as execuções que as testaram.</p>`);
   abrir.addEventListener("click", abre);
   document.getElementById("exp-x").addEventListener("click", fecha);
   cx.addEventListener("click", (e) => { if (e.target === cx) fecha(); });
@@ -1587,6 +2365,11 @@ function ligarConfiguracao() {
       if (on) delete raiz.dataset.brand; else raiz.dataset.brand = "tractian";
       guarda.escrever("brand", on ? "" : "tractian");
       sincroniza();
+    });
+    const sel = corpo.querySelector("#sel-juiz");
+    if (sel) sel.addEventListener("change", () => {
+      JUIZ.escolhido = sel.value;
+      guarda.escrever("juiz-modelo", sel.value);
     });
     corpo.querySelector("#sw-retorno").addEventListener("click", () => {
       const on = RETORNO_ON();
@@ -1618,6 +2401,8 @@ function ligarConfiguracao() {
     sincroniza();
     cx.setAttribute("open", "");
     document.getElementById("eng-x").focus();
+    /* O catálogo do OpenRouter chega depois; `sincroniza` redesenha com a lista real. */
+    carregaJuizModelos(() => { if (cx.hasAttribute("open")) sincroniza(); });
   };
   const fecha = () => {
     cx.removeAttribute("open");
@@ -1625,8 +2410,7 @@ function ligarConfiguracao() {
   };
 
   ligaDica(abrir, `<span class="dica-t">configuração</span>
-    <p>Tema e paleta, a política de evidência que a bateria usou, e a metodologia das três
-    camadas com os números das duas fases.</p>`);
+    <p>Tema, política de evidência e metodologia.</p>`);
   ligarDicas(abrir.parentElement);
   abrir.addEventListener("click", abre);
   document.getElementById("eng-x").addEventListener("click", fecha);
@@ -1668,9 +2452,59 @@ function atualizaProcedencia(origem) {
     `Resultados do agente: bateria <code>${esc(m.fase || "pos-correcao")}</code>, ` +
     `${nesta} execuções${falhas ? ` (${falhas} interrompidas por cota do provedor)` : ""}` +
     `${m.gerado_em ? `, indexadas em ${esc(String(m.gerado_em).slice(0, 16).replace("T", " "))}` : ""}.<br>` +
-    `Cada seed é uma condição de dado diferente: a API decide o modo de resposta por ` +
-    `<code>hash(seed | recurso | categoria)</code>, então o mesmo ativo pode vir completo numa ` +
-    `seed e indisponível noutra. É essa variação que o agente enfrentou.`;
+    `A seed decide o modo de resposta por <code>hash(seed | recurso | categoria)</code>.`;
+}
+
+/* ---------------- esqueleto de carregamento ----------------
+ * Enquanto os quatro arquivos de dados nao chegam, a lista e o painel ficam vazios. Um
+ * vazio de dois segundos nao se distingue de uma pagina quebrada, e a alternativa comum
+ * — um spinner centralizado — nao diz nada sobre o que vem. Estas formas tem a altura
+ * do que de fato vai chegar, entao nada salta de lugar na troca.
+ *
+ * `aria-busy` no container e um unico `aria-label`: quem usa leitor de tela ouve
+ * "carregando", nao dezoito retangulos.
+ */
+function esqueleto() {
+  /* A marca e montada em JS para nao deixar o cabecalho com um divisor solto ao lado
+     de um espaco vazio antes do primeiro paint. Nao depende de fetch nenhum, entao pode
+     ser pintada junto com o esqueleto em vez de esperar os dados. */
+  const marca = document.getElementById("marca");
+  if (marca && !marca.firstChild) marca.innerHTML = marcaTractian(15);
+
+  const itens = document.getElementById("items");
+  const panel = document.getElementById("panel");
+  if (itens) {
+    itens.setAttribute("aria-busy", "true");
+    itens.setAttribute("aria-label", "Carregando a lista de ativos");
+    itens.innerHTML = Array.from({ length: 8 }, () =>
+      `<div class="sk-item"><div class="sk sk-st"></div>
+        <div><div class="sk sk-n"></div><div class="sk sk-s"></div></div>
+        <div class="sk sk-v"></div></div>`).join("");
+  }
+  if (panel) {
+    panel.setAttribute("aria-busy", "true");
+    panel.setAttribute("aria-label", "Carregando a leitura do ativo");
+    panel.innerHTML =
+      `<div class="sk-card"><div class="sk sk-hd"></div><div class="sk sk-t"></div>
+        <div class="sk sk-l" style="width:72%"></div></div>` +
+      `<div class="sk-card"><div class="sk sk-hd"></div><div class="sk sk-plot"></div></div>` +
+      `<div class="sk-card"><div class="sk sk-hd"></div>
+        <div class="sk sk-l" style="width:88%"></div>
+        <div class="sk sk-l" style="width:64%"></div>
+        <div class="sk sk-l" style="width:79%"></div></div>`;
+  }
+}
+
+/* Os dados chegaram (ou falharam): `lista()` e `desenhar()` trocam o innerHTML, mas
+   `aria-busy` fica para tras se ninguem o tirar — e um container marcado como ocupado
+   para sempre e pior que nenhum. */
+function fimDoEsqueleto() {
+  ["items", "panel"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.removeAttribute("aria-busy");
+    el.removeAttribute("aria-label");
+  });
 }
 
 async function carregar() {
@@ -1709,14 +2543,31 @@ async function carregar() {
   dicaEl = document.getElementById("dica");
   ligarConfiguracao();
   ligarExperimentos();
+  ligarHoldout();
   atual = DATA.slice().sort((x, y) => ORDEM[situacao(x).key] - ORDEM[situacao(y).key])[0].id;
+  fimDoEsqueleto();
   lista();
   desenhar();
 }
 
 // Antes de qualquer fetch: senao a pagina pisca no tema errado enquanto os dados chegam.
 aplicaTema();
-carregar();
+// Antes do await, nao depois: pintado no mesmo quadro em que a pagina aparece.
+esqueleto();
+/* `ativos.json` e o unico fetch sem `.catch`: sem ele nao ha o que desenhar. Se cair, o
+   esqueleto pulsaria indefinidamente prometendo dados que nao vem — entao o lugar de
+   dizer isso e aqui, com o caminho que falhou e o alvo do Makefile que o gera. */
+carregar().catch((e) => {
+  console.error("falha ao carregar os dados do painel", e);
+  fimDoEsqueleto();
+  const itens = document.getElementById("items");
+  if (itens) itens.innerHTML = "";
+  document.getElementById("panel").innerHTML =
+    `<div class="empty"><b>Os dados do painel não carregaram</b>
+      Falta <code class="mono">solution/painel/dados/ativos.json</code>, ou o servidor não
+      está servindo a pasta. Gere os dados com <code class="mono">make leitura-dados</code>
+      e recarregue. Detalhe técnico no console: <code class="mono">${esc(String(e.message || e))}</code>.</div>`;
+});
 /* O tooltip se posiciona a partir de getBoundingClientRect() no momento do hover, entao
    redimensionar a janela nao exige religar nada — reanexar aqui so empilharia listeners. */
 // Rolar com uma dica aberta a deixaria orfa: ela e `position:fixed`, o alvo nao.

@@ -48,7 +48,11 @@
    O azul e o acento da marca (barra de navegacao e botoes primarios do produto);
    o plano vai a branco/cinza-frio. A geometria nao muda: so as cores. */
 :root[data-brand="tractian"]{
-  --plane:#eef2f7; --surface:#ffffff; --surface-2:#f5f8fc;
+  /* --surface era #ffffff. Branco puro num painel lido por turnos longos vira o unico
+     ponto sem temperatura da tela: os cards saltam do plano por brilho em vez de por
+     regua, e o contraste com --plane fica maior do que a hierarquia pede. #fcfdfe
+     mantem os cards como a camada mais clara, na mesma familia fria do resto. */
+  --plane:#eef2f7; --surface:#fcfdfe; --surface-2:#f5f8fc;
   --ink:#0d1b2a; --ink-2:#41546b; --ink-3:#617082; /* AA sobre as tres superficies claras */
   --rule:#dde5ee; --rule-2:#c2cedd; --hair:rgba(13,27,42,.10);
   --accent:#1461b8;
@@ -266,6 +270,26 @@ details.data summary:hover{color:var(--ink-2)}
 /* cabecalho do cenario */
 .cen-hd{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
 .cen-hd h3{margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em}
+
+/* Cada cenario e um acordeao: o cabecalho e o botao, o resto nasce fechado.
+   O `.cen-tg` e um <button>, entao precisa desfazer o estilo de botao do agente
+   do usuario para continuar identico ao cabecalho que era uma <div>. */
+.cens{display:flex; flex-direction:column; gap:16px}
+.cen-tg{
+  width:100%; text-align:left; background:none; border:0; padding:0; margin:0;
+  color:inherit; font:inherit; cursor:pointer;
+}
+.cen-tg:hover h3{color:var(--accent)}
+.cen-tg:focus-visible{outline:2px solid var(--accent); outline-offset:4px; border-radius:2px}
+.cen-caret{
+  width:8px; height:8px; margin-left:2px; border-right:1.5px solid var(--ink-3);
+  border-bottom:1.5px solid var(--ink-3); transform:rotate(45deg) translate(-2px,-2px);
+  transition:transform .15s ease;
+}
+.cen-tg[aria-expanded="true"] .cen-caret{transform:rotate(225deg) translate(-1px,-1px)}
+/* A trajetoria era um card proprio; dentro do corpo ela e so uma secao separada
+   por um fio, para o encapsulado nao virar card dentro de card. */
+.cen-traj{margin-top:16px; padding-top:14px; border-top:1px solid var(--rule-2)}
 .cen-q{font-size:12.5px; color:var(--ink-2); margin:3px 0 0; max-width:68ch}
 blockquote.msg{
   margin:12px 0 0; padding:9px 13px; border-left:2px solid var(--rule-2);
@@ -286,7 +310,7 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .sd-why{font-size:11.5px; color:var(--ink-2); margin-top:6px; line-height:1.55}
 
 /* ---- marca ---- */
-.marca{display:block; color:var(--accent)}
+.marca{display:block; width:auto}
 .marca-wrap{display:flex; align-items:center; gap:10px; margin-bottom:9px}
 .marca-div{width:1px; height:15px; background:var(--rule-2)}
 
@@ -544,13 +568,6 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 }
 .xp-t{font-size:13.5px; font-weight:600; color:var(--ink); margin:0}
 .xp-n{margin-left:auto; font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
-.xp-h{margin:5px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.55}
-.xp-r{margin:6px 0 0; font-size:12px; color:var(--ink-2); line-height:1.55}
-/* como reproduzir na propria pagina: o unico texto que pede acao do leitor */
-.xp-go{
-  margin:8px 0 0; padding:7px 10px; border-left:2px solid var(--accent);
-  background:var(--surface-2); font-size:11.5px; color:var(--ink-2); line-height:1.5;
-}
 /* veredito: reusa o vocabulario de cor dos chips, sem inventar estado novo */
 .xp-v{font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:600}
 .xp-v.ok{color:var(--good)}
@@ -564,12 +581,6 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .xp-sc dd{margin:2px 0 0; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink)}
 .xp-sc dd small{font-size:11px; font-weight:400; color:var(--ink-3)}
 .xp-sc .fail dd{color:var(--crit)}
-/* os quatro casos mutados, um por linha */
-.xp-c{display:flex; flex-direction:column; margin-top:9px; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
-.xp-cl{padding:10px 12px; border-top:1px solid var(--rule); background:var(--surface)}
-.xp-cl:first-child{border-top:0}
-.xp-cl.fail{background:color-mix(in srgb, var(--crit) 5%, var(--surface))}
-.xp-ch{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
 .xp-cn{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600; color:var(--ink-3)}
 .xp-ct{font-size:12.5px; font-weight:600; color:var(--ink)}
 .xp-cm{margin:4px 0 0; font-size:11.5px; color:var(--ink-2); line-height:1.5}
@@ -584,11 +595,345 @@ blockquote.msg cite{display:block; margin-top:5px; font-style:normal; font-size:
 .xp-lv.ok{color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--rule-2))}
 .xp-lv.no{color:var(--crit); border-color:color-mix(in srgb, var(--crit) 40%, var(--rule-2))}
 
+
+/* ---------------- exploradores ----------------
+   Cada experimento traz a amostra que o produziu. As regras abaixo compoem o que ja
+   existe (.xp-sc para o placar, .xp-lv para os marcadores) e acrescentam so a caixa de
+   amostra, a navegacao e o par lado a lado. */
+
+/* a pergunta que abre o experimento: substitui os tres paragrafos de resumo */
+.xp-q{margin:5px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.55}
+.xp-q b{color:var(--ink); font-weight:600}
+
+/* navegacao entre amostras */
+.xp-nav{display:flex; align-items:center; gap:8px; margin:9px 0 0}
+.xp-nb{
+  width:26px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--rule-2); border-radius:2px; background:var(--surface);
+  color:var(--ink-2); font-size:12px; cursor:pointer; padding:0;
+}
+.xp-nb:hover:not(:disabled){background:var(--surface-2); border-color:var(--ink-3); color:var(--ink)}
+.xp-nb:disabled{opacity:.35; cursor:default}
+.xp-nb:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.xp-np{font-size:11px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.xp-np b{color:var(--ink); font-weight:600}
+
+/* a amostra: uma execucao real, com o cabecalho que diz de onde ela veio */
+.xp-am{
+  margin:7px 0 0; padding:11px 12px; border:1px solid var(--rule); border-radius:3px;
+  background:var(--surface);
+}
+.xp-am.fail{background:color-mix(in srgb, var(--crit) 5%, var(--surface))}
+.xp-amh{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.xp-amc{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; color:var(--ink)}
+.xp-ams{font-size:10.5px; color:var(--ink-3)}
+/* o efeito medido no par, no vocabulario de cor que a pagina ja usa */
+.xp-ame{
+  margin-left:auto; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  font-weight:600; color:var(--ink-3);
+}
+.xp-ame.corrigiu{color:var(--good)}
+.xp-ame.regrediu, .xp-ame.divergiu{color:var(--crit)}
+.xp-amt{margin:6px 0 0; font-size:11.5px; color:var(--ink-2); line-height:1.5; font-style:italic}
+.xp-amt i{font-style:normal; color:var(--ink-3)}
+
+/* dois (ou tres) bracos lado a lado: e a comparacao que carrega o argumento */
+.xp-par{display:grid; grid-template-columns:1fr 1fr; gap:1px; margin:9px 0 0;
+  background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-par.tres{grid-template-columns:repeat(3,1fr)}
+.xp-br{padding:9px 10px; background:var(--surface-2)}
+.xp-brt{font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.xp-brn{display:block; letter-spacing:0; text-transform:none; font-weight:400; font-size:10px; margin-top:1px}
+.xp-brd{margin:4px 0 0; font-size:13px; font-weight:600; color:var(--ink)}
+.xp-brd.ok{color:var(--good)}
+.xp-brd.no{color:var(--crit)}
+.xp-brm{display:block; font-size:10px; font-weight:500; letter-spacing:.03em; margin-top:1px}
+.xp-brc{margin:3px 0 0; font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.xp-brj{margin:6px 0 0; font-size:11px; color:var(--ink-2); line-height:1.5}
+.xp-brj b{color:var(--ink)}
+
+/* EXP-03: as tres linhas do encontro com a recusa */
+.xp-403{margin:9px 0 0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-4l{display:grid; grid-template-columns:104px 1fr; gap:10px; padding:6px 10px;
+  border-top:1px solid var(--rule); background:var(--surface-2); font-size:11.5px; color:var(--ink-2)}
+.xp-4l:first-child{border-top:0}
+.xp-4k{font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.xp-4l code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink)}
+.xp-4l i{font-style:normal; color:var(--ink-3)}
+.xp-4n{color:var(--crit); font-variant-numeric:tabular-nums}
+.xp-4g{color:var(--good); font-weight:500}
+.xp-4r{color:var(--crit); font-weight:600}
+
+/* EXP-04: a tabela em que um contraexemplo apareceria na primeira linha */
+.xp-fil{display:flex; gap:5px; margin:9px 0 0; flex-wrap:wrap}
+.xp-fb{
+  padding:3px 9px; border:1px solid var(--rule-2); border-radius:2px; background:var(--surface);
+  color:var(--ink-2); font:inherit; font-size:10.5px; cursor:pointer;
+}
+.xp-fb:hover{border-color:var(--ink-3); color:var(--ink)}
+.xp-fb.on{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600}
+.xp-fb:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.xp-tb{margin:7px 0 0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.xp-tr{display:grid; grid-template-columns:1fr 84px 84px 92px; gap:8px; padding:5px 10px;
+  border-top:1px solid var(--rule); background:var(--surface); font-size:11px;
+  font-variant-numeric:tabular-nums; align-items:baseline}
+.xp-tr:first-child{border-top:0}
+.xp-th{background:var(--surface-2); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.xp-tr code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; color:var(--ink)}
+.xp-tr i{font-style:normal; color:var(--ink-3)}
+.xp-tm{color:var(--ink-3)}
+.xp-nota{margin:6px 0 0; font-size:10.5px; color:var(--ink-3); line-height:1.5}
+
+/* metodo e limitacoes: fechado por padrao, porque a amostra e o argumento */
+.xp-mais{
+  margin:9px 0 0; padding:0; border:0; background:none; color:var(--ink-3);
+  font:inherit; font-size:11px; cursor:pointer; letter-spacing:.02em;
+}
+.xp-mais:hover{color:var(--ink)}
+.xp-mais:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.xp-det{margin:6px 0 0; padding:9px 11px; border-left:2px solid var(--rule-2); background:var(--surface-2)}
+.xp-det p{margin:0 0 6px; font-size:11.5px; color:var(--ink-2); line-height:1.55}
+.xp-det p:last-child{margin-bottom:0}
+.xp-det b{color:var(--ink)}
+.xp-fonte{font-size:10.5px !important; color:var(--ink-3) !important}
+.xp-fonte code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px}
+.xp-topo p{font-size:12px}
+
 @media (max-width:560px){
   .xp-sc{flex-direction:column}
   .xp-sc>div{border-left:0; border-top:1px solid var(--rule)}
   .xp-sc>div:first-child{border-top:0}
   .xp-cb{margin-left:0; margin-top:6px}
+  /* os bracos empilham: lado a lado em 320px nao e comparacao, e tres colunas de 100px */
+  .xp-par, .xp-par.tres{grid-template-columns:1fr}
+  .xp-4l{grid-template-columns:1fr; gap:2px}
+  .xp-tr{grid-template-columns:1fr 54px 54px 54px; gap:6px}
 }
 
+/* ---------------- esqueleto de carregamento ----------------
+   O boot busca ~900 KB em quatro arquivos e so entao pinta: ate ai a area util fica
+   vazia, e vazio e indistinguivel de quebrado. O esqueleto ocupa a geometria real que
+   vai chegar — altura de .item na lista, altura de .card no painel — para que a
+   troca nao empurre nada quando os dados entram.
+
+   Sem gradiente varrendo: a pulsacao e da propria superficie, entre --surface-2 e
+   --plane, que sao as duas camadas que a pagina ja usa. */
+.sk{background:var(--surface-2); border-radius:2px; animation:sk 1.4s ease-in-out infinite}
+@keyframes sk{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* lista: mesma caixa do .item (34px de faixa + 7px de padding em cima e embaixo) */
+.sk-item{
+  display:grid; grid-template-columns:3px 1fr auto; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--hair); border-radius:3px;
+  padding:7px 9px 7px 0; margin-bottom:3px;
+}
+.sk-item .sk-st{width:3px; height:34px; border-radius:0}
+.sk-item .sk-n{height:9px; width:62%; margin-bottom:5px}
+.sk-item .sk-s{height:7px; width:38%}
+.sk-item .sk-v{height:9px; width:44px; justify-self:end}
+
+/* painel: um card de identificacao e dois de leitura, as alturas que de fato chegam */
+.sk-card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; margin-bottom:16px}
+.sk-hd{height:10px; width:120px; margin-bottom:14px}
+.sk-t{height:17px; width:46%; margin-bottom:7px}
+.sk-l{height:9px; margin-bottom:6px}
+.sk-plot{height:150px; border-radius:3px; margin-top:12px}
+
+/* O leitor de tela nao deve anunciar barra por barra: o bloco inteiro e um aviso so. */
+.sk-wrap{position:relative}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+
+/* ================= holdout ao vivo =================
+ * O agente resolvendo cenarios que nunca viu, com os passos aparecendo conforme
+ * acontecem. A tela e um log: o que ja passou fica, o que esta acontecendo pulsa.
+ */
+.hd-grid{display:grid; grid-template-columns:minmax(0,260px) minmax(0,1fr); gap:14px; align-items:start}
+@media (max-width:860px){.hd-grid{grid-template-columns:1fr}}
+
+.hd-cen{display:flex; flex-direction:column; gap:6px; max-height:62vh; overflow:auto; padding-right:4px}
+.hd-c{
+  text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:8px;
+  padding:9px 10px; cursor:pointer; display:block; width:100%; font:inherit; color:inherit;
+}
+.hd-c:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.hd-c:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.hd-c[aria-current="true"]{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.hd-c[disabled]{opacity:.5; cursor:not-allowed}
+.hd-c-t{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.hd-c-id{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent)}
+.hd-c-a{font-size:10.5px; color:var(--ink-3); font-family:var(--mono)}
+.hd-c-m{font-size:11.5px; color:var(--ink-2); line-height:1.5; margin-top:4px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+/* Veredito de uma execucao ja feita nesta sessao, no proprio card. */
+.hd-c-v{font-size:10.5px; font-weight:600; margin-top:5px; font-family:var(--mono)}
+.hd-c-v.ok{color:var(--good)}
+.hd-c-v.no{color:var(--crit)}
+
+.hd-pal{min-width:0}
+.hd-vazio{
+  border:1px dashed var(--line); border-radius:8px; padding:26px 18px; text-align:center;
+  color:var(--ink-3); font-size:12.5px; line-height:1.7;
+}
+
+/* Cabecalho da execucao: o que o agente recebeu. */
+.hd-caso{background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:11px 12px; margin-bottom:10px}
+.hd-caso-h{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap}
+.hd-caso-id{font-family:var(--mono); font-size:11.5px; font-weight:600}
+.hd-caso-meta{font-size:10.5px; color:var(--ink-3); font-family:var(--mono)}
+.hd-caso-m{font-size:12.5px; color:var(--ink); line-height:1.65; margin-top:7px; font-style:italic}
+
+/* O log de passos. Cada linha entra por cima, sem empurrar o que ja esta lido. */
+.hd-log{
+  border:1px solid var(--line); border-radius:8px; background:var(--surface);
+  max-height:44vh; overflow:auto; padding:6px;
+}
+.hd-l{
+  display:grid; grid-template-columns:15px minmax(0,1fr) auto; gap:8px; align-items:baseline;
+  padding:5px 7px; border-radius:5px; font-size:12px; line-height:1.5;
+  animation:hd-in .18s ease-out;
+}
+@keyframes hd-in{from{opacity:0; transform:translateY(-3px)}to{opacity:1; transform:none}}
+.hd-l + .hd-l{border-top:1px solid var(--line-2, var(--line))}
+.hd-l-ic{font-family:var(--mono); font-size:11px; text-align:center; color:var(--ink-3)}
+.hd-l-tx{min-width:0; word-break:break-word}
+.hd-l-rt{font-size:10.5px; color:var(--ink-3); font-family:var(--mono); white-space:nowrap}
+.hd-l code{font-family:var(--mono); font-size:11.5px}
+
+.hd-l.papel{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+.hd-l.papel .hd-l-tx{font-weight:600}
+.hd-l.achado{background:color-mix(in srgb, var(--good) 7%, transparent)}
+.hd-l.erro{background:color-mix(in srgb, var(--crit) 9%, transparent)}
+.hd-l.erro .hd-l-tx{color:var(--crit)}
+.hd-l .mode{font-size:10px; text-transform:uppercase; letter-spacing:.06em; padding:1px 5px;
+  border-radius:3px; border:1px solid var(--line); color:var(--ink-3)}
+.hd-l .mode.partial,.hd-l .mode.inconclusive{color:var(--warn); border-color:var(--warn)}
+.hd-l .mode.conflict,.hd-l .mode.unavailable{color:var(--crit); border-color:var(--crit)}
+.hd-l .st-err{color:var(--crit); font-weight:600}
+
+/* Barra de estado: rodando / terminou. */
+.hd-bar{display:flex; align-items:center; gap:9px; margin:10px 0 8px; flex-wrap:wrap}
+.hd-pulse{width:8px; height:8px; border-radius:50%; background:var(--accent); animation:hd-p 1s ease-in-out infinite}
+@keyframes hd-p{0%,100%{opacity:1}50%{opacity:.25}}
+.hd-st{font-size:12px; color:var(--ink-2); font-weight:500}
+.hd-tk{font-size:11px; color:var(--ink-3); font-family:var(--mono); margin-left:auto}
+
+/* Resposta final ao cliente. */
+.hd-resp{border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:0 8px 8px 0;
+  background:var(--surface-2); padding:11px 13px; margin-top:11px}
+.hd-resp h4{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin:0 0 6px}
+.hd-resp p{font-size:12.5px; line-height:1.7; margin:0; color:var(--ink)}
+.hd-dec{display:inline-block; font-family:var(--mono); font-size:11px; font-weight:600;
+  padding:2px 7px; border-radius:4px; border:1px solid var(--accent); color:var(--accent); margin-bottom:7px}
+
+/* Veredito: o gabarito, revelado so agora. */
+.hd-ver{margin-top:13px; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.hd-ver-h{display:flex; align-items:center; gap:9px; padding:9px 12px; background:var(--surface-2);
+  border-bottom:1px solid var(--line); flex-wrap:wrap}
+.hd-ver-h h4{margin:0; font-size:12.5px; font-weight:600}
+.hd-selo{font-family:var(--mono); font-size:11px; font-weight:700; padding:3px 9px; border-radius:4px}
+.hd-selo.ok{background:color-mix(in srgb, var(--good) 16%, transparent); color:var(--good)}
+.hd-selo.no{background:color-mix(in srgb, var(--crit) 14%, transparent); color:var(--crit)}
+.hd-ver-b{padding:11px 12px}
+.hd-ver-b p{font-size:12px; line-height:1.7; color:var(--ink-2); margin:0 0 9px}
+.hd-q{display:flex; gap:7px; align-items:baseline; font-size:11.5px; padding:4px 0; border-top:1px solid var(--line)}
+.hd-q:first-of-type{border-top:0}
+.hd-q-m{font-family:var(--mono); width:14px; text-align:center; flex:none}
+.hd-q-m.hit{color:var(--good)}
+.hd-q-m.miss{color:var(--crit)}
+.hd-q code{font-family:var(--mono); font-size:11px}
+.hd-q-n{color:var(--ink-3); font-size:11px; display:block; margin-top:2px; line-height:1.5}
+.hd-mets{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; padding-top:9px; border-top:1px solid var(--line)}
+.hd-met{font-size:11px; color:var(--ink-3)}
+.hd-met b{display:block; font-size:14px; color:var(--ink); font-family:var(--mono); font-weight:600}
+
+/* O holdout ao vivo precisa de mais largura que os outros dois modais: sao duas colunas
+   (lista de cenarios + log rolando) e o log tem `GET /assets/asset_M428/data-quality`
+   com anotacao do gabarito ao lado. A 620px do padrao isso quebra em duas linhas por
+   item e a leitura do que esta acontecendo se perde. */
+#hold{padding:24px 20px}
+#hold .eng-cx{max-width:1180px}
+#hold .hd-grid{grid-template-columns:minmax(0,300px) minmax(0,1fr); gap:18px}
+#hold .hd-cen{max-height:min(70vh, 720px)}
+#hold .hd-log{max-height:min(62vh, 640px)}
+@media (max-width:1000px){
+  #hold .hd-grid{grid-template-columns:1fr}
+  #hold .hd-cen{max-height:none}
+}
+
+/* Botao de executar. Selecionar um cenario e ler o que ele pede e uma coisa; gastar uma
+   chamada de LLM e outra — o clique que dispara precisa ser deliberado e proprio. */
+.hd-go{
+  display:inline-flex; align-items:center; gap:8px; margin-top:2px;
+  background:var(--accent); color:#fff; border:1px solid var(--accent);
+  border-radius:6px; padding:8px 15px; font:inherit; font-size:12.5px; font-weight:600;
+  cursor:pointer;
+}
+.hd-go:hover:not([disabled]){filter:brightness(1.08)}
+.hd-go:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.hd-go[disabled]{opacity:.55; cursor:not-allowed}
+.hd-go .go-i{font-size:11px}
+
+/* Cabecalho do cenario escolhido, antes de rodar: o que o agente vai receber. */
+.hd-prev{border:1px solid var(--line); border-radius:8px; padding:13px 14px; background:var(--surface)}
+.hd-prev-h{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap}
+.hd-prev-id{font-family:var(--mono); font-size:12px; font-weight:600}
+.hd-prev-m{font-size:13px; color:var(--ink); line-height:1.7; margin:9px 0 13px; font-style:italic}
+.hd-prev-n{font-size:11.5px; color:var(--ink-3); line-height:1.6; margin:11px 0 0}
+
+/* Botao + caixa do comite na previa. */
+.hd-acoes{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.hd-chk{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2); cursor:pointer}
+.hd-chk input{accent-color:var(--accent); width:14px; height:14px; cursor:pointer}
+.hd-chk:hover{color:var(--ink)}
+
+/* Enquanto o comite responde: as tres chamadas levam alguns segundos e o silencio
+   nesse intervalo se confunde com a tela ter travado. */
+.hd-jz-wait{
+  padding:11px 13px; margin-top:11px; font-size:12px; color:var(--ink-3);
+  border:1px dashed var(--line); border-radius:8px; animation:hd-p 1.4s ease-in-out infinite;
+}
+.hd-jz-erro{padding:11px 13px; margin-top:11px; font-size:12px; line-height:1.6;
+  color:var(--ink-2); border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:0 8px 8px 0}
+
+/* As notas. */
+.hd-jz{margin-top:13px; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.hd-jz .hd-ver-h{background:var(--surface-2)}
+.hd-jz-d{padding:9px 0; border-top:1px solid var(--line)}
+.hd-jz-d:first-child{border-top:0; padding-top:0}
+.hd-jz-h{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
+.hd-jz-t{font-size:12.5px; font-weight:600}
+.hd-jz-n{font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 8px; border-radius:4px;
+  border:1px solid var(--line); color:var(--ink-3)}
+.hd-jz-n.ok{color:var(--good); border-color:var(--good)}
+.hd-jz-n.med{color:var(--warn); border-color:var(--warn)}
+.hd-jz-n.no{color:var(--crit); border-color:var(--crit)}
+.hd-jz-r{font-size:11.5px; line-height:1.65; color:var(--ink-2); margin:5px 0 0}
+.hd-jz-m{font-size:10.5px; color:var(--ink-3); font-family:var(--mono); margin:4px 0 0}
+.hd-jz-av{font-size:11px; line-height:1.6; color:var(--ink-3); margin:11px 0 0;
+  padding-top:9px; border-top:1px solid var(--line)}
+.hd-selo.med{background:color-mix(in srgb, var(--warn) 18%, transparent); color:var(--warn)}
+
+/* Seletor do modelo do comite, na aba Configuracao. */
+.juiz-sel{
+  width:100%; max-width:520px; font:inherit; font-size:12px; font-family:var(--mono);
+  padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+  background:var(--surface); color:var(--ink); cursor:pointer;
+}
+.juiz-sel:hover{border-color:var(--ink-3)}
+.juiz-sel:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+/* Nota explicativa abaixo de um controle: menor e mais apagada que o texto do corpo,
+   porque e ressalva, nao instrucao. */
+.eng-esp{font-size:11.5px; line-height:1.65; color:var(--ink-3); margin:8px 0 0}
+/* O modelo ativo, ao lado da caixa do comite na previa do holdout. */
+.hd-chk-m{font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+  background:var(--surface-2); padding:1px 5px; border-radius:3px; border:1px solid var(--line)}
+
+/* Estado vazio: uma etiqueta discreta no alto, nao um paragrafo centralizado no meio da
+   coluna. Espaco vazio e uma resposta legitima — preenche-lo com texto so para nao
+   parecer vazio e o que faz a tela parecer gerada. */
+#hold .hd-vazio{
+  border:0; padding:2px 0 0; text-align:left; font-size:11.5px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3);
+}

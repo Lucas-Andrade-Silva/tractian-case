@@ -17,12 +17,13 @@
         <span class="eyebrow">API industrial &middot; dados técnicos e agente</span>
       </div>
       <h1>Leitura de Vibração</h1>
-      <p class="sub">O que os endpoints <code class="mono">/rms</code>, <code class="mono">/spectrum</code>, <code class="mono">/baseline</code> e <code class="mono">/data-quality</code> devolvem, desenhado na escala &mdash; nas três seeds da bateria. Abaixo de cada leitura, o que o agente decidiu sobre este mesmo ativo.</p>
+      <p class="sub">O que a API devolve em <code class="mono">/rms</code>, <code class="mono">/spectrum</code>, <code class="mono">/baseline</code> e <code class="mono">/data-quality</code>, nas três seeds &mdash; e o que o agente decidiu sobre o mesmo ativo.</p>
     </div>
     <div>
       <div class="switches">
-        <button class="sw" id="sw-exp">🧪 Experimentos</button>
-        <button class="sw" id="sw-eng">⚙ Configuração</button>
+        <button class="sw" id="sw-hold">Holdout ao vivo</button>
+        <button class="sw" id="sw-exp">Experimentos</button>
+        <button class="sw" id="sw-eng">Configuração</button>
       </div>
       <div class="src" id="src"></div>
     </div>
@@ -46,7 +47,7 @@
     <div class="eng-hd">
       <div>
         <h2 id="eng-t">Configuração</h2>
-        <p>Aparência da página e as escolhas de método que a bateria mediu.</p>
+
       </div>
       <button class="eng-x" id="eng-x" aria-label="Fechar">×</button>
     </div>
@@ -60,11 +61,25 @@
     <div class="eng-hd">
       <div>
         <h2 id="exp-t">Experimentos</h2>
-        <p>As cinco hipóteses que este projeto testou, o que cada uma provou e como reproduzi-la.</p>
+
       </div>
       <button class="eng-x" id="exp-x" aria-label="Fechar">×</button>
     </div>
     <div id="exp-corpo"></div>
+  </div>
+</div>
+
+<!-- holdout ao vivo: o agente resolvendo cenarios que ele nunca viu, passo a passo -->
+<div class="eng" id="hold" role="dialog" aria-modal="true" aria-labelledby="hold-t">
+  <div class="eng-cx">
+    <div class="eng-hd">
+      <div>
+        <h2 id="hold-t">Holdout ao vivo</h2>
+
+      </div>
+      <button class="eng-x" id="hold-x" aria-label="Fechar">×</button>
+    </div>
+    <div id="hold-corpo"></div>
   </div>
 </div>
 

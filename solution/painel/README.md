@@ -76,7 +76,7 @@ cotas e garante que nenhum juiz coincida com o gerador do gabarito, que é da Gr
 existe `JUDGE_PROVIDER`: herdar o provedor do agente era o que mandava a chave de um para
 o outro e produzia 401.
 
-Para fixar uma escolha que deu resultado, use as variáveis por dimensão em `agent/.env`:
+Para fixar uma escolha que deu resultado, use as variáveis por dimensão em `.env`:
 
 ```bash
 JUDGE_API_KEY=sk-or-...                 # chave do OpenRouter
@@ -110,7 +110,7 @@ A regra é estrutural, e por isso verificável:
 
 - o bundle separa `operacao` de `avaliacao` em seções irmãs por execução, e `operacao` não
   contém nenhum campo de gabarito;
-- [`js/batida-chamado.js`](js/batida-chamado.js) lê apenas `execucao.operacao` e não
+- `js/batida-chamado.js` (painel aposentado, em `_legado/`) lê apenas `execucao.operacao` e não
   importa nenhum módulo de avaliação.
 
 ```bash
@@ -167,10 +167,10 @@ todo — o default é que estava errado.
 Agora o padrão é a fase de produção, e julgar outra é escolha explícita
 (`--fase baseline`, ou `FASE=baseline make painel-julgar`). As fases aceitas vêm de
 `fases_de` sobre o próprio bundle, não de uma tupla no código: antes, `--fase conditional`
-era recusado pelo argparse e a bateria do EXP-06 não tinha como ser julgada, mesmo já
+era recusado pelo argparse e a bateria do EXP-05 não tinha como ser julgada, mesmo já
 aparecendo no painel. `tests/test_julgar_fase.py` trava as duas coisas.
 
-Vale a decisão de escopo junto: a fase `conditional` **não precisa** de juiz. O EXP-06 é
+Vale a decisão de escopo junto: a fase `conditional` **não precisa** de juiz. O EXP-05 é
 sobre custo e repetição, medidos por contador, e reporta 18/18 decisões idênticas — pagar
 comitê ali é medir uma dimensão que o experimento não usa.
 
@@ -185,7 +185,7 @@ O script sonda o modelo uma vez, fixa o método que funcionou e segue — sem qu
 `evaluation/runner/judges.py`, que é código avaliado da Parte 2, precise mudar. Um 429 na
 sonda é reportado como cota, não como incompatibilidade: são diagnósticos diferentes.
 
-O modelo sai de `JUDGE_MODEL` no `agent/.env` e pode ser trocado a cada chamada com
+O modelo sai de `JUDGE_MODEL` no `.env` e pode ser trocado a cada chamada com
 `--modelo`; qualquer id do OpenRouter serve, e os de sufixo `:free` não consomem crédito. A
 chave é `JUDGE_API_KEY` (gratuita em https://openrouter.ai/keys) e fica só no `.env` — não
 chega ao navegador, porque o painel lê a nota já gravada em `dados/juizes.json`.

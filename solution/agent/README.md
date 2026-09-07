@@ -16,7 +16,7 @@ O agente fala com o mundo exterior apenas por HTTP com a API industrial e por le
 
 ## Arquitetura
 
-Multiagente com supervisor, em LangGraph ([ADR 0001](../docs/adr/0001-langgraph-multiagente-com-supervisor.md)):
+Multiagente com supervisor, em LangGraph ([ADR 0001](../docs/ARCHITECTURE.md#31-multiagente-com-supervisor-em-vez-de-um-agente-só)):
 
 ```
 START → supervisor ─┬→ investigador   ⇄ tools ─┐
@@ -33,12 +33,12 @@ START → supervisor ─┬→ investigador   ⇄ tools ─┐
 | Decisor | Pesa a evidência e resolve orientar/agir/escalar | nenhuma (por design) |
 | Executor | Executa na plataforma a ação que o Decisor determinou | 5 |
 
-**Roteamento híbrido** ([ADR 0002](../docs/adr/0002-roteamento-hibrido-transicao-fixa-para-executor.md)): o LLM
+**Roteamento híbrido** ([ADR 0002](../docs/ARCHITECTURE.md#33-roteamento-híbrido-o-llm-decide-o-meio-o-código-decide-o-fim)): o LLM
 escolhe entre investigar, contextualizar e decidir; a transição Decisor → Executor é fixa
 em código e só ocorre sobre uma decisão formal. Nenhuma ação de impacto pode acontecer
 sem passar pelo Decisor — isso é garantido pela estrutura do grafo, não por prompt.
 
-**Permissões** ([ADR 0003](../docs/adr/0003-enforcement-de-permissoes-via-api.md)): a política vive no
+**Permissões** ([ADR 0003](../docs/ARCHITECTURE.md#34-permissão-deixar-a-api-recusar-em-vez-de-bloquear-antes)): a política vive no
 prompt; o enforcement é da API, que rejeita com 403. O agente não é bloqueado antes de
 tentar — é assim que os cenários CEN-14/15/16 conseguem avaliar como ele reage a uma
 recusa.
@@ -64,7 +64,7 @@ em vez de investigar indefinidamente sem nunca responder nem escalar.
 
 ```bash
 make my-setup                        # cria .venv (raiz) e instala agent/ + evaluation/
-cp agent/.env.example agent/.env     # e preencha LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
+cp .env.example .env     # e preencha LLM_PROVIDER / LLM_MODEL / LLM_API_KEY
 uv pip install --python .venv/Scripts/python.exe -e "./solution/agent[groq]"   # extra do provedor
 
 make up                              # sobe a API industrial em :8000
@@ -81,7 +81,7 @@ Cada execução grava um JSON em `../evaluation/results/traces/`, com o campo `s
 mesmo formato do golden set (`"GET /assets/asset_G501"`), qual papel fez cada chamada, o
 `mode` do envelope, as decisões de roteamento, os achados de cada papel e a resolução
 final. É esse arquivo — não o LangSmith — que a Parte 2 lê
-([ADR 0004](../docs/adr/0004-trace-local-desacoplado-do-langsmith.md)).
+([ADR 0004](../docs/ARCHITECTURE.md#35-trace-local-não-langsmith)).
 
 ## Testes
 
